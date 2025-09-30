@@ -1,24 +1,70 @@
-# Logs
-logs
+# =========================
+# OS / 환경 관련
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Node.js / React 프로젝트
+# =========================
+node_modules/
+dist/
+build/
+.env
+.env.*     # e.g., .env.development, .env.production
+.vite/     # Vite 캐시 디렉토리
+
+# =========================
+# Java / Spring 프로젝트
+# =========================
+*.class
+*.jar
+*.war
 *.log
+*.iml
+
+target/
+out/
+bin/
+
+# =========================
+# IDE / Editor
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# =========================
+# OS 임시 파일
+# =========================
+*.tmp
+*.temp
+
+# =========================
+# Test coverage
+# =========================
+coverage/
+.nyc_output/
+
+# =========================
+# Logs
+# =========================
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# =========================
+# 기타
+# =========================
 *.local
+*.bak
+*.old
+.env.*
+**.idea
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+__pycache__/
+*.pyc
+stt-normalizer-python/__pycache__/app.cpython-311.pyc
+node_modules

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 const DocumentItem = ({ title, date, from, to }) => (
   <div className="flex items-start py-4 border-b border-slate-100 last:border-b-0">
@@ -24,7 +25,12 @@ const DocumentCard = () => {
     <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm h-full">
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-lg font-bold text-slate-800">최근 문서</h2>
-        <a href="#" className="text-sm text-indigo-600 font-semibold hover:underline">전체보기</a>
+        <Link 
+  to="/dashboardhome/DashDocuments"
+  className="text-sm text-indigo-600 font-semibold hover:underline"
+>
+  전체보기
+</Link>
       </div>
       <div className="mt-4">
         {documents.map((doc, index) => (

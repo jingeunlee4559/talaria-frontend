@@ -101,7 +101,7 @@ const TranscriptSidebar = () => {
                     </>
                 );
             case 'transcript':
-                return <div className="text-center text-slate-500 pt-16">대화 기록 기능이 여기에 표시됩니다.</div>;
+                return <div className="text-center text-slate-500 pt-16">파일 목록이 표시됩니다.</div>;
             case 'chat':
                 return (
                     <div className="h-full flex flex-col">
@@ -134,7 +134,7 @@ const TranscriptSidebar = () => {
         <div className="w-full h-full bg-slate-50 border-l border-slate-200 flex flex-col">
             <div className="flex-shrink-0 flex space-x-2 p-2 border-b border-slate-200 bg-white/80 backdrop-blur-sm">
                 <button onClick={() => setActiveTab('translate')} className={getTabClass('translate')}>번역</button>
-                <button onClick={() => setActiveTab('transcript')} className={getTabClass('transcript')}>대화 기록</button>
+                <button onClick={() => setActiveTab('transcript')} className={getTabClass('transcript')}>파일 목록</button>
                 <button onClick={() => setActiveTab('chat')} className={getTabClass('chat')}>채팅</button>
             </div>
             <div className="flex-grow p-4 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">

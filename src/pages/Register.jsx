@@ -69,8 +69,8 @@ const Register = () => {
 
   return (
     // 전체 컨테이너: 모바일(p-4)부터 데스크톱(sm:p-8)까지 반응형 패딩, 화면 중앙 정렬
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4 sm:p-8 font-['Inter']">
-      <div className="w-full max-w-md bg-white p-6 sm:p-8 rounded-xl shadow-2xl">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-8 sm:p-5 font-['Inter']">
+      <div className="w-full max-w-4xl bg-white p-6 sm:p-8 rounded-xl shadow-2xl">
         
         {/* 헤더 및 로고 */}
         <header className="flex flex-col items-center mb-8">

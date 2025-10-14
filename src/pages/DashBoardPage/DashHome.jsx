@@ -12,7 +12,7 @@ import { CalendarIcon, ChartBarIcon, DocumentAddIcon, DocumentIcon, LanguageIcon
 const DashHome = () => {
   return (
     <div className="bg-slate-50 min-h-screen">
-      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+      <div className="max-w-8xl mx-auto p-4 sm:p-6 lg:p-8">
         <header className="mb-8">
           <h1 className="text-4xl font-bold text-slate-800">대시보드</h1>
           <p className="text-slate-500 mt-2">환영합니다! 오늘의 활동을 확인하세요.</p>

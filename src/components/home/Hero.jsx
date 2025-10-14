@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 // 컴파일 오류를 해결하기 위해 react-icons/fi 대신 이모지(Emoji)로 대체했습니다.
 // import { FiMic, FiSend } from 'react-icons/fi'; 
 
@@ -13,6 +14,12 @@ const Hero = () => {
         setSelectedPhrase(phrase);
         setInputPhrase(''); // 퀵 프레이즈 선택 시 입력 필드 초기화
     };
+
+      const navigate = useNavigate();
+
+  const handleStartClick = () => {
+    navigate("/Register");
+  };
 
     // 데모를 위한 정적 번역 데이터 (실제 번역 API 호출이 아닌 상태 변화만 시뮬레이션)
     const staticTranslations = {
@@ -56,7 +63,7 @@ const Hero = () => {
                 className="absolute top-0 left-0 w-full h-full object-cover z-0 opacity-20"
             >
                 {/* 동영상 파일 경로를 확인해주세요. */}
-                <source src="/video/back1.mp4" type="video/mp4" />
+                <source src="/video/back2.mp4" type="video/mp4" />
                 Your browser does not support the video tag.
             </video>
 
@@ -76,7 +83,7 @@ const Hero = () => {
                         실시간 영상 번역과 AI 회의록으로 글로벌 비즈니스 커뮤니케이션을 혁신하세요.
                     </p>
                     <div className="mt-8 flex justify-center md:justify-start">
-                        <button className="bg-purple-600 text-white font-bold text-lg py-3 px-8 rounded-full shadow-xl hover:bg-purple-700 transition-all duration-300 transform hover:scale-105 active:scale-95 ease-in-out">
+                        <button    onClick={handleStartClick} className="bg-purple-600 text-white font-bold text-lg py-3 px-8 rounded-full shadow-xl hover:bg-purple-700 transition-all duration-300 transform hover:scale-105 active:scale-95 ease-in-out">
                             무료로 시작하기
                         </button>
                     </div>

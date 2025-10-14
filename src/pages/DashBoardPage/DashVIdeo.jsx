@@ -117,7 +117,7 @@ const DashVIdeo = () => {
 
   return (
    <div className="bg-slate-50 min-h-screen p-4 sm:p-8">
-  <div className="max-w-7xl mx-auto">
+  <div className="max-w-8xl mx-auto">
     <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 sm:gap-0">
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-800">영상회의</h1>

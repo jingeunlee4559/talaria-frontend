@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { EyeIcon, GoogleIcon } from '../components/icons/icons';
+import { Link, useNavigate } from 'react-router-dom';
 
 // --- 메인 로그인 페이지 컴포넌트 ---
 const LoginPage = () => {
@@ -7,11 +8,14 @@ const LoginPage = () => {
     const [password, setPassword] = useState('');
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
+     const navigate = useNavigate();
+
     const handleLogin = (e) => {
         e.preventDefault();
         // 실제 로그인 로직 구현
         console.log('로그인 시도:', { email, password });
         console.log("Navigating to /dashboard...");
+        navigate("/Dashboardhome");
       
     };
     
@@ -143,9 +147,9 @@ const LoginPage = () => {
                     <p className="text-sm text-gray-600">
                         계정이 없으신가요? 
                         {/* **수정된 부분: useNavigate 역할을 하는 NavLinkButton 사용** */}
-                        <NavLinkButton to="/signup" className="ml-1">
+                        <Link to="/Register" className="ml-1">
                             회원가입
-                        </NavLinkButton>
+                        </Link>
                     </p>
                 </div>
             </div>

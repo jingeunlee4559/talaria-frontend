@@ -26,6 +26,11 @@ const Navs = () => {
       });
     }
   };
+  
+    const handleStartClick = () => {
+      navigate("/Register");
+    };
+  
 
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">
@@ -62,7 +67,7 @@ const Navs = () => {
           <Link to="/login" className="text-gray-600 hover:text-purple-600 transition-colors">
             로그인
           </Link>
-          <button className="bg-gray-800 text-white font-semibold py-2 px-4 rounded-md hover:bg-gray-700 transition-colors">
+          <button onClick={handleStartClick} className="bg-gray-800 text-white font-semibold py-2 px-4 rounded-md hover:bg-gray-700 transition-colors">
             무료로 시작하기
           </button>
         </div>

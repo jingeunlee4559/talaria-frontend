@@ -120,7 +120,7 @@ const DashDocuments = () => {
 
     return (
 <div className="bg-slate-50 min-h-screen p-6 sm:p-8 font-sans" style={{ fontFamily: 'Inter, sans-serif' }}>
-  <div className="max-w-7xl mx-auto">
+  <div className="max-w-8xl mx-auto">
     {/* 헤더 */}
     <header className="mb-6 sm:mb-8">
       <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-800">문서 & 회의록</h1>

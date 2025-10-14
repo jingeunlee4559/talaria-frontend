@@ -7,7 +7,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         { name: '대시보드', icon: FiHome, path: '/dashboardhome' },
         { name: '영상 회의', icon: FiVideo, path: '/dashboardhome/DashVideo' },
         { name: '문서 관리', icon: FiFileText, path: '/dashboardhome/DashDocuments' },
-        { name: '설정', icon: FiSettings, path: '/dashboard/settings' },
+        { name: '설정', icon: FiSettings, path: '/dashboardhome/settings' },
     ];
 
     return (

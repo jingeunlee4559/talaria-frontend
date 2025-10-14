@@ -7,12 +7,14 @@ import DashboardLayout from '../layouts/DashboardLayout';
 import DashHome from '../pages/DashBoardPage/DashHome';
 import DashVIdeo from '../pages/DashBoardPage/DashVIdeo';
 import DashDocuments from '../pages/DashBoardPage/DashDocuments';
+import LoginPage from '../pages/LoginPage';
 
 const Approuter = () => {
     return (
         <Routes>
             <Route element={<MainLayout />}>
                 <Route path="/" element={<Home />} />
+                <Route path="/Login" element={<LoginPage />} />
                 {/* <Route path="/Board" element={<Board />} /> */}
             </Route>
 

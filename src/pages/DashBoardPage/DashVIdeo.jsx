@@ -116,40 +116,41 @@ const DashVIdeo = () => {
   }
 
   return (
-    <div className="bg-slate-50 min-h-screen p-8">
-      <div className="max-w-7xl mx-auto">
-        <header className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-800">영상회의</h1>
-            <p className="text-slate-500 mt-1">예정된 영상회의를 확인하고 참여하거나 새로운 회의를 시작하세요.</p>
-         
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={handleStartSession}
-              className="bg-blue-600 text-white font-semibold px-5 py-2.5 rounded-lg shadow-sm hover:bg-blue-700 transition-colors flex items-center"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              새 회의 시작
-            </button>
-          </div>
-        </header>
+   <div className="bg-slate-50 min-h-screen p-4 sm:p-8">
+  <div className="max-w-7xl mx-auto">
+    <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 sm:gap-0">
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-800">영상회의</h1>
+        <p className="text-sm sm:text-base text-slate-500 mt-1">
+          예정된 영상회의를 확인하고 참여하거나 새로운 회의를 시작하세요.
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={handleStartSession}
+          className="bg-blue-600 text-white font-semibold px-3 py-2 sm:px-5 sm:py-2.5 rounded-lg shadow-sm hover:bg-blue-700 transition-colors flex items-center text-sm sm:text-base"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+          새 회의 시작
+        </button>
+      </div>
+    </header>
 
-        <FilterTabs filters={filters} activeFilter={activeFilter} setActiveFilter={setActiveFilter} />
-   <main className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+    <FilterTabs filters={filters} activeFilter={activeFilter} setActiveFilter={setActiveFilter} />
+
+    <main className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-6">
       {filteredMeetings.map(meeting => (
         <MeetingCard
           key={meeting.id}
           {...meeting}
-          // handleJoinMeeting에 meeting 정보를 넘겨줍니다.
           onJoinMeeting={() => handleJoinMeeting(meeting.id, meeting.title)}
         />
       ))}
     </main>
-      </div>
-    </div>
+  </div>
+</div>
   );
 };
 

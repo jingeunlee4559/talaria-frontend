@@ -119,66 +119,64 @@ const DashDocuments = () => {
     const activeList = activeTab === '번역 문서' ? documents : mockMinutes;
 
     return (
-        <div className="bg-slate-50 min-h-screen p-8" style={{ fontFamily: 'Inter, sans-serif' }}>
-            <script src="https://cdn.tailwindcss.com"></script>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-            <div className="max-w-7xl mx-auto">
-                {/* 헤더 */}
-                <header className="mb-8">
-                    <h1 className="text-3xl font-extrabold text-slate-800">문서 & 회의록 대시보드</h1>
-                    <p className="text-slate-500 mt-1">과거의 모든 기록을 찾아보고 원하는 정보를 탐색하세요.</p>
-                </header>
+<div className="bg-slate-50 min-h-screen p-6 sm:p-8 font-sans" style={{ fontFamily: 'Inter, sans-serif' }}>
+  <div className="max-w-7xl mx-auto">
+    {/* 헤더 */}
+    <header className="mb-6 sm:mb-8">
+      <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-800">문서 & 회의록</h1>
+      <p className="text-slate-500 mt-1 text-sm sm:text-base">과거의 모든 기록을 찾아보고 원하는 정보를 탐색하세요.</p>
+    </header>
 
-                {/* 검색 & 필터 */}
-                <div className="flex justify-between items-center mb-6">
-                    <div className="relative w-full max-w-md">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <SearchIcon className="text-slate-400" />
-                        </div>
-                        <input
-                            type="text"
-                            placeholder="문서 또는 회의록 검색..."
-                            className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition shadow-sm"
-                        />
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <button className="flex items-center bg-white border border-slate-300 text-slate-700 font-semibold px-4 py-2 rounded-lg hover:bg-slate-50 transition shadow-sm">
-                            <FilterIcon />
-                            필터
-                        </button>
-                        <button className="bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-700 transition shadow-md">
-                            새 문서 등록
-                        </button>
-                    </div>
-                </div>
-
-                {/* 탭 */}
-                <div className="border-b border-slate-200 mb-6">
-                    <nav className="flex space-x-6">
-                        <TabButton title="번역 문서" isActive={activeTab === '번역 문서'} onClick={() => setActiveTab('번역 문서')} />
-                        <TabButton title="회의록" isActive={activeTab === '회의록'} onClick={() => setActiveTab('회의록')} />
-                    </nav>
-                </div>
-
-                {/* 목록 */}
-                <main>
-                    {activeList.length > 0 ? (
-                        activeTab === '번역 문서' ? (
-                            <DocumentList documents={documents} onItemClick={handleItemClick} />
-                        ) : (
-                            <MeetingMinutesList minutes={mockMinutes} onItemClick={handleItemClick} />
-                        )
-                    ) : (
-                        <div className="text-center py-10 text-slate-500 bg-white rounded-xl border border-slate-200">
-                            <p>검색 결과가 없습니다.</p>
-                        </div>
-                    )}
-                </main>
-            </div>
-
-            {/* 모달 렌더링 */}
-            <DocumentModal isOpen={isModalOpen} onClose={handleCloseModal} itemData={selectedItem} />
+    {/* 검색 & 필터 */}
+    <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+      <div className="relative w-full max-w-md">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <SearchIcon className="text-slate-400" />
         </div>
+        <input
+          type="text"
+          placeholder="문서 또는 회의록 검색..."
+          className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition shadow-sm"
+        />
+      </div>
+      <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
+        <button className="flex items-center justify-center bg-white border border-slate-300 text-slate-700 font-semibold px-4 py-2 rounded-lg hover:bg-slate-50 transition shadow-sm w-full sm:w-auto">
+          <FilterIcon />
+          <span className="ml-2">필터</span>
+        </button>
+        <button className="bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-700 transition shadow-md w-full sm:w-auto">
+          새 문서 등록
+        </button>
+      </div>
+    </div>
+
+    {/* 탭 */}
+    <div className="border-b border-slate-200 mb-6">
+      <nav className="flex flex-wrap gap-4 space-x-0 sm:space-x-6">
+        <TabButton title="번역 문서" isActive={activeTab === '번역 문서'} onClick={() => setActiveTab('번역 문서')} />
+        <TabButton title="회의록" isActive={activeTab === '회의록'} onClick={() => setActiveTab('회의록')} />
+      </nav>
+    </div>
+
+    {/* 목록 */}
+    <main>
+      {activeList.length > 0 ? (
+        activeTab === '번역 문서' ? (
+          <DocumentList documents={documents} onItemClick={handleItemClick} />
+        ) : (
+          <MeetingMinutesList minutes={mockMinutes} onItemClick={handleItemClick} />
+        )
+      ) : (
+        <div className="text-center py-10 text-slate-500 bg-white rounded-xl border border-slate-200">
+          <p>검색 결과가 없습니다.</p>
+        </div>
+      )}
+    </main>
+  </div>
+
+  {/* 모달 렌더링 */}
+  <DocumentModal isOpen={isModalOpen} onClose={handleCloseModal} itemData={selectedItem} />
+</div>
     );
 };
 

@@ -1,20 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useDataChannel }  from '@livekit/components-react';;
+import { useDataChannel }  from '@livekit/components-react';import { LanguageArrowIcon, SendIcon } from '../../icons/icons';
+import DocumentItem from '../dashDoc/DocumentItem';
+;
 
-// --- 아이콘 컴포넌트 (UI 개선용) ---
-const SendIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-        <path d="M3.105 2.289a.75.75 0 00-.826.95l1.414 4.949a.75.75 0 00.95.826L11.25 9.25v1.5l-7.595 1.266a.75.75 0 00-.95.826l1.414 4.949a.75.75 0 00.95.826l12.605-2.101a.75.75 0 00.424-1.218L3.105 2.29z" />
-    </svg>
-);
-
-const LanguageArrowIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-400 mx-1">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-    </svg>
-);
-
-const TranscriptSidebar = () => {
+const TranscriptSidebar = ({documents = [],onItemClick }) => {
     const [translationMessages, setTranslationMessages] = useState([]);
     const [chatMessages, setChatMessages] = useState([]);
     const [chatInput, setChatInput] = useState('');
@@ -100,8 +89,25 @@ const TranscriptSidebar = () => {
                         <div ref={translationEndRef} />
                     </>
                 );
-            case 'transcript':
-                return <div className="text-center text-slate-500 pt-16">파일 목록이 표시됩니다.</div>;
+ case 'transcript':
+  return (
+    <div className="flex-grow p-4 overflow-visible scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
+  {documents.length === 0 ? (
+    <p className="text-center text-slate-500 py-12">등록된 문서가 없습니다.</p>
+  ) : (
+    <div className="space-y-3 relative">
+      {documents.map(doc => (
+        <DocumentItem
+          key={doc.id}
+          {...doc}
+          onClick={onItemClick}
+          className="hover:shadow-lg transition-shadow cursor-pointer"
+        />
+      ))}
+    </div>
+  )}
+</div>
+  );
             case 'chat':
                 return (
                     <div className="h-full flex flex-col">

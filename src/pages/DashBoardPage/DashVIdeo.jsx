@@ -142,8 +142,8 @@ const DashVIdeo = () => {
         name: '참가자 닉네임'              // ❗️ 참여자 이름 (실제로는 로그인된 유저 닉네임 사용)
       });
 
-    console.log("✅ 백엔드에서 받은 응답:", response);
-    console.log("✅ LiveKit 접속에 사용할 토큰:", response.token);
+       console.log("✅ 백엔드에서 받은 응답:", response);
+      console.log("✅ LiveKit 접속에 사용할 토큰:", response.token);
 
       const { wsUrl, token } = response; // 응답에서 wsUrl과 token 추출
 

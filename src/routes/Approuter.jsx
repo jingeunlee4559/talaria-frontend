@@ -13,6 +13,7 @@ import ProfileSettings from '../pages/DashBoardPage/Dashsettings/ProfileSettings
 import NotificationSettings from '../pages/DashBoardPage/Dashsettings/NotificationSettings';
 import SecuritySettings from '../pages/DashBoardPage/Dashsettings/SecuritySettings';
 import SettingsLayout from '../pages/DashBoardPage/Dashsettings/SettingsLayout';
+import MeetingPage from '../components/dashboard/dashvideo/MeetingPage';
 
 const Approuter = () => {
     return (
@@ -23,7 +24,7 @@ const Approuter = () => {
                 <Route path="/Register" element={<Register />} />
                 {/* <Route path="/Board" element={<Board />} /> */}
             </Route>
-
+        
             <Route element={<DashboardLayout />}>
                 <Route path="/dashboardHome" element={<DashHome />} />
                 <Route path="/dashboardHome/DashVideo" element={<DashVIdeo />} />
@@ -34,6 +35,8 @@ const Approuter = () => {
                     <Route path="security" element={<SecuritySettings />} />
                 </Route>
             </Route>
+
+             <Route path="/meeting" element={<MeetingPage />} />
         </Routes>
     );
 };

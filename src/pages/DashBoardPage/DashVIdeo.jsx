@@ -3,8 +3,9 @@ import FilterTabs from '../../components/dashboard/dashvideo/FilterTabs';
 import MeetingCard from '../../components/dashboard/dashvideo/MeetingCard';
 // import api from '../../axios';
 import CustomVideoConference from '../../components/dashboard/dashvideo/CustomVideoUI';
-import { getLiveKitToken } from '../../services/livekitService';
 import Pagination from '../../components/Pagination';
+import Lobby from '../../components/dashboard/dashvideo/Lobby';
+import Swal from 'sweetalert2';
 
 const mockMeetings = [
   { id: 1, title: '10월 2주차 주간 보고 회의', status: '진행중', participants: 3, date: '2025년 10월 2일', time: '오후 2:00' },
@@ -25,176 +26,213 @@ const mockMeetings = [
   { id: 16, title: '월간 마케팅 전략 회의', status: '예정', participants: 5, date: '2025년 10월 4일', time: '오전 11:00' },
   { id: 17, title: '월간 마케팅 전략 회의', status: '예정', participants: 5, date: '2025년 10월 4일', time: '오전 11:00' },
   { id: 18, title: '월간 마케팅 전략 회의', status: '종료', participants: 5, date: '2025년 10월 4일', time: '오전 11:00' },
+  
 ];
 
 
 const DashVIdeo = () => {
-  const [activeFilter, setActiveFilter] = useState('전체');
-  const filters = ['전체', '진행중', '예정', '종료'];
-  const [meetingState, setMeetingState] = useState({
-    inMeeting: false,
-    token: null,
-    serverUrl: null,
-  });
+    const [activeFilter, setActiveFilter] = useState('전체');
+    const [meetings, setMeetings] = useState(mockMeetings);
+    const filters = ['전체', '진행중', '예정', '종료'];
+    const MEETINGS_PER_PAGE = 6;
+    const [currentPage, setCurrentPage] = useState(1);
+    
+    // ❗ view, currentMeeting, liveKitState 등 모든 상태를 제거합니다.
+    // ❗ LayoutContext 관련 useEffect도 제거합니다.
 
-  const MEETINGS_PER_PAGE = 6;
-   const [currentPage, setCurrentPage] = useState(1);
+    const filteredMeetings = useMemo(() => 
+        meetings.filter(meeting => (activeFilter === '전체' ? true : meeting.status === activeFilter)),
+        [meetings, activeFilter] // meetings가 변경될 때마다 재계산
+    );
 
-//   const [session, setSession] = useState(null);
-//   const [messages, setMessages] = useState([]);
-//   const wsRef = useRef(null);
+    const totalPages = Math.ceil(filteredMeetings.length / MEETINGS_PER_PAGE);
 
-  // ✅ 페이지 로드 시 URL 파라미터를 확인하여 회의 UI를 바로 렌더링할지 결정
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const inMeeting = params.get('inMeeting') === 'true';
-    const token = params.get('token');
-    const serverUrl = params.get('serverUrl');
-
-    if (inMeeting && token && serverUrl) {
-      setMeetingState({
-        inMeeting: true,
-        token: token,
-        serverUrl: serverUrl,
-      });
-    }
-  }, []); // 컴포넌트 마운트 시 한 번만 실행
-
-  const filteredMeetings = mockMeetings.filter(meeting => (activeFilter === '전체' ? true : meeting.status === activeFilter));
-
-  const totalPages = Math.ceil(filteredMeetings.length / MEETINGS_PER_PAGE);
-
-  // 현재 페이지에 보여줄 회의 목록만 잘라내기 (useMemo로 성능 최적화)
     useEffect(() => {
-    setCurrentPage(1);
-  }, [activeFilter]);
+        setCurrentPage(1);
+    }, [activeFilter]);
 
-  const currentMeetings = useMemo(() => {
-    const firstPageIndex = (currentPage - 1) * MEETINGS_PER_PAGE;
-    const lastPageIndex = firstPageIndex + MEETINGS_PER_PAGE;
-    return filteredMeetings.slice(firstPageIndex, lastPageIndex);
-  }, [currentPage, filteredMeetings]);
+    const currentMeetings = useMemo(() => {
+        const firstPageIndex = (currentPage - 1) * MEETINGS_PER_PAGE;
+        const lastPageIndex = firstPageIndex + MEETINGS_PER_PAGE;
+        return filteredMeetings.slice(firstPageIndex, lastPageIndex);
+    }, [currentPage, filteredMeetings]);
 
-  // 페이지 변경 시 실행될 함수
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
-    window.scrollTo(0, 0); // 페이지 변경 시 맨 위로 스크롤
-  };
+    const handlePageChange = (page) => {
+        setCurrentPage(page);
+        window.scrollTo(0, 0);
+    };
 
+    // ✅ '참여' 버튼을 누르면 새 창을 여는 로직으로 변경합니다.
+    const handleJoinMeeting = (meetingId, meetingTitle) => {
+        // 1. 새 창에서 열 URL을 생성합니다. (경로: /meeting)
+        const url = new URL('/meeting', window.location.origin);
+        
+        // 2. URL 파라미터에 회의 ID와 제목을 추가합니다.
+        url.searchParams.set('id', meetingId);
+        url.searchParams.set('title', meetingTitle);
 
-  const handleStartSession = async () => {
-    // try {
-    //   const { data } = await api.post('/sessions');
-    //   setSession(data);
-    //   console.log('SESSION STARTED:', data);
-    // } catch (e) {
-    //   console.error('세션 생성 실패:', e);
-    //   alert('세션 생성 실패');
-    // }
-  };
+        // 3. 새 창 또는 탭을 엽니다.
+        window.open(url.toString(), '_blank', 'noopener,noreferrer');
+    };
 
-  // ✅ 회의 참여 핸들러 수정
-  const handleJoinMeeting = async (meetingId, meetingTitle) => {
-    try {
-      // ❗️ 1. 백엔드 API를 호출하여 토큰과 wsUrl을 동적으로 발급받습니다.
-      const response = await getLiveKitToken({
-        room: meetingId.toString(),         // 방 이름으로 회의 ID 사용
-        identity: 'user-' + Date.now(),   // ❗️ 참여자 고유 ID (실제로는 로그인된 유저 ID/이메일 사용)
-        name: '참가자 닉네임'              // ❗️ 참여자 이름 (실제로는 로그인된 유저 닉네임 사용)
-      });
+const handleStartNewMeeting = async () => {
+    // 1. 첫 번째 모달: 회의 제목 입력
+    const { value: title } = await Swal.fire({
+        title: '회의 제목 입력',
+        input: 'text',
+        inputPlaceholder: '예: 4분기 실적 보고 회의',
+        confirmButtonText: '다음 &rarr;',
+        showCancelButton: true,
+        cancelButtonText: '취소',
+        confirmButtonColor: '#7c3aed',
+        // ✅ customClass 옵션으로 input 스타일 지정
+        customClass: {
+            input: 'custom-swal-input'
+        },
+        inputValidator: (value) => {
+            if (!value) {
+                return '회의 제목을 입력해야 합니다!';
+            }
+        }
+    });
 
-       console.log("✅ 백엔드에서 받은 응답:", response);
-      console.log("✅ LiveKit 접속에 사용할 토큰:", response.token);
+    // 제목을 입력했으면 (취소하지 않았으면)
+    if (!title) return;
 
-      const { wsUrl, token } = response; // 응답에서 wsUrl과 token 추출
+    // 2. 두 번째 모달: 날짜 입력
+    const { value: date } = await Swal.fire({
+        title: '날짜 선택',
+        input: 'date',
+        confirmButtonText: '다음 &rarr;',
+        showCancelButton: true,
+        cancelButtonText: '취소',
+        confirmButtonColor: '#7c3aed',
+        // ✅ 동일한 customClass 적용
+        customClass: {
+            input: 'custom-swal-input'
+        }
+    });
 
-      // ❗️ 2. 백엔드에서 받은 정보로 URL을 생성합니다.
-      const url = new URL(window.location.href);
-      url.searchParams.set('inMeeting', 'true');
-      url.searchParams.set('token', token);       // 👈 백엔드에서 받은 토큰
-      url.searchParams.set('serverUrl', wsUrl); // 👈 백엔드에서 받은 WebSocket URL
-      console.log(token,"backetoken");
-      
+    if (!date) return;
 
-      // 3. 새 창 열기
-      window.open(url.toString(), '_blank', 'noopener,noreferrer');
+    // 3. 세 번째 모달: 시간 입력
+    const { value: time } = await Swal.fire({
+        title: '시간 선택',
+        input: 'time',
+        confirmButtonText: '회의 예약',
+        showCancelButton: true,
+        cancelButtonText: '취소',
+        confirmButtonColor: '#7c3aed',
+        // ✅ 동일한 customClass 적용
+        customClass: {
+            input: 'custom-swal-input'
+        }
+    });
 
-    } catch (error) {
-      console.error(error);
-      alert(error.message); // 사용자에게 에러 알림
-    }
-  };
+    // 시간까지 모두 입력했으면 최종 처리
+    if (time) {
+        // --- 입력받은 데이터로 새 회의 객체 생성 ---
+        const newMeetingId = `new-${Date.now()}`;
 
-  // ✅ 회의 나가기 핸들러: 새 창에서 열렸을 경우 창을 닫도록 수정
-  const handleLeaveMeeting = () => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('inMeeting') === 'true') {
-        window.close(); // 새 창에서 실행된 경우 창 닫기
-    } else {
-        // 기존 로직 (같은 창에서 열렸을 경우를 대비)
-        setMeetingState({
-            inMeeting: false,
-            token: null,
-            serverUrl: null,
+        // 날짜 포맷팅 (예: 2025년 10월 15일)
+        const formattedDate = new Intl.DateTimeFormat('ko-KR', {
+            year: 'numeric', month: 'long', day: 'numeric'
+        }).format(new Date(date));
+        
+        // 시간 포맷팅 (예: 오후 2:30)
+        const [hour, minute] = time.split(':');
+        const hourNum = parseInt(hour, 10);
+        const period = hourNum >= 12 ? '오후' : '오전';
+        const formattedHour = hourNum % 12 || 12;
+        const formattedTime = `${period} ${formattedHour}:${minute}`;
+
+        const newMeeting = {
+            id: newMeetingId,
+            title: title,
+            status: '예정',
+            participants: 1,
+            date: formattedDate,
+            time: formattedTime,
+        };
+        
+        setMeetings(prevMeetings => [newMeeting, ...prevMeetings]);
+
+        Swal.fire({
+            icon: 'success',
+            title: '예약 완료!',
+            text: `'${title}' 회의가 성공적으로 예약되었습니다.`,
+            timer: 2000,
+            showConfirmButton: false,
         });
     }
-  };
+};
 
-  // 만약 회의에 참여 중이라면, 커스텀 UI를 렌더링
-  if (meetingState.inMeeting) {
+    // ❗ handleConfirmJoin, handleLeaveMeeting 함수와 조건부 렌더링 로직을 모두 제거합니다.
+    
     return (
-      <CustomVideoConference
-        token={meetingState.token}
-        serverUrl={meetingState.serverUrl}
-        onLeave={handleLeaveMeeting}
-      />
-    );
-  }
-
-  
-
-  return (
-   <div className="bg-slate-50 min-h-screen p-4 sm:p-8">
-  <div className="max-w-8xl mx-auto">
-    <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 sm:gap-0">
+        <div className="bg-slate-50 min-h-screen p-4 sm:p-8">
+            <div className="max-w-8xl mx-auto">
+    <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+      {/* 제목 & 설명 */}
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-800">영상회의</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-800">
+          영상회의
+        </h1>
         <p className="text-sm sm:text-base text-slate-500 mt-1">
           예정된 영상회의를 확인하고 참여하거나 새로운 회의를 시작하세요.
         </p>
       </div>
-      <div className="flex flex-wrap gap-2">
+
+      {/* 새 회의 시작 버튼 */}
+      <div>
         <button
-          onClick={handleStartSession}
-          className="bg-blue-600 text-white font-semibold px-3 py-2 sm:px-5 sm:py-2.5 rounded-lg shadow-sm hover:bg-blue-700 transition-colors flex items-center text-sm sm:text-base"
+          onClick={handleStartNewMeeting}
+          className="
+            flex items-center justify-center gap-2 w-full sm:w-auto
+            px-5 py-2.5 
+            bg-purple-600 text-white 
+            font-semibold rounded-lg shadow-md
+            hover:bg-purple-700 
+            focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75
+            transition-all duration-200 ease-in-out
+          "
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          {/* + 아이콘 */}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
           </svg>
-          새 회의 시작
+          <span>새 회의 시작</span>
         </button>
       </div>
     </header>
 
-    <FilterTabs filters={filters} activeFilter={activeFilter} setActiveFilter={setActiveFilter} />
+                <FilterTabs filters={filters} activeFilter={activeFilter} setActiveFilter={setActiveFilter} />
 
-    <main className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-6">
-      {currentMeetings.map(meeting => (
-        <MeetingCard
-          key={meeting.id}
-          {...meeting}
-          onJoinMeeting={() => handleJoinMeeting(meeting.id, meeting.title)}
-        />
-      ))}
-    </main>
-    <Pagination
-      currentPage={currentPage}
-      totalPages={totalPages}
-      onPageChange={handlePageChange}
-    />
-  </div>
-</div>
-  );
+                <main className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-6">
+                    {currentMeetings.map(meeting => (
+                        <MeetingCard
+                            key={meeting.id}
+                            {...meeting}
+                            // 변경된 핸들러를 연결합니다.
+                            onJoinMeeting={() => handleJoinMeeting(meeting.id, meeting.title)}
+                        />
+                    ))}
+                </main>
+                <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={handlePageChange}
+                />
+            </div>
+        </div>
+    );
 };
 
 export default DashVIdeo;

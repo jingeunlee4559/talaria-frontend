@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { FiHome, FiVideo, FiFileText, FiSettings, FiX } from 'react-icons/fi';
 
-const Sidebar = ({ isOpen, setIsOpen }) => {
+const Sidebar = ({ isOpen, setIsOpen,className  }) => {
     const menuItems = [
         { name: '대시보드', icon: FiHome, path: '/dashboardhome' },
         { name: '영상 회의', icon: FiVideo, path: '/dashboardhome/DashVideo' },
@@ -33,6 +33,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                     md:w-20 md:hover:w-64 
 
                     flex flex-col p-4 w-64 
+                    ${className}
                 `}
             >
                 {/* 로고 & 모바일 닫기 버튼 */}

@@ -8,10 +8,13 @@ import {
   RoomContext,
   RoomAudioRenderer,
   LayoutContextProvider,
+  useParticipants,
 } from '@livekit/components-react';
 import { Room, Track } from 'livekit-client';
 import '@livekit/components-styles';
 import TranscriptSidebar from './TranscriptSidebar';
+import { FiCopy } from 'react-icons/fi';
+import Swal from 'sweetalert2';
 
 const mockTranscripts = [
   { type: 'translation', speakerName: 'John Smith', originalText: 'I think we should focus on the Asian market first.', translatedText: '먼저 아시아 시장에 집중해야 한다고 생각합니다.', langFrom: '영어', langTo: '한국어', time: '14:23' },
@@ -95,10 +98,94 @@ function CustomVideoGrid() {
   );
 }
 
+
+const ConferenceUI = ({ room, onLeave }) => {
+  // 이제 이 컴포넌트는 RoomContext.Provider의 '내부'에 있으므로 훅을 안전하게 사용할 수 있습니다.
+  const participants = useParticipants();
+  const participantCount = participants.length;
+
+  const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+
+  const handleCopyLink = () => {
+    const currentUrl = window.location.href;
+    navigator.clipboard.writeText(currentUrl).then(() => {
+      Swal.fire({
+        icon: 'success',
+        title: '복사 완료!',
+        text: '회의 주소가 클립보드에 복사되었습니다.',
+        timer: 1500,
+        showConfirmButton: false,
+        width: '350px',
+        toast: true,
+        position: 'top-end',
+      });
+    }).catch(err => {
+      console.error('주소 복사에 실패했습니다:', err);
+      Swal.fire({
+        icon: 'error',
+        title: '복사 실패',
+        text: '주소를 복사하는 데 실패했습니다. 다시 시도해주세요.',
+        confirmButtonColor: '#d33',
+      });
+    });
+  };
+
+  return (
+    <LayoutContextProvider>
+      <div data-lk-theme="default" className="w-full h-screen flex flex-col md:flex-row bg-slate-800">
+        <main className="w-full h-[60vh] md:h-full flex-grow relative flex flex-col">
+          <div className="absolute top-4 left-4 z-10 bg-black/50 p-2 rounded text-white text-sm">
+            <p className="font-bold">Global Marketing Strategy Meeting</p>
+            <p className="text-xs">{participantCount > 0 ? `${participantCount} participant(s)` : 'Connecting...'}</p>
+          </div>
+
+          <div className="flex-grow relative overflow-hidden">
+            <CustomVideoGrid />
+            <SubtitleOverlay />
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center bg-slate-900 px-4 py-2 shadow-md rounded-t-lg gap-2">
+            <ControlBar variation="minimal" />
+            <button onClick={handleCopyLink} title="회의 주소 복사" className="lk-button lk-button-icon">
+              <FiCopy size={20} />
+            </button>
+            <button
+              onClick={() => setIsSidebarVisible(!isSidebarVisible)}
+              aria-pressed={isSidebarVisible}
+              data-lk-active={isSidebarVisible}
+              className="lk-button lk-button-icon"
+              title="Transcript"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" >
+                <path d="M4 6h16M4 12h16M4 18h12" />
+              </svg>
+            </button>
+          </div>
+          
+          <button
+            onClick={onLeave}
+            className="absolute top-4 right-4 bg-red-600 text-white px-3 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors z-50 text-sm"
+          >
+            나가기
+          </button>
+        </main>
+
+        {isSidebarVisible && (
+          <aside className="w-full h-[40vh] md:w-[340px] md:h-full flex-shrink-0 bg-slate-700 transition-all duration-300">
+            <TranscriptSidebar documents={documents} />
+          </aside>
+        )}
+
+        <RoomAudioRenderer />
+        <DataSender />
+      </div>
+    </LayoutContextProvider>
+  );
+};
+
+// ✅ FIX 2: 부모 컴포넌트는 이제 Room 생성, 연결, Provider 제공 역할만 합니다.
 const CustomVideoConference = ({ token, serverUrl, onLeave }) => {
   const [room] = useState(() => new Room({ adaptiveStream: true, dynacast: true }));
-  const [participantCount, setParticipantCount] = useState(1);
-  const [isSidebarVisible, setIsSidebarVisible] = useState(true);
 
   useEffect(() => {
     const link = document.createElement('link');
@@ -111,103 +198,28 @@ const CustomVideoConference = ({ token, serverUrl, onLeave }) => {
   }, []);
 
   useEffect(() => {
-    const updateParticipantCount = () => setParticipantCount(room.participants.size + 1);
+    if (!token || !serverUrl) return;
 
-    let mounted = true;
     const connectToRoom = async () => {
-      console.log('--- Attempting to connect ---');
-      console.log('Server URL:', serverUrl);
-      console.log('Token:', token);
-      if (mounted) {
-        try {
-          await room.connect(serverUrl, token);
-          updateParticipantCount();
-          room.on('participantConnected', updateParticipantCount);
-          room.on('participantDisconnected', updateParticipantCount);
-        } catch (error) {
-          console.error('LiveKit connection failed:', error);
-        }
+      try {
+        await room.connect(serverUrl, token);
+        console.log('✅ Successfully connected!');
+      } catch (error) {
+        console.error('❌ LiveKit connection failed:', error);
       }
     };
+
     connectToRoom();
 
     return () => {
-      mounted = false;
-      room.off('participantConnected', updateParticipantCount);
-      room.off('participantDisconnected', updateParticipantCount);
       room.disconnect();
+      console.log('--- Disconnected ---');
     };
   }, [room, serverUrl, token]);
-
+  
   return (
     <RoomContext.Provider value={room}>
-      <LayoutContextProvider>
-        {/* 전체 반응형 컨테이너 */}
-        <div data-lk-theme="default" className="w-full h-screen flex flex-col md:flex-row bg-slate-800">
-          
-          {/* 메인 비디오 영역 */}
-          <main className="w-full h-[60vh] md:h-full flex-grow relative flex flex-col">
-            <div className="absolute top-4 left-4 z-10 bg-black/50 p-2 rounded text-white text-sm">
-              <p className="font-bold">Global Marketing Strategy Meeting</p>
-              <p className="text-xs">{participantCount} participant(s)</p>
-            </div>
-
-            <div className="flex-grow relative overflow-hidden">
-              <CustomVideoGrid />
-              <SubtitleOverlay />
-            </div>
-
-<div className="flex flex-wrap items-center justify-center bg-slate-900 px-4 py-2 shadow-md rounded-t-lg gap-2">
-  {/* 🎥 LiveKit ControlBar (아이콘 전용) */}
-  <ControlBar
-    className="flex items-center gap-2"
-    variation="minimal" // 불필요한 레이블 제거
-  />
-
-  {/* 🗒️ Transcript 버튼 (아이콘 전용) */}
-  <button
-    onClick={() => setIsSidebarVisible(!isSidebarVisible)}
-    aria-pressed={isSidebarVisible}
-    data-lk-active={isSidebarVisible}
-    className={`lk-button lk-button-icon flex items-center justify-center 
-                text-white hover:text-blue-400 transition-colors duration-150 ease-in-out`}
-    title="Transcript"  // hover 시 툴팁 표시
-  >
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M4 6h16M4 12h16M4 18h12" />
-    </svg>
-  </button>
-</div>
-            {/* 나가기 버튼 */}
-            <button
-              onClick={onLeave}
-              className="absolute top-4 right-4 bg-red-600 text-white px-3 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors z-50 text-sm"
-            >
-              나가기
-            </button>
-          </main>
-
-          {/* 사이드바 (반응형 크기) */}
-          {isSidebarVisible && (
-            <aside className="w-full h-[40vh] md:w-[340px] md:h-full flex-shrink-0 bg-slate-700 transition-all duration-300">
-              <TranscriptSidebar documents={documents} />
-            </aside>
-          )}
-
-          <RoomAudioRenderer />
-          <DataSender />
-        </div>
-      </LayoutContextProvider>
+      <ConferenceUI room={room} onLeave={onLeave} />
     </RoomContext.Provider>
   );
 };

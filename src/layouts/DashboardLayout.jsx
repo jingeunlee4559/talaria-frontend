@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
-import DashBoardHeader from '../components/dashboard/DashBoardHeader';
+import DashBoardHeader from '../components/dashboard/dashboardHeader/DashBoardHeader';
 
 const DashboardLayout = () => {
   // 모바일 사이드바 열림/닫힘 상태

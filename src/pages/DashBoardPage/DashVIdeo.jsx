@@ -1,9 +1,10 @@
-import React, {useState, useEffect } from 'react';
+import React, {useState, useEffect, useMemo } from 'react';
 import FilterTabs from '../../components/dashboard/dashvideo/FilterTabs';
 import MeetingCard from '../../components/dashboard/dashvideo/MeetingCard';
 // import api from '../../axios';
 import CustomVideoConference from '../../components/dashboard/dashvideo/CustomVideoUI';
 import { getLiveKitToken } from '../../services/livekitService';
+import Pagination from '../../components/Pagination';
 
 const mockMeetings = [
   { id: 1, title: '10월 2주차 주간 보고 회의', status: '진행중', participants: 3, date: '2025년 10월 2일', time: '오후 2:00' },
@@ -12,6 +13,18 @@ const mockMeetings = [
   { id: 4, title: '월간 마케팅 전략 회의', status: '예정', participants: 5, date: '2025년 10월 4일', time: '오전 11:00' },
   { id: 5, title: '월간 마케팅 전략 회의', status: '예정', participants: 5, date: '2025년 10월 4일', time: '오전 11:00' },
   { id: 6, title: '월간 마케팅 전략 회의', status: '종료', participants: 5, date: '2025년 10월 4일', time: '오전 11:00' },
+  { id: 7, title: '월간 마케팅 전략 회의', status: '예정', participants: 5, date: '2025년 10월 4일', time: '오전 11:00' },
+  { id: 8, title: '월간 마케팅 전략 회의', status: '예정', participants: 5, date: '2025년 10월 4일', time: '오전 11:00' },
+  { id: 9, title: '월간 마케팅 전략 회의', status: '종료', participants: 5, date: '2025년 10월 4일', time: '오전 11:00' },
+  { id: 10, title: '10월 2주차 주간 보고 회의', status: '진행중', participants: 3, date: '2025년 10월 2일', time: '오후 2:00' },
+  { id: 11, title: '신규 프로젝트 기획 회의', status: '예정', participants: 2, date: '2025년 10월 2일', time: '오후 4:00' },
+  { id: 12, title: '디자인 시스템 리뷰 및 피드백', status: '예정', participants: 4, date: '2025년 10월 3일', time: '오전 10:00' },
+  { id: 13, title: '월간 마케팅 전략 회의', status: '예정', participants: 5, date: '2025년 10월 4일', time: '오전 11:00' },
+  { id: 14, title: '월간 마케팅 전략 회의', status: '예정', participants: 5, date: '2025년 10월 4일', time: '오전 11:00' },
+  { id: 15, title: '월간 마케팅 전략 회의', status: '종료', participants: 5, date: '2025년 10월 4일', time: '오전 11:00' },
+  { id: 16, title: '월간 마케팅 전략 회의', status: '예정', participants: 5, date: '2025년 10월 4일', time: '오전 11:00' },
+  { id: 17, title: '월간 마케팅 전략 회의', status: '예정', participants: 5, date: '2025년 10월 4일', time: '오전 11:00' },
+  { id: 18, title: '월간 마케팅 전략 회의', status: '종료', participants: 5, date: '2025년 10월 4일', time: '오전 11:00' },
 ];
 
 
@@ -23,6 +36,9 @@ const DashVIdeo = () => {
     token: null,
     serverUrl: null,
   });
+
+  const MEETINGS_PER_PAGE = 6;
+   const [currentPage, setCurrentPage] = useState(1);
 
 //   const [session, setSession] = useState(null);
 //   const [messages, setMessages] = useState([]);
@@ -45,6 +61,26 @@ const DashVIdeo = () => {
   }, []); // 컴포넌트 마운트 시 한 번만 실행
 
   const filteredMeetings = mockMeetings.filter(meeting => (activeFilter === '전체' ? true : meeting.status === activeFilter));
+
+  const totalPages = Math.ceil(filteredMeetings.length / MEETINGS_PER_PAGE);
+
+  // 현재 페이지에 보여줄 회의 목록만 잘라내기 (useMemo로 성능 최적화)
+    useEffect(() => {
+    setCurrentPage(1);
+  }, [activeFilter]);
+
+  const currentMeetings = useMemo(() => {
+    const firstPageIndex = (currentPage - 1) * MEETINGS_PER_PAGE;
+    const lastPageIndex = firstPageIndex + MEETINGS_PER_PAGE;
+    return filteredMeetings.slice(firstPageIndex, lastPageIndex);
+  }, [currentPage, filteredMeetings]);
+
+  // 페이지 변경 시 실행될 함수
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo(0, 0); // 페이지 변경 시 맨 위로 스크롤
+  };
+
 
   const handleStartSession = async () => {
     // try {
@@ -115,6 +151,8 @@ const DashVIdeo = () => {
     );
   }
 
+  
+
   return (
    <div className="bg-slate-50 min-h-screen p-4 sm:p-8">
   <div className="max-w-8xl mx-auto">
@@ -141,7 +179,7 @@ const DashVIdeo = () => {
     <FilterTabs filters={filters} activeFilter={activeFilter} setActiveFilter={setActiveFilter} />
 
     <main className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-6">
-      {filteredMeetings.map(meeting => (
+      {currentMeetings.map(meeting => (
         <MeetingCard
           key={meeting.id}
           {...meeting}
@@ -149,6 +187,11 @@ const DashVIdeo = () => {
         />
       ))}
     </main>
+    <Pagination
+      currentPage={currentPage}
+      totalPages={totalPages}
+      onPageChange={handlePageChange}
+    />
   </div>
 </div>
   );

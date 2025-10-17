@@ -1,28 +1,59 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useDataChannel }  from '@livekit/components-react';import { LanguageArrowIcon, SendIcon } from '../../icons/icons';
+import { useDataChannel, useLocalParticipant } from '@livekit/components-react';
+import { LanguageArrowIcon, SendIcon } from '../../icons/icons';
 import DocumentItem from '../dashDoc/DocumentItem';
-;
 
-const TranscriptSidebar = ({documents = [],onItemClick }) => {
+// 👇 1. 참가자의 닉네임을 안전하게 가져오는 헬퍼 함수를 추가합니다.
+// 이 함수는 컴포넌트 외부에 있어도 되고, 내부에 있어도 됩니다.
+const getParticipantNickname = (participant) => {
+  // 참가자 정보가 없는 경우를 대비합니다.
+  if (!participant) return 'Unknown'; 
+  
+  try {
+    // metadata는 문자열이므로 JSON 객체로 파싱합니다.
+    const metadata = JSON.parse(participant.metadata);
+    // metadata에 nickname이 있으면 그것을, 없으면 원래의 identity를 반환합니다.
+    // Lobby에서 username을 사용했으므로, metadata.username을 확인합니다.
+    return metadata?.username || participant.identity;
+  } catch (error) {
+    // metadata가 없거나 JSON 형식이 아닐 경우, identity를 기본값으로 사용합니다.
+    return participant.identity;
+  }
+};
+
+
+const TranscriptSidebar = ({ documents = [], onItemClick }) => {
     const [translationMessages, setTranslationMessages] = useState([]);
     const [chatMessages, setChatMessages] = useState([]);
     const [chatInput, setChatInput] = useState('');
     const [activeTab, setActiveTab] = useState('translate');
     
     const { message, send } = useDataChannel('translation_data');
+    const { localParticipant } = useLocalParticipant(); 
     const translationEndRef = useRef(null);
     const chatEndRef = useRef(null);
 
-    // 수신 메시지 처리
+   // 수신 메시지 처리
     useEffect(() => {
-        if (message) {
+        if (message && message.from) {
+            if (message.from.isLocal) {
+                return; 
+            }
             try {
                 const textDecoder = new TextDecoder();
-                const msg = JSON.parse(textDecoder.decode(message.payload));
-                if (msg.type === 'translation') {
-                    setTranslationMessages(prev => [...prev, msg]);
-                } else if (msg.type === 'chat') {
-                    setChatMessages(prev => [...prev, msg]);
+                const msgData = JSON.parse(textDecoder.decode(message.payload));
+                
+                const fullMessage = {
+                    ...msgData,
+                    // 👇 2. 발신자 이름 대신 '닉네임'을 가져오도록 수정합니다.
+                    sender: getParticipantNickname(message.from), 
+                    isLocal: false,
+                };
+
+                if (fullMessage.type === 'translation') {
+                    setTranslationMessages(prev => [...prev, fullMessage]);
+                } else if (fullMessage.type === 'chat') {
+                    setChatMessages(prev => [...prev, fullMessage]);
                 }
             } catch (error) {
                 console.error("Failed to parse message payload:", error);
@@ -40,16 +71,24 @@ const TranscriptSidebar = ({documents = [],onItemClick }) => {
 
     // 채팅 메시지 전송
     const handleSendMessage = () => {
-        if (!chatInput.trim() || !send) return;
-        const newChatMessage = {
+        if (!chatInput.trim() || !send || !localParticipant) return;
+        
+        const messagePayload = {
             type: 'chat',
-            sender: 'Me', // 실제 앱에서는 사용자 이름으로 변경
             text: chatInput,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         };
         const textEncoder = new TextEncoder();
-        send(textEncoder.encode(JSON.stringify(newChatMessage)));
-        setChatMessages(prev => [...prev, newChatMessage]); // 내 화면에 바로 표시
+        send(textEncoder.encode(JSON.stringify(messagePayload)));
+        
+        const newChatMessage = {
+            ...messagePayload,
+            // 👇 3. 내 화면에 표시할 이름도 '닉네임'을 사용하도록 수정합니다.
+            sender: getParticipantNickname(localParticipant),
+            isLocal: true,
+        };
+
+        setChatMessages(prev => [...prev, newChatMessage]);
         setChatInput('');
     };
     
@@ -89,38 +128,40 @@ const TranscriptSidebar = ({documents = [],onItemClick }) => {
                         <div ref={translationEndRef} />
                     </>
                 );
- case 'transcript':
-  return (
-    <div className="flex-grow p-4 overflow-visible scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
-  {documents.length === 0 ? (
-    <p className="text-center text-slate-500 py-12">등록된 문서가 없습니다.</p>
-  ) : (
-    <div className="space-y-3 relative">
-      {documents.map(doc => (
-        <DocumentItem
-          key={doc.id}
-          {...doc}
-          onClick={onItemClick}
-          className="hover:shadow-lg transition-shadow cursor-pointer"
-        />
-      ))}
-    </div>
-  )}
-</div>
-  );
+            case 'transcript':
+                return (
+                    <div className="flex-grow p-4 overflow-visible scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
+                        {documents.length === 0 ? (
+                            <p className="text-center text-slate-500 py-12">등록된 문서가 없습니다.</p>
+                        ) : (
+                            <div className="space-y-3 relative">
+                                {documents.map(doc => (
+                                    <DocumentItem
+                                        key={doc.id}
+                                        {...doc}
+                                        onClick={onItemClick}
+                                        className="hover:shadow-lg transition-shadow cursor-pointer"
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                );
             case 'chat':
                 return (
                     <div className="h-full flex flex-col">
                         <div className="flex-grow space-y-4 pr-1">
                             {chatMessages.map((msg, i) => (
-                                <div key={i} className={`flex items-end gap-2 ${msg.sender === 'Me' ? 'justify-end' : 'justify-start'}`}>
-                                    {msg.sender !== 'Me' && <div className="w-7 h-7 bg-slate-200 rounded-full flex-shrink-0"></div>}
+                                // 👇 4. 렌더링 로직은 변경할 필요 없습니다.
+                                // msg.sender에 이미 닉네임이 담겨 있기 때문입니다.
+                                <div key={i} className={`flex items-end gap-2 ${msg.isLocal ? 'justify-end' : 'justify-start'}`}>
+                                    {!msg.isLocal && <div className="w-7 h-7 bg-slate-200 rounded-full flex-shrink-0"></div>}
                                     <div>
-                                        {msg.sender !== 'Me' && <p className="text-xs text-slate-500 mb-1 ml-2">{msg.sender}</p>}
-                                        <div className={`rounded-2xl px-4 py-2 max-w-xs lg:max-w-sm ${msg.sender === 'Me' ? 'bg-blue-600 text-white rounded-br-lg' : 'bg-white text-slate-800 border border-slate-200 rounded-bl-lg'}`}>
+                                        {!msg.isLocal && <p className="text-xs text-slate-500 mb-1 ml-2">{msg.sender}</p>}
+                                        <div className={`rounded-2xl px-4 py-2 max-w-xs lg:max-w-sm ${msg.isLocal ? 'bg-blue-600 text-white rounded-br-lg' : 'bg-white text-slate-800 border border-slate-200 rounded-bl-lg'}`}>
                                             <p className="text-sm break-words">{msg.text}</p>
                                         </div>
-                                        <p className={`text-xs mt-1 ${msg.sender === 'Me' ? 'text-slate-400 text-right mr-1' : 'text-slate-400 ml-1'}`}>{msg.time}</p>
+                                        <p className={`text-xs mt-1 ${msg.isLocal ? 'text-slate-400 text-right mr-1' : 'text-slate-400 ml-1'}`}>{msg.time}</p>
                                     </div>
                                 </div>
                             ))}
@@ -161,4 +202,5 @@ const TranscriptSidebar = ({documents = [],onItemClick }) => {
         </div>
     );
 };
+
 export default TranscriptSidebar;

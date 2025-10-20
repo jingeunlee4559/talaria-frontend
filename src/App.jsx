@@ -10,6 +10,9 @@ function App() {
   useEffect(() => {
   Aos.init({ duration: 1000 });
 }, []);
+useEffect(() => {
+  console.log("🌐 환경변수 확인:", import.meta.env);
+}, []);
 
     return (
         <>

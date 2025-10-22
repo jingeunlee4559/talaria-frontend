@@ -1,7 +1,6 @@
 import React from 'react';
 
-import { VideoIcon, StarIcon, CalendarIcon, ClockIcon, UsersIcon, ShareIcon, MoreIcon,DownloadIcon } from '../../icons/icons';
-
+import { VideoIcon, StarIcon, CalendarIcon, ClockIcon, UsersIcon, ShareIcon, MoreIcon, DownloadIcon } from '../../icons/icons';
 
 // 개별 회의록 항목 컴포넌트 (모달 호출 기능 추가)
 const MeetingMinutesItem = ({ onClick, ...minute }) => (
@@ -11,7 +10,13 @@ const MeetingMinutesItem = ({ onClick, ...minute }) => (
     >
         <div className="flex-shrink-0 mr-4">
             <div className="p-3 bg-purple-100 text-purple-600 rounded-full">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M11.35 3.82L4.35 10.82M17.35 3.82L24.35 10.82M4 22h16c1.1 0 2-0.9 2-2V4c0-1.1-0.9-2-2-2H4C2.9 2 2 2.9 2 4v16C2 21.1 2.9 22 4 22zM8 8h8M8 12h8M8 16h5" /></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                    <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M11.35 3.82L4.35 10.82M17.35 3.82L24.35 10.82M4 22h16c1.1 0 2-0.9 2-2V4c0-1.1-0.9-2-2-2H4C2.9 2 2 2.9 2 4v16C2 21.1 2.9 22 4 22zM8 8h8M8 12h8M8 16h5"
+                    />
+                </svg>
             </div>
         </div>
         <div className="flex-grow">

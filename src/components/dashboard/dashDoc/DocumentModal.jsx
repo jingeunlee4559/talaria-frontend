@@ -1,6 +1,6 @@
 // src/components/DocumentModal.js
-import { useRef, useState,useEffect } from "react";
-import { CopyIcon, CloseIcon, DownloadIcon,AIIcon,SearchIcon, ParticipantsIcon, DurationIcon, CalendarIcon } from '../../icons/icons'; // 아이콘 import
+import { useRef, useState, useEffect } from 'react';
+import { CopyIcon, CloseIcon, DownloadIcon, AIIcon, SearchIcon, ParticipantsIcon, DurationIcon, CalendarIcon } from '../../icons/icons'; // 아이콘 import
 
 const DocumentModal = ({ isOpen, onClose, itemData }) => {
     if (!isOpen || !itemData) return null;
@@ -36,7 +36,7 @@ const DocumentModal = ({ isOpen, onClose, itemData }) => {
         }
         document.body.removeChild(textarea);
     };
-    
+
     // Esc 키를 눌러 모달 닫기
     useEffect(() => {
         const handleEscape = (event) => {
@@ -52,28 +52,26 @@ const DocumentModal = ({ isOpen, onClose, itemData }) => {
         };
     }, [isOpen, onClose]);
 
-
     // 회의록 내용 렌더링 함수
     const renderMeetingMinutes = (minutes) => {
-        
         return (
             <div className="flex flex-col flex-grow overflow-y-auto">
                 {/* 1. 상단 정보 */}
-       <div className="p-4 flex items-center text-sm text-slate-600 border-b border-slate-100 bg-white sticky top-0 z-10">
-    <span className="font-medium mr-4 flex items-center">
-        <CalendarIcon />
-        {minutes.date}
-    </span>
-    <span className="font-medium mr-4 flex items-center">
-        <DurationIcon />
-        {minutes.duration}
-    </span>
-    <span className="font-medium flex items-center">
-        <ParticipantsIcon />
-        {minutes.participants}명
-    </span>
-</div>
-                
+                <div className="p-4 flex items-center text-sm text-slate-600 border-b border-slate-100 bg-white sticky top-0 z-10">
+                    <span className="font-medium mr-4 flex items-center">
+                        <CalendarIcon />
+                        {minutes.date}
+                    </span>
+                    <span className="font-medium mr-4 flex items-center">
+                        <DurationIcon />
+                        {minutes.duration}
+                    </span>
+                    <span className="font-medium flex items-center">
+                        <ParticipantsIcon />
+                        {minutes.participants}명
+                    </span>
+                </div>
+
                 {/* 2. 영상 재생 영역 (플레이스홀더) */}
                 {/* <div className="relative w-full h-48 bg-slate-900 flex items-center justify-center flex-shrink-0">
                     <div className="absolute top-3 left-3 px-3 py-1 bg-black bg-opacity-50 text-white text-xs rounded-full">실제 녹화 영상</div>
@@ -91,18 +89,19 @@ const DocumentModal = ({ isOpen, onClose, itemData }) => {
 
                 {/* 3. AI 요약, 주제, 대화 기록을 담는 컨테이너 (스크롤 가능) */}
                 <div className="p-6 flex flex-col flex-grow bg-white overflow-y-auto space-y-8">
-                    
                     {/* 3-A. AI 요약 */}
                     <div className="rounded-xl p-5 border border-yellow-200 bg-yellow-50">
                         <h3 className="text-xl font-bold flex items-center text-slate-800 mb-3">
                             <AIIcon /> AI 회의 요약
                         </h3>
-                        
+
                         {/* 결정 사항 */}
                         <div className="mb-4">
                             <h4 className="font-bold text-base text-slate-700 mb-2 border-b border-slate-200 pb-1">결정 사항</h4>
                             <ul className="list-disc ml-5 text-slate-700 space-y-1 text-sm">
-                                {minutes.aiSummary.decisions.map((d, i) => <li key={i}>{d}</li>)}
+                                {minutes.aiSummary.decisions.map((d, i) => (
+                                    <li key={i}>{d}</li>
+                                ))}
                             </ul>
                         </div>
 
@@ -132,7 +131,7 @@ const DocumentModal = ({ isOpen, onClose, itemData }) => {
                             ))}
                         </div>
                     </div>
-                    
+
                     {/* 3-C. 대화 기록 */}
                     <div>
                         <h3 className="text-lg font-bold text-slate-800 mb-4 border-t pt-4 border-slate-100">대화 기록</h3>
@@ -151,10 +150,10 @@ const DocumentModal = ({ isOpen, onClose, itemData }) => {
                         <div className="space-y-4">
                             {minutes.transcript.map((t, i) => (
                                 <div key={i} className="flex items-start p-3 bg-white rounded-lg hover:bg-slate-50 transition border border-slate-100">
-                                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white mr-3 
-                                        ${t.speaker === '김' ? 'bg-green-500' : 
-                                        t.speaker === 'J' ? 'bg-blue-500' : 
-                                        t.speaker === '田' ? 'bg-red-500' : 'bg-gray-500'}`}>
+                                    <div
+                                        className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white mr-3 
+                                        ${t.speaker === '김' ? 'bg-green-500' : t.speaker === 'J' ? 'bg-blue-500' : t.speaker === '田' ? 'bg-red-500' : 'bg-gray-500'}`}
+                                    >
                                         {t.speaker}
                                     </div>
                                     <div className="flex-grow">
@@ -163,7 +162,9 @@ const DocumentModal = ({ isOpen, onClose, itemData }) => {
                                                 {/* 화자 이름 표시 로직 */}
                                                 {t.speaker === 'J' ? 'John Smith' : t.speaker === '田' ? '田中太郎' : t.speaker === '김' ? '김철수' : '기타'}
                                             </span>
-                                            <span className="text-xs text-blue-600 font-medium cursor-pointer hover:underline" onClick={() => console.log(`Seek to ${t.timestamp}`)}>{t.timestamp}</span>
+                                            <span className="text-xs text-blue-600 font-medium cursor-pointer hover:underline" onClick={() => console.log(`Seek to ${t.timestamp}`)}>
+                                                {t.timestamp}
+                                            </span>
                                         </div>
                                         <p className="text-sm text-slate-700 leading-relaxed">{t.text}</p>
                                     </div>
@@ -214,7 +215,7 @@ const DocumentModal = ({ isOpen, onClose, itemData }) => {
                                 </>
                             ) : (
                                 <>
-                                     <button
+                                    <button
                                         onClick={() => handleCopy(itemData.minutesText)} // minutesText에 전체 요약 및 내용을 복사
                                         className="flex items-center bg-white border border-slate-300 text-slate-700 font-medium px-3 py-2 rounded-lg text-sm hover:bg-slate-100 transition shadow-sm"
                                     >
@@ -274,7 +275,9 @@ const DocumentModal = ({ isOpen, onClose, itemData }) => {
                 {/* 푸터 (문서 정보) - 회의록은 이미 상단에 정보가 많아 간소화 */}
                 <footer className="p-3 text-sm text-slate-500 border-t border-slate-100 bg-slate-50 flex-shrink-0">
                     <div className="flex justify-between items-center px-2">
-                        <span>{itemData.date} | {isDocument ? `${itemData.fromLang} → ${itemData.toLang}` : `회의록 ID: ${itemData.id}`}</span>
+                        <span>
+                            {itemData.date} | {isDocument ? `${itemData.fromLang} → ${itemData.toLang}` : `회의록 ID: ${itemData.id}`}
+                        </span>
                         {isDocument && <span>총 {itemData.originalContent.split(/\s+/).length} 단어</span>}
                     </div>
                 </footer>

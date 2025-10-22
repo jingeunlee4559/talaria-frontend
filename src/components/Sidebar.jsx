@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { FiHome, FiVideo, FiFileText, FiSettings, FiX, FiLogOut } from 'react-icons/fi';
 import Swal from 'sweetalert2';
+import { Calendar } from 'lucide-react';
 
 const Sidebar = ({ isOpen, setIsOpen, className }) => {
     const navigate = useNavigate();
@@ -9,6 +10,7 @@ const Sidebar = ({ isOpen, setIsOpen, className }) => {
         { name: '대시보드', icon: FiHome, path: '/dashboardhome' },
         { name: '영상 회의', icon: FiVideo, path: '/dashboardhome/DashVideo' },
         { name: '문서 관리', icon: FiFileText, path: '/dashboardhome/DashDocuments' },
+        { name: '일정', icon: Calendar, path: '/dashboardhome/Schedule' },
         { name: '설정', icon: FiSettings, path: '/dashboardhome/settings' },
     ];
 

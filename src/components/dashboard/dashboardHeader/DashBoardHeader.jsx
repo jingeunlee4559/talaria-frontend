@@ -7,14 +7,13 @@ import Swal from 'sweetalert2';
 
 // setIsMobileSidebarOpen 함수를 props로 받아옵니다.
 const DashBoardHeader = ({ setIsMobileSidebarOpen }) => {
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const notificationRef = useRef(null);
-  const profileRef = useRef(null);
-  const navigate = useNavigate();
+    const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const notificationRef = useRef(null);
+    const profileRef = useRef(null);
+    const navigate = useNavigate();
 
-
-const notifications = [
+    const notifications = [
         { id: 1, icon: <FiCheckCircle className="text-green-500" />, message: '프로필 사진이 성공적으로 변경되었습니다.', time: '방금 전' },
         { id: 2, icon: <FiMessageSquare className="text-blue-500" />, message: '이수진님께서 "프로젝트A"에 댓글을 남겼습니다.', time: '10분 전' },
         { id: 3, icon: <FiAlertTriangle className="text-red-500" />, message: 'API 요청 한도를 초과했습니다. 사용량을 확인해주세요.', time: '1시간 전' },
@@ -31,7 +30,7 @@ const notifications = [
         { id: 14, icon: <FiMessageSquare className="text-blue-500" />, message: '새로운 기능 "다크 모드"를 사용해보세요.', time: '한 달 전' },
     ];
 
-      const parseRelativeTime = (timeString) => {
+    const parseRelativeTime = (timeString) => {
         if (timeString.includes('방금')) return 0;
         const minutesMatch = timeString.match(/(\d+)분 전/);
         if (minutesMatch) return parseInt(minutesMatch[1]);
@@ -69,83 +68,65 @@ const notifications = [
         };
     }, []);
 
-const handleLogout = () => {
-  Swal.fire({
-    title: '로그아웃 하시겠습니까?',
-    text: "현재 세션이 종료됩니다.",
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#8B5CF6',
-    cancelButtonColor: '#d33',
-    confirmButtonText: '네, 로그아웃 할게요',
-    cancelButtonText: '취소'
-  }).then((result) => {
-      if(result.isConfirmed){
-          Swal.fire('로그아웃 완료!', '성공적으로 로그아웃되었습니다.', 'success');
-          navigate('/');
-      }
-  });
-}
-
-        const handleProfileClick = () => {
-        setIsProfileOpen(prev => !prev);
+    const handleLogout = () => {
+        Swal.fire({
+            title: '로그아웃 하시겠습니까?',
+            text: '현재 세션이 종료됩니다.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#8B5CF6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: '네, 로그아웃 할게요',
+            cancelButtonText: '취소',
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire('로그아웃 완료!', '성공적으로 로그아웃되었습니다.', 'success');
+                navigate('/');
+            }
+        });
     };
 
+    const handleProfileClick = () => {
+        setIsProfileOpen((prev) => !prev);
+    };
 
     return (
-      <header className="sticky top-0 bg-white shadow-md z-10">
-  <div className="flex items-center justify-between p-4">
-    {/* 좌측: 모바일 메뉴 버튼 */}
-    <button
-      className="md:hidden text-gray-500 focus:outline-none"
-      onClick={() => setIsMobileSidebarOpen(true)}
-    >
-      <FiMenu className="text-2xl" />
-    </button>
+        <header className="sticky top-0 bg-white shadow-md z-10">
+            <div className="flex items-center justify-between p-4">
+                {/* 좌측: 모바일 메뉴 버튼 */}
+                <button className="md:hidden text-gray-500 focus:outline-none" onClick={() => setIsMobileSidebarOpen(true)}>
+                    <FiMenu className="text-2xl" />
+                </button>
 
-    {/* 우측: 알림 + 프로필 */}
-    <div className="flex items-center space-x-4 ml-auto">
-      {/* 알림 아이콘 */}
-      <div className="relative" ref={notificationRef}>
-        <button 
-          className="relative"
-          onClick={() => setIsNotificationOpen(prev => !prev)}
-        >
-          <FiBell className="text-xl text-gray-600 hover:text-purple-600 transition-colors" />
-          {notifications.length > 0 && (
-            <span className="absolute -top-1 -right-1 flex h-4 w-4">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-4 w-4 bg-purple-500 justify-center items-center text-white text-xs">
-                {notifications.length}
-              </span>
-            </span>
-          )}
-        </button>
-        <NotificationDropdown 
-          isOpen={isNotificationOpen} 
-          onClose={() => setIsNotificationOpen(false)}
-          notifications={sortedNotifications}
-        />
-      </div>
+                {/* 우측: 알림 + 프로필 */}
+                <div className="flex items-center space-x-4 ml-auto">
+                    {/* 알림 아이콘 */}
+                    <div className="relative" ref={notificationRef}>
+                        <button className="relative" onClick={() => setIsNotificationOpen((prev) => !prev)}>
+                            <FiBell className="text-xl text-gray-600 hover:text-purple-600 transition-colors" />
+                            {notifications.length > 0 && (
+                                <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-4 w-4 bg-purple-500 justify-center items-center text-white text-xs">{notifications.length}</span>
+                                </span>
+                            )}
+                        </button>
+                        <NotificationDropdown isOpen={isNotificationOpen} onClose={() => setIsNotificationOpen(false)} notifications={sortedNotifications} />
+                    </div>
 
-      {/* 프로필 아이콘 */}
-      <div className="relative" ref={profileRef}>
-        <button 
-          onClick={handleProfileClick}
-          className="w-9 h-9 rounded-full overflow-hidden border-2 border-gray-200 hover:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition"
-        >
-          <img 
-            src="https://placehold.co/100x100/E2E8F0/4A5568?text=U"
-            alt="User Profile" 
-            className="w-full h-full object-cover"
-          />
-        </button>
-        <ProfileDropdown isOpen={isProfileOpen} onLogout={handleLogout} />
-      </div>
-    </div>
-  </div>
-</header>
+                    {/* 프로필 아이콘 */}
+                    <div className="relative" ref={profileRef}>
+                        <button
+                            onClick={handleProfileClick}
+                            className="w-9 h-9 rounded-full overflow-hidden border-2 border-gray-200 hover:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition"
+                        >
+                            <img src="https://placehold.co/100x100/E2E8F0/4A5568?text=U" alt="User Profile" className="w-full h-full object-cover" />
+                        </button>
+                        <ProfileDropdown isOpen={isProfileOpen} onLogout={handleLogout} />
+                    </div>
+                </div>
+            </div>
+        </header>
     );
-}
+};
 export default DashBoardHeader;
-

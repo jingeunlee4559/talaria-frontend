@@ -1,7 +1,7 @@
 import React from 'react';
 // ⚠️ 주의: AOS를 설치하고 메인 파일(예: App.js)에서 초기화해야 합니다.
 // import AOS from 'aos';
-// import 'aos/dist/aos.css'; 
+// import 'aos/dist/aos.css';
 
 const featureData = [
     {
@@ -24,22 +24,18 @@ const featureData = [
         description: '회의가 끝난 후 자동으로 생성된 회의록, 핵심 요약, 액션 아이템을 확인하세요. 중요한 순간을 클립으로 저장하여 팀과 공유할 수 있습니다.',
         imageUrl: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800',
         reverse: false, // 왼쪽에서 나타남
-    }
+    },
 ];
 
 const Features = () => {
     return (
         <section className="container mx-auto px-4 py-16">
-            <div 
+            <div
                 className="text-center mb-16"
                 data-aos="fade-up" // 제목 부분은 위에서 나타나게 설정 (선택 사항)
             >
-                <h3 className="text-3xl md:text-4xl font-bold text-gray-800">
-                    3단계로 시작하는 글로벌 협업
-                </h3>
-                <p className="mt-4 text-lg text-gray-600">
-                    복잡한 설정 없이 바로 시작할 수 있습니다
-                </p>
+                <h3 className="text-3xl md:text-4xl font-bold text-gray-800">3단계로 시작하는 글로벌 협업</h3>
+                <p className="mt-4 text-lg text-gray-600">복잡한 설정 없이 바로 시작할 수 있습니다</p>
             </div>
 
             <div className="space-y-20">
@@ -51,37 +47,31 @@ const Features = () => {
     );
 };
 
-
 const FeatureCard = ({ number, title, description, imageUrl, reverse }) => {
     const direction = reverse ? 'md:flex-row-reverse' : 'md:flex-row';
-    
+
     // reverse: false (1, 3번째 카드)는 왼쪽에서 나타나게 (fade-right)
     // reverse: true (2번째 카드)는 오른쪽에서 나타나게 (fade-left)
     const cardAos = reverse ? 'fade-left' : 'fade-right';
 
     return (
         // 가장 바깥쪽 div에 AOS 속성을 적용하여 텍스트와 이미지가 함께 움직이게 합니다.
-        <div 
+        <div
             className={`flex flex-col ${direction} items-center gap-10 md:gap-20`}
-            data-aos={cardAos} 
+            data-aos={cardAos}
             data-aos-duration="1000" // 애니메이션 지속 시간 (선택 사항)
         >
-            
             {/* 텍스트 영역 */}
             <div className="md:w-1/2 w-full text-center md:text-left">
-                
                 <div className="flex items-center justify-center md:justify-start gap-4 mb-5">
                     {/* 번호 동그라미 */}
-                    <div className="flex-shrink-0 flex items-center justify-center w-14 h-14 bg-gray-800 text-white rounded-full font-bold text-2xl">
-                        {number}
-                    </div>
+                    <div className="flex-shrink-0 flex items-center justify-center w-14 h-14 bg-gray-800 text-white rounded-full font-bold text-2xl">{number}</div>
                     {/* 제목 */}
                     <h4 className="text-3xl font-bold text-gray-800 tracking-tight">{title}</h4>
                 </div>
 
                 {/* 설명 */}
                 <p className="text-gray-500 md:text-lg leading-relaxed mb-8">{description}</p>
-                
             </div>
 
             {/* 이미지 영역 */}
@@ -90,6 +80,6 @@ const FeatureCard = ({ number, title, description, imageUrl, reverse }) => {
             </div>
         </div>
     );
-}
+};
 
 export default Features;

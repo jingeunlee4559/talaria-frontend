@@ -1,5 +1,5 @@
-import { FiBell, FiLogOut, FiShield, FiUser } from "react-icons/fi";
-import { useNavigate } from "react-router-dom";
+import { FiBell, FiLogOut, FiShield, FiUser } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 
 const ProfileDropdown = ({ isOpen, onLogout }) => {
     const navigate = useNavigate();
@@ -13,22 +13,18 @@ const ProfileDropdown = ({ isOpen, onLogout }) => {
     ];
 
     return (
-        <div 
-            className="absolute top-full right-0 mt-3 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 z-20 overflow-hidden animate-fade-in-down"
-        >
+        <div className="absolute top-full right-0 mt-3 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 z-20 overflow-hidden animate-fade-in-down">
             <div className="p-2">
                 {menuItems.map((item) => (
-                    <button 
+                    <button
                         key={item.id}
                         onClick={(e) => {
                             e.preventDefault(); // 기본 링크 동작 방지
-                            item.action();      // 지정된 함수 실행
+                            item.action(); // 지정된 함수 실행
                         }}
                         className={`
                             flex items-center w-full px-4 py-3 text-sm rounded-lg transition-colors duration-200 text-left
-                            ${item.isDanger 
-                                ? 'text-red-600 hover:bg-red-50' 
-                                : 'text-gray-700 hover:bg-gray-100'}
+                            ${item.isDanger ? 'text-red-600 hover:bg-red-50' : 'text-gray-700 hover:bg-gray-100'}
                         `}
                     >
                         <span className="mr-3">{item.icon}</span>

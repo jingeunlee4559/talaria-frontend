@@ -14,6 +14,7 @@ import NotificationSettings from '../pages/DashBoardPage/Dashsettings/Notificati
 import SecuritySettings from '../pages/DashBoardPage/Dashsettings/SecuritySettings';
 import SettingsLayout from '../pages/DashBoardPage/Dashsettings/SettingsLayout';
 import MeetingPage from '../components/dashboard/dashvideo/MeetingPage';
+import DashSchedule from '../pages/DashBoardPage/DashSchedule';
 
 const Approuter = () => {
     return (
@@ -29,6 +30,7 @@ const Approuter = () => {
                 <Route path="/dashboardHome" element={<DashHome />} />
                 <Route path="/dashboardHome/DashVideo" element={<DashVIdeo />} />
                 <Route path="/dashboardhome/DashDocuments" element={<DashDocuments/>}/>
+                <Route path="/dashboardhome/Schedule" element={<DashSchedule/>}/>
                <Route path="/dashboardhome/settings" element={<SettingsLayout />}>
                     <Route index element={<ProfileSettings />} /> 
                     <Route path="notifications" element={<NotificationSettings />} />

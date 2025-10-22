@@ -23,19 +23,16 @@ const featuresData = [
         icon: <FiClipboard className="w-8 h-8 text-orange-500" />,
         title: '문서 번역 및 관리',
         description: '계약서, 제안서 등 중요 문서를 안전하게 번역하고 체계적으로 관리할 수 있습니다.',
-    }
+    },
 ];
 
 // ✨ 아이콘과 제목을 옆으로 배치하도록 수정된 컴포넌트 ✨
 const FeatureCard = ({ icon, title, description }) => (
     <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-100 hover:shadow-2xl hover:-translate-y-2 transition-all duration-300">
-        
         {/* 👇 이 부분이 변경되었습니다 👇 */}
         <div className="flex items-center gap-4 mb-4">
             {/* 아이콘 */}
-            <div className="flex-shrink-0 flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full">
-                {icon}
-            </div>
+            <div className="flex-shrink-0 flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full">{icon}</div>
             {/* 제목 */}
             <h3 className="text-xl font-bold text-gray-800">{title}</h3>
         </div>
@@ -45,30 +42,20 @@ const FeatureCard = ({ icon, title, description }) => (
     </div>
 );
 
-
 const CoreFeatures = () => {
     return (
         <section className="bg-slate-50 py-20">
             <div className="container mx-auto px-4">
                 {/* 섹션 제목 */}
                 <div className="text-center mb-16">
-                    <h2 className="text-3xl md:text-4xl font-bold text-gray-800">
-                        강력한 기능
-                    </h2>
-                    <p className="mt-4 text-lg text-gray-600">
-                        AI 기술로 완벽한 글로벌 커뮤니케이션을 경험하세요
-                    </p>
+                    <h2 className="text-3xl md:text-4xl font-bold text-gray-800">강력한 기능</h2>
+                    <p className="mt-4 text-lg text-gray-600">AI 기술로 완벽한 글로벌 커뮤니케이션을 경험하세요</p>
                 </div>
 
                 {/* 기능 카드 그리드 */}
                 <div className="grid md:grid-cols-2 lg:grid-cols-2 gap-8">
                     {featuresData.map((feature, index) => (
-                        <FeatureCard 
-                            key={index}
-                            icon={feature.icon}
-                            title={feature.title}
-                            description={feature.description}
-                        />
+                        <FeatureCard key={index} icon={feature.icon} title={feature.title} description={feature.description} />
                     ))}
                 </div>
             </div>

@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Inbox, Video, VideoOff } from 'lucide-react';
 import FilterTabs from '../../components/dashboard/dashvideo/FilterTabs';
 import MeetingCard from '../../components/dashboard/dashvideo/MeetingCard';
-import Pagination from '../../components/Pagination';
 import NewMeetingModal from '../../components/dashboard/dashvideo/NewMeetingModal';
 import Swal from 'sweetalert2';
+import { AnimatePresence } from 'framer-motion';
+import InProgressMeetingCard from '../../components/dashboard/dashvideo/InProgressMeetingCard';
+import { motion } from 'framer-motion';
+import Pagination from '../../components/Pagination';
+import { v4 as uuidv4 } from 'uuid';
 
 const mockMeetings = [
     { id: 1, title: '10월 2주차 주간 보고 회의', status: '진행중', participants: 3, date: '2025년 10월 2일', time: '오후 2:00', invited_ids: ['user1', 'user2'] },
@@ -19,38 +23,55 @@ const mockMeetings = [
 ];
 
 const DashVideoPage = () => {
+    // --- States ---
     const [meetings, setMeetings] = useState(mockMeetings);
     const [activeFilter, setActiveFilter] = useState('전체');
     const [currentPage, setCurrentPage] = useState(1);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingMeeting, setEditingMeeting] = useState(null);
 
-    const filters = ['전체', '진행중', '예정', '종료'];
+    const filters = ['전체', '진행중', '예정', '준비', '종료'];
     const MEETINGS_PER_PAGE = 6;
 
-    const filteredMeetings = useMemo(() => meetings.filter((meeting) => (activeFilter === '전체' ? true : meeting.status === activeFilter)), [meetings, activeFilter]);
+    // --- Memos & Effects ---
+    const inProgressMeetings = useMemo(() => (activeFilter === '전체' || activeFilter === '진행중' ? meetings.filter((m) => m.status === '진행중') : []), [meetings, activeFilter]);
 
-    const currentMeetings = useMemo(() => {
+    const upcomingMeetings = useMemo(() => {
+        let otherMeetings;
+        if (activeFilter === '전체') {
+            otherMeetings = meetings.filter((m) => m.status !== '진행중');
+        } else if (activeFilter === '진행중') {
+            otherMeetings = [];
+        } else {
+            otherMeetings = meetings.filter((m) => m.status === activeFilter);
+        }
+        return otherMeetings.sort((a, b) => b.id - a.id);
+    }, [meetings, activeFilter]);
+
+    const paginatedUpcomingMeetings = useMemo(() => {
         const firstPageIndex = (currentPage - 1) * MEETINGS_PER_PAGE;
         const lastPageIndex = firstPageIndex + MEETINGS_PER_PAGE;
-        return filteredMeetings.slice(firstPageIndex, lastPageIndex);
-    }, [currentPage, filteredMeetings]);
+        return upcomingMeetings.slice(firstPageIndex, lastPageIndex);
+    }, [currentPage, upcomingMeetings]);
 
-    const totalPages = Math.ceil(filteredMeetings.length / MEETINGS_PER_PAGE);
+    const totalPages = Math.ceil(upcomingMeetings.length / MEETINGS_PER_PAGE);
 
     useEffect(() => {
         setCurrentPage(1);
     }, [activeFilter]);
 
+    // --- 핸들러 함수들 ---
     const handlePageChange = (page) => {
         setCurrentPage(page);
         window.scrollTo(0, 0);
     };
 
     const handleJoinMeeting = (meetingId, meetingTitle) => {
+        const uniqueUUID = uuidv4();
         const url = new URL('/meeting', window.location.origin);
         url.searchParams.set('id', meetingId);
         url.searchParams.set('title', meetingTitle);
+        url.searchParams.set('uuid', uniqueUUID);
         window.open(url.toString(), '_blank', 'noopener,noreferrer');
     };
 
@@ -74,8 +95,11 @@ const DashVideoPage = () => {
         if (isEditing) {
             setMeetings((prev) => prev.map((m) => (m.id === meetingData.id ? meetingData : m)));
         } else {
-            setMeetings((prev) => [meetingData, ...prev]);
+            // 새 미팅에 ID 부여 (mock data이므로)
+            setMeetings((prev) => [{ ...meetingData, id: Date.now() }, ...prev]);
         }
+        handleCloseModal();
+
         Swal.fire({
             icon: 'success',
             title: isEditing ? '수정 완료!' : '예약 완료!',
@@ -92,8 +116,8 @@ const DashVideoPage = () => {
             text: `'${meetingTitle}' 회의를 삭제하면 되돌릴 수 없습니다.`,
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
+            confirmButtonColor: '#e53e3e',
+            cancelButtonColor: '#3b82f6',
             confirmButtonText: '삭제',
             cancelButtonText: '취소',
         }).then((result) => {
@@ -105,45 +129,105 @@ const DashVideoPage = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-100 via-white to-slate-50 p-6 sm:p-10">
+        <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-10">
             <div className="max-w-8xl mx-auto">
-                {/* HEADER */}
-                <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-5">
+                <header className="mb-8">
                     <div>
-                        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">🎥 영상회의</h1>
-                        <p className="text-slate-500 mt-2 text-base sm:text-lg">예정된 영상회의를 확인하고 참여하거나 새로운 회의를 시작하세요.</p>
+                        <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">영상회의</h1>
+                        <p className="text-gray-500 mt-1 text-base sm:text-lg">예정된 회의를 확인하고 새로운 회의를 시작하세요.</p>
                     </div>
+                </header>
+
+                <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
+                    <div className="w-full md:w-auto">
+                        <FilterTabs filters={filters} activeFilter={activeFilter} setActiveFilter={setActiveFilter} />
+                    </div>
+
                     <button
                         onClick={handleOpenNewMeetingModal}
-                        className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
+                        className="flex-shrink-0 flex items-center justify-center gap-2 w-full md:w-auto px-6 py-3 rounded-lg text-white font-semibold shadow-lg 
+                                   bg-gradient-to-r from-violet-600 to-indigo-600 
+                                   hover:from-violet-700 hover:to-indigo-700
+                                   transform hover:-translate-y-0.5 transition-all duration-300 ease-in-out"
                     >
                         <Plus className="h-5 w-5" />
                         <span>새 회의 만들기</span>
                     </button>
-                </header>
-
-                {/* FILTER TABS */}
-                <div className="flex justify-center sm:justify-start mb-6">
-                    <FilterTabs filters={filters} activeFilter={activeFilter} setActiveFilter={setActiveFilter} />
                 </div>
 
-                {/* MAIN CONTENT */}
-                <main className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {currentMeetings.map((meeting) => (
-                        <div key={meeting.id} className="transform transition-transform hover:scale-[1.02]">
-                            <MeetingCard
-                                {...meeting}
-                                onJoinMeeting={() => handleJoinMeeting(meeting.id, meeting.title)}
-                                onEdit={() => handleOpenEditMeetingModal(meeting)}
-                                onDelete={() => handleDeleteMeeting(meeting.id, meeting.title)}
-                            />
+                {inProgressMeetings.length > 0 && (
+                    <section className="mb-10">
+                        <h2 className="text-2xl font-bold text-gray-800 tracking-tight mb-4">진행중인 회의</h2>
+                        <div className="space-y-4">
+                            <AnimatePresence>
+                                {inProgressMeetings.map((meeting) => (
+                                    <InProgressMeetingCard key={meeting.id} meeting={meeting} onJoinMeeting={handleJoinMeeting} />
+                                ))}
+                            </AnimatePresence>
                         </div>
-                    ))}
-                </main>
+                    </section>
+                )}
 
-                {/* PAGINATION */}
+                <section>
+                    {activeFilter === '전체' && upcomingMeetings.length > 0 && <h2 className="text-2xl font-bold text-gray-800 tracking-tight mb-6">예약된 회의</h2>}
+                    {activeFilter !== '전체' && activeFilter !== '진행중' && upcomingMeetings.length > 0 && (
+                        <h2 className="text-2xl font-bold text-gray-800 tracking-tight mb-6">'{activeFilter}' 회의</h2>
+                    )}
+
+                    <AnimatePresence>
+                        {paginatedUpcomingMeetings.length > 0 ? (
+                            <motion.main
+                                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+                                initial="hidden"
+                                animate="visible"
+                                variants={{
+                                    visible: { transition: { staggerChildren: 0.05 } },
+                                }}
+                            >
+                                {paginatedUpcomingMeetings.map((meeting) => (
+                                    <motion.div
+                                        key={meeting.id}
+                                        variants={{
+                                            hidden: { y: 20, opacity: 0 },
+                                            visible: { y: 0, opacity: 1 },
+                                        }}
+                                        exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+                                        transition={{ duration: 0.3 }}
+                                        layout
+                                    >
+                                        <MeetingCard
+                                            {...meeting}
+                                            onJoinMeeting={() => handleJoinMeeting(meeting.id, meeting.title)}
+                                            onEdit={() => handleOpenEditMeetingModal(meeting)}
+                                            onDelete={() => handleDeleteMeeting(meeting.id, meeting.title)}
+                                        />
+                                    </motion.div>
+                                ))}
+                            </motion.main>
+                        ) : (
+                            activeFilter !== '진행중' &&
+                            paginatedUpcomingMeetings.length === 0 && (
+                                <motion.div
+                                    key="empty-state"
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    className="col-span-1 sm:col-span-2 lg:col-span-3 flex flex-col items-center justify-center 
+                   py-24 px-6 bg-white rounded-xl border-2 border-dashed border-gray-300 text-center"
+                                >
+                                    <VideoOff className="w-16 h-16 text-gray-400" />
+                                    <h3 className="mt-6 text-xl font-semibold text-gray-800">회의가 없습니다</h3>
+                                    <p className="mt-2 text-gray-500 max-w-sm">
+                                        {activeFilter === '전체' ? '"새 회의 만들기" 버튼을 눌러 첫 회의를 예약해보세요.' : `현재 "${activeFilter}" 상태인 회의가 없습니다. 다른 필터를 확인해보세요.`}
+                                    </p>
+                                </motion.div>
+                            )
+                        )}
+                    </AnimatePresence>
+                </section>
+
                 {totalPages > 1 && (
-                    <div className="mt-10 flex justify-center">
+                    <div className="mt-12 flex justify-center">
                         <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
                     </div>
                 )}

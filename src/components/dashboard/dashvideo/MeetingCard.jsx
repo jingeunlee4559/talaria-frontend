@@ -1,25 +1,38 @@
-import { Calendar, Users, Video, Pencil, Trash2, MoreVertical } from 'lucide-react';
-import React, { Fragment } from 'react';
-import { Menu, Transition } from '@headlessui/react';
+import { Calendar, Users, Video, Clock, Edit, Trash2 } from 'lucide-react';
+import React from 'react';
 
+/**
+ * 회의 상태별 설정 객체
+ * ✅ 'badge'와 'button' 속성을 JSX에서 그대로 사용하도록 수정됨
+ */
 const statusConfig = {
     진행중: {
         badge: 'bg-green-100 text-green-800 ring-1 ring-inset ring-green-600/20',
-        button: 'bg-green-600 hover:bg-green-700 focus-visible:outline-green-600',
+        button: 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-md shadow-green-500/30 hover:shadow-lg hover:shadow-green-500/40 focus-visible:outline-green-600',
         text: '지금 참여하기',
         icon: <Video className="w-5 h-5" />,
+        dot: 'bg-green-500',
     },
     예정: {
         badge: 'bg-sky-100 text-sky-800 ring-1 ring-inset ring-sky-600/20',
-        button: 'bg-sky-600 hover:bg-sky-700 focus-visible:outline-sky-600',
+        button: 'bg-gradient-to-r from-sky-500 to-sky-600 text-white shadow-md shadow-sky-500/30 hover:shadow-lg hover:shadow-sky-500/40 focus-visible:outline-sky-600',
         text: '회의 시작하기',
         icon: <Video className="w-5 h-5" />,
+        dot: 'bg-sky-500',
+    },
+    준비: {
+        badge: 'bg-indigo-100 text-indigo-800 ring-1 ring-inset ring-indigo-600/20',
+        button: 'bg-indigo-300 text-white cursor-not-allowed opacity-80',
+        text: '준비 중',
+        icon: <Clock className="w-5 h-5" />,
+        dot: 'bg-indigo-500',
     },
     종료: {
-        badge: 'bg-slate-100 text-slate-500 ring-1 ring-inset ring-slate-500/20',
-        button: 'bg-slate-300 cursor-not-allowed',
+        badge: 'bg-red-200 text-red-700 ring-1 ring-inset ring-red-600/20',
+        button: 'bg-red-500 text-white cursor-not-allowed opacity-60',
         text: '회의 종료됨',
         icon: null,
+        dot: 'bg-red-500',
     },
 };
 
@@ -33,89 +46,62 @@ const MeetingCard = ({ id, title, status, participants, date, time, onJoinMeetin
     };
 
     return (
-        <div className="group flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-shadow duration-300 hover:shadow-md">
-            {/* 카드 상단 정보 */}
-            <div>
-                <div className="mb-4 flex items-center justify-between">
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${currentStatus.badge}`}>{status}</span>
-                    <div className="flex items-center gap-1.5 text-sm text-slate-500">
-                        <div className="flex items-center gap-1.5">
-                            <Users className="h-4 w-4" />
-                            <span>{participants}명</span>
-                        </div>
+        <div
+            className="bg-white rounded-xl shadow-md border border-gray-200/80 
+                      hover:shadow-xl hover:border-violet-400 
+                      transition-all duration-300 flex flex-col h-full"
+        >
+            {/* 상단 영역 */}
+            <div className="p-5 border-b border-gray-100">
+                <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold ${currentStatus.badge}`}>
+                    <span className={`w-2.5 h-2.5 rounded-full ${currentStatus.dot}`}></span>
+                    {status}
+                </span>
+                <h3 className="mt-3 font-semibold text-lg text-gray-900 line-clamp-2 h-14">{title}</h3>
+            </div>
 
-                        {/* ✅ '예정' 상태일 때만 드롭다운 메뉴 노출 */}
-                        {status === '예정' && (
-                            <Menu as="div" className="relative inline-block text-left">
-                                <Menu.Button className="rounded-full p-1.5 text-slate-400 opacity-0 group-hover:opacity-100 hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/75 transition-opacity duration-300">
-                                    <MoreVertical className="h-4 w-4" aria-hidden="true" />
-                                </Menu.Button>
-                                <Transition
-                                    as={Fragment}
-                                    enter="transition ease-out duration-100"
-                                    enterFrom="transform opacity-0 scale-95"
-                                    enterTo="transform opacity-100 scale-100"
-                                    leave="transition ease-in duration-75"
-                                    leaveFrom="transform opacity-100 scale-100"
-                                    leaveTo="transform opacity-0 scale-95"
-                                >
-                                    <Menu.Items className="absolute right-0 z-10 mt-2 w-32 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black/5 focus:outline-none">
-                                        <div className="p-1">
-                                            <Menu.Item>
-                                                {({ active }) => (
-                                                    <button
-                                                        onClick={onEdit}
-                                                        className={`${
-                                                            active ? 'bg-slate-100 text-slate-900' : 'text-slate-700'
-                                                        } group flex w-full items-center rounded-md px-3 py-2 text-sm transition-colors`}
-                                                    >
-                                                        <Pencil className="mr-3 h-4 w-4 text-slate-500" />
-                                                        수정
-                                                    </button>
-                                                )}
-                                            </Menu.Item>
-                                            <Menu.Item>
-                                                {({ active }) => (
-                                                    <button
-                                                        onClick={onDelete}
-                                                        className={`${
-                                                            active ? 'bg-red-50 text-red-700' : 'text-slate-700'
-                                                        } group flex w-full items-center rounded-md px-3 py-2 text-sm transition-colors`}
-                                                    >
-                                                        <Trash2 className="mr-3 h-4 w-4" />
-                                                        삭제
-                                                    </button>
-                                                )}
-                                            </Menu.Item>
-                                        </div>
-                                    </Menu.Items>
-                                </Transition>
-                            </Menu>
-                        )}
-                    </div>
+            {/* 내용 영역 */}
+            <div className="p-5 space-y-3 text-sm text-gray-600 flex-grow">
+                <div className="flex items-center gap-3">
+                    <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <span>{date}</span>
                 </div>
-
-                {/* 카드 본문 */}
-                <h3 className="mb-2 text-lg font-bold text-slate-900">{title}</h3>
-                <div className="flex items-center gap-2 text-sm text-slate-500">
-                    <Calendar className="h-4 w-4" />
-                    <span>
-                        {date} &middot; {time}
-                    </span>
+                <div className="flex items-center gap-3">
+                    <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <span>{time}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                    <Users className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <span>참여 {participants}명</span>
                 </div>
             </div>
 
-            {/* 카드 하단 버튼 */}
-            <div className="mt-6">
+            {/* 하단 영역 */}
+            <div className="p-4 bg-gray-50 rounded-b-xl flex justify-between items-center gap-3">
                 <button
-                    type="button"
-                    className={`flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold text-white transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${currentStatus.button}`}
-                    disabled={status === '종료'}
                     onClick={handleButtonClick}
+                    // '완료' 또는 '취소'와 같은 상태에서는 버튼을 비활성화합니다.
+                    disabled={status === '완료' || status === '취소'}
+                    className={`
+        flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all
+        ${currentStatus.button}
+        /* disabled 상태일 때 스타일을 추가합니다 (TailwindCSS) */
+        disabled:opacity-60 disabled:cursor-not-allowed
+    `}
                 >
                     {currentStatus.icon}
                     <span>{currentStatus.text}</span>
                 </button>
+
+                {/* 수정/삭제 아이콘 */}
+                <div className="flex items-center flex-shrink-0">
+                    <button onClick={onEdit} className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors" aria-label="회의 수정">
+                        <Edit className="w-4 h-4" />
+                    </button>
+                    <button onClick={onDelete} className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors" aria-label="회의 삭제">
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+                </div>
             </div>
         </div>
     );

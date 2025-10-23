@@ -43,7 +43,7 @@ const DocumentItem = ({ onClick, ...doc }) => {
             <div className="flex-grow min-w-0">
                 <div className="flex items-center justify-between">
                     <p className="text-base font-semibold text-slate-800 break-words mr-2">{doc.title}</p>
-                    {doc.isStarred && <StarIcon isStarred={true} className="h-4 w-4 flex-shrink-0" />}
+                    {/* {doc.isStarred && <StarIcon isStarred={true} className="h-4 w-4 flex-shrink-0" />} */}
                 </div>
                 <p className="text-sm text-slate-500 mt-0.5 whitespace-normal break-words">
                     {doc.fromLang} → {doc.toLang} | {doc.author} | {doc.date} | {doc.size}

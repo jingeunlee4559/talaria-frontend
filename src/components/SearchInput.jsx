@@ -3,7 +3,7 @@ import { SearchIcon } from './icons/icons'; // 아이콘 경로에 맞게 수정
 
 const SearchInput = ({ searchTerm, setSearchTerm, placeholder }) => {
     return (
-        <div className="relative w-full max-w-md">
+        <div className="relative w-full md:max-w-md">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <SearchIcon className="text-slate-400" />
             </div>

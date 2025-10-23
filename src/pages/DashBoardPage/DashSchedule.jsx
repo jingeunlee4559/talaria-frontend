@@ -4,7 +4,6 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import koLocale from '@fullcalendar/core/locales/ko';
-import CalendarHeader from '../../components/dashboard/dashSchedule/CalendarHeader';
 import CalendarLegend from '../../components/dashboard/dashSchedule/CalendarLegend';
 import TodayHighlight from '../../components/dashboard/dashSchedule/TodayHighlight';
 import UpcomingEvents from '../../components/dashboard/dashSchedule/UpcomingEvents';

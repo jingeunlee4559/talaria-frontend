@@ -2,10 +2,9 @@ import { Video, FileText, Briefcase, Star, Users } from 'lucide-react';
 
 const legendItems = [
     { type: '회의', color: 'blue' },
-    { type: '리뷰', color: 'cyan' },
     { type: '프로젝트', color: 'violet' },
     { type: '마감일', color: 'orange' },
-    { type: '전체 회의', color: 'green' },
+    { type: '휴가', color: 'green' },
     { type: '내 일정', color: 'pink' },
     { type: '기타 일정', color: 'gray' },
 ];

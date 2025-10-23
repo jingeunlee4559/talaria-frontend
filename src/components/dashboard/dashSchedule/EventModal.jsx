@@ -2,14 +2,14 @@ import { useEffect, useState, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Trash2, Clock, MapPin, AlignLeft, Video, FileText, Briefcase, Star, Users, Plus, ChevronDown, Calendar, User, Folder } from 'lucide-react';
 import { format, addDays } from 'date-fns';
+import { IoIosAirplane } from 'react-icons/io';
 
 // --- 이벤트 타입 정의 (기존과 동일) ---
 const eventTypes = [
     { name: '회의', icon: <Video size={16} />, color: 'blue' },
-    { name: '리뷰', icon: <FileText size={16} />, color: 'cyan' },
     { name: '프로젝트', icon: <Briefcase size={16} />, color: 'violet' },
     { name: '마감일', icon: <Star size={16} />, color: 'orange' },
-    { name: '전체 회의', icon: <Users size={16} />, color: 'green' },
+    { name: '휴가', icon: <IoIosAirplane size={16} />, color: 'green' },
     { name: '내 일정', icon: <User size={16} />, color: 'pink' },
     { name: '기타 일정', icon: <Folder size={16} />, color: 'gray' },
 ];

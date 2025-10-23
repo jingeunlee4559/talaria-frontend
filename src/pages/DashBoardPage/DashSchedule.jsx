@@ -13,18 +13,17 @@ import { Plus } from 'lucide-react';
 // --- Data & Types (Assume eventTypes definition is here or imported) ---
 const eventTypes = {
     회의: { color: '#3b82f6' },
-    리뷰: { color: '#06b6d4' },
     프로젝트: { color: '#a855f7' },
     마감일: { color: '#f97316' },
-    '전체 회의': { color: '#22c55e' },
+    휴가: { color: '#22c55e' },
     '내 일정': { color: '#ec4899' },
     '기타 일정': { color: '#9ca3af' },
 };
 const initialEvents = [
     { id: '1', title: '오전 글로벌 마케팅', start: '2025-10-22T10:00:00', end: '2025-10-22T11:30:00', extendedProps: { type: '회의', participants: ['J', 'E', 'M'] } },
     { id: '2', title: '프로젝트 Helios 제안서 마감', start: '2025-10-23', extendedProps: { type: '마감일' } },
-    { id: '3', title: '오후 3분기 실적 리뷰', start: '2025-10-22T14:30:00', end: '2025-10-22T16:00:00', extendedProps: { type: '리뷰', participants: ['S'] } },
-    { id: '4', title: '월간 전체 회의', start: '2025-10-25T15:00:00', end: '2025-10-25T17:00:00', extendedProps: { type: '전체 회의' } },
+    { id: '3', title: '오후 3분기 실적 리뷰', start: '2025-10-22T14:30:00', end: '2025-10-22T16:00:00', extendedProps: { type: '휴가', participants: ['S'] } },
+    { id: '4', title: '월간 전체 회의', start: '2025-10-25T15:00:00', end: '2025-10-25T17:00:00', extendedProps: { type: '휴가' } },
     { id: '5', title: '신규 프로젝트 킥오프', start: '2025-11-04T11:00:00', extendedProps: { type: '프로젝트', participants: ['D', 'W'] } },
 ];
 

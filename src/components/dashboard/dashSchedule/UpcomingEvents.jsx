@@ -1,14 +1,13 @@
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { Clock, Users, Briefcase, Star, Video, FileText, Calendar, User, Folder } from 'lucide-react';
+import { Clock, Users, Briefcase, Star, Video, Calendar, User, Folder } from 'lucide-react';
 
 const typeInfo = {
     회의: { icon: <Video size={16} />, color: 'text-blue-500', borderColor: 'border-blue-500' },
-    리뷰: { icon: <FileText size={16} />, color: 'text-cyan-500', borderColor: 'border-cyan-500' },
     프로젝트: { icon: <Briefcase size={16} />, color: 'text-violet-500', borderColor: 'border-violet-500' },
     마감일: { icon: <Star size={16} />, color: 'text-orange-500', borderColor: 'border-orange-500' },
-    '전체 회의': { icon: <Users size={16} />, color: 'text-green-500', borderColor: 'border-green-500' },
+    휴가: { icon: <Users size={16} />, color: 'text-green-500', borderColor: 'border-green-500' },
     '내 일정': { icon: <User size={16} />, color: 'text-pink-500', borderColor: 'border-pink-500' }, // 내 일정
     '기타 일정': { icon: <Folder size={16} />, color: 'text-gray-500', borderColor: 'border-gray-500' }, // 기타 일정
 };

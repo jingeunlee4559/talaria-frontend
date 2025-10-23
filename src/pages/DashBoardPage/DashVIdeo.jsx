@@ -9,6 +9,7 @@ import InProgressMeetingCard from '../../components/dashboard/dashvideo/InProgre
 import { motion } from 'framer-motion';
 import Pagination from '../../components/Pagination';
 import { v4 as uuidv4 } from 'uuid';
+import DocumentListModal from '../../components/dashboard/dashvideo/DocumentListModal';
 
 const mockMeetings = [
     { id: 1, title: '10월 2주차 주간 보고 회의', status: '진행중', participants: 3, date: '2025년 10월 2일', time: '오후 2:00', invited_ids: ['user1', 'user2'] },
@@ -22,6 +23,21 @@ const mockMeetings = [
     { id: 9, title: '연말 프로모션 아이디어 회의', status: '예정', participants: 7, date: '2025년 10월 6일', time: '오전 10:30', invited_ids: ['marketer1', 'designer_jane', 'sales_rep'] },
 ];
 
+const DUMMY_MY_DOCS = [
+    { id: 'm-01', name: '1분기 실적 보고서_v3_최종.docx', date: '2025-10-22' },
+    { id: 'm-02', name: '신규 프로젝트 제안서 (코드명: 아폴로).pdf', date: '2025-10-21' },
+    { id: 'm-03', name: '사용자 피드백 분석 및 개선 방안.pptx', date: '2025-10-20' },
+    { id: 'm-04', name: '마케팅 캠페인 A/B 테스트 결과.xlsx', date: '2025-10-19' },
+    { id: 'm-05', name: '2026년 사업 계획 초안.docx', date: '2025-10-18' },
+    { id: 'm-06', name: '경쟁사 분석 자료.pdf', date: '2025-10-17' },
+];
+
+const DUMMY_ROOM_DOCS = [
+    { id: 'r-01', name: '회의록 (2025-10-15).docx', date: '2025-10-15' },
+    { id: 'r-02', name: '디자인 시안_v2.pdf', date: '2025-10-14' },
+    { id: 'r-03', name: '개발 일정 공유.xlsx', date: '2025-10-13' },
+];
+
 const DashVideoPage = () => {
     // --- States ---
     const [meetings, setMeetings] = useState(mockMeetings);
@@ -29,6 +45,9 @@ const DashVideoPage = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingMeeting, setEditingMeeting] = useState(null);
+    const [isDocModalOpen, setIsDocModalOpen] = useState(false);
+    const [selectedMeetingDocs, setSelectedMeetingDocs] = useState([]);
+    const [savedDocs, setSavedDocs] = useState([]);
 
     const filters = ['전체', '진행중', '예정', '준비', '종료'];
     const MEETINGS_PER_PAGE = 6;
@@ -128,6 +147,23 @@ const DashVideoPage = () => {
         });
     };
 
+    const handleOpenDocuments = (meeting) => {
+        const meetingDocs = meeting.docs || []; // docs 없을 때 빈 배열 처리
+        setSelectedMeetingDocs(meetingDocs);
+        setIsDocModalOpen(true);
+    };
+
+    // const handleDownloadSelected = (selectedDocs) => {
+    //     console.log('다운로드할 문서:', selectedDocs);
+    //     Swal.fire({
+    //         icon: 'success',
+    //         title: '다운로드 완료',
+    //         text: `${selectedDocs.length}개의 문서가 다운로드되었습니다.`,
+    //         timer: 1500,
+    //         showConfirmButton: false,
+    //     });
+    // };
+
     return (
         <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-10">
             <div className="max-w-8xl mx-auto">
@@ -200,6 +236,7 @@ const DashVideoPage = () => {
                                             onJoinMeeting={() => handleJoinMeeting(meeting.id, meeting.title)}
                                             onEdit={() => handleOpenEditMeetingModal(meeting)}
                                             onDelete={() => handleDeleteMeeting(meeting.id, meeting.title)}
+                                            onOpenDocuments={() => handleOpenDocuments(meeting)}
                                         />
                                     </motion.div>
                                 ))}
@@ -234,6 +271,16 @@ const DashVideoPage = () => {
             </div>
 
             <NewMeetingModal isOpen={isModalOpen} onClose={handleCloseModal} onConfirm={handleConfirmMeeting} meetingToEdit={editingMeeting} />
+            <DocumentListModal
+                isOpen={isDocModalOpen}
+                onClose={() => setIsDocModalOpen(false)}
+                documents={selectedMeetingDocs}
+                myDocuments={DUMMY_MY_DOCS}
+                roomDocuments={DUMMY_ROOM_DOCS}
+                initialSelectedDocs={savedDocs}
+                onSaveSelected={(selected) => setSavedDocs(selected)}
+                onDownloadSelected={(selectedDocs) => console.log('다운로드 대상:', selectedDocs)}
+            />
         </div>
     );
 };

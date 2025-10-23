@@ -1,4 +1,4 @@
-import { Calendar, Users, Video, Clock, Edit, Trash2 } from 'lucide-react';
+import { Calendar, Users, Video, Clock, Edit, Trash2, FileText } from 'lucide-react';
 import React from 'react';
 
 /**
@@ -36,22 +36,15 @@ const statusConfig = {
     },
 };
 
-const MeetingCard = ({ id, title, status, participants, date, time, onJoinMeeting, onEdit, onDelete }) => {
+const MeetingCard = ({ id, title, status, participants, date, time, onJoinMeeting, onEdit, onDelete, onOpenDocuments }) => {
     const currentStatus = statusConfig[status] || statusConfig['종료'];
 
     const handleButtonClick = () => {
-        if (status === '진행중' || status === '예정') {
-            onJoinMeeting();
-        }
+        if (status === '진행중' || status === '예정') onJoinMeeting();
     };
 
     return (
-        <div
-            className="bg-white rounded-xl shadow-md border border-gray-200/80 
-                      hover:shadow-xl hover:border-violet-400 
-                      transition-all duration-300 flex flex-col h-full"
-        >
-            {/* 상단 영역 */}
+        <div className="bg-white rounded-xl shadow-md border border-gray-200/80 hover:shadow-xl hover:border-violet-400 transition-all duration-300 flex flex-col h-full">
             <div className="p-5 border-b border-gray-100">
                 <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold ${currentStatus.badge}`}>
                     <span className={`w-2.5 h-2.5 rounded-full ${currentStatus.dot}`}></span>
@@ -60,7 +53,6 @@ const MeetingCard = ({ id, title, status, participants, date, time, onJoinMeetin
                 <h3 className="mt-3 font-semibold text-lg text-gray-900 line-clamp-2 h-14">{title}</h3>
             </div>
 
-            {/* 내용 영역 */}
             <div className="p-5 space-y-3 text-sm text-gray-600 flex-grow">
                 <div className="flex items-center gap-3">
                     <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
@@ -76,25 +68,21 @@ const MeetingCard = ({ id, title, status, participants, date, time, onJoinMeetin
                 </div>
             </div>
 
-            {/* 하단 영역 */}
             <div className="p-4 bg-gray-50 rounded-b-xl flex justify-between items-center gap-3">
                 <button
                     onClick={handleButtonClick}
-                    // '완료' 또는 '취소'와 같은 상태에서는 버튼을 비활성화합니다.
                     disabled={status === '완료' || status === '취소'}
-                    className={`
-        flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all
-        ${currentStatus.button}
-        /* disabled 상태일 때 스타일을 추가합니다 (TailwindCSS) */
-        disabled:opacity-60 disabled:cursor-not-allowed
-    `}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${currentStatus.button}`}
                 >
                     {currentStatus.icon}
                     <span>{currentStatus.text}</span>
                 </button>
 
-                {/* 수정/삭제 아이콘 */}
+                {/* 문서 / 수정 / 삭제 */}
                 <div className="flex items-center flex-shrink-0">
+                    <button onClick={onOpenDocuments} className="p-2 text-gray-500 hover:text-violet-600 hover:bg-violet-50 rounded-full transition-colors" aria-label="문서 리스트">
+                        <FileText className="w-4 h-4" />
+                    </button>
                     <button onClick={onEdit} className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors" aria-label="회의 수정">
                         <Edit className="w-4 h-4" />
                     </button>

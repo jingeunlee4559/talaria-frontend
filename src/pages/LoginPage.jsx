@@ -27,7 +27,7 @@ const LoginPage = () => {
                 console.log('로그인 성공:', response.data);
 
                 // 사용자 정보 저장
-                sessionStorage.setItem('loggedInUser', JSON.stringify(response.data));
+                localStorage.setItem('loggedInUser', JSON.stringify(response.data));
 
                 // ✅ SweetAlert2 로그인 성공
                 await Swal.fire({

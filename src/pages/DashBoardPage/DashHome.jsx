@@ -13,7 +13,7 @@ const DashHome = () => {
 
     useEffect(() => {
         // 세션스토리지에서 로그인 정보 가져오기
-        const storedUser = sessionStorage.getItem('loggedInUser');
+        const storedUser = localStorage.getItem('loggedInUser');
         if (storedUser) {
             const user = JSON.parse(storedUser);
             setUserName(user.name); // 세션스토리지 name 가져오기

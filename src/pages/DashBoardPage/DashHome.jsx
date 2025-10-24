@@ -5,9 +5,26 @@ import Workspace from '../../components/dashboard/dashmain/Workspace';
 import NextMeetingHero from '../../components/dashboard/dashmain/NextMeetingHero';
 import MeetingListItem from '../../components/dashboard/dashmain/MeetingListItem';
 import TodoList from '../../components/dashboard/dashmain/TodoList';
+import { useEffect, useState } from 'react';
 
 // --- 메인 대시보드 컴포넌트 ---
 const DashHome = () => {
+    const [userName, setUserName] = useState(''); // ✅ 사용자 이름 상태
+
+    useEffect(() => {
+        // 세션스토리지에서 로그인 정보 가져오기
+        const storedUser = sessionStorage.getItem('loggedInUser');
+        if (storedUser) {
+            const user = JSON.parse(storedUser);
+            setUserName(user.name); // 세션스토리지 name 가져오기
+        } else {
+            setUserName(''); // 로그인 정보 없으면 빈 문자열
+        }
+    }, []);
+
+    const today = new Date();
+    const dateString = today.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+
     const meetings = [
         {
             time: '오전 10:00',
@@ -53,8 +70,6 @@ const DashHome = () => {
     ];
 
     const firstMeeting = meetings.find((m) => m.status === '진행 중') || meetings.find((m) => m.status === '예정');
-    const today = new Date();
-    const dateString = today.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
 
     return (
         <div className="bg-slate-100 font-sans min-h-screen">
@@ -83,7 +98,7 @@ const DashHome = () => {
             <div className="relative flex flex-col min-w-0">
                 <main className="flex-1 p-4 sm:p-6 lg:p-8">
                     <div className="mb-8">
-                        <h1 className="text-3xl md:text-4xl font-bold text-slate-800">안녕하세요, 이민준님!</h1>
+                        <h1 className="text-3xl md:text-4xl font-bold text-slate-800">안녕하세요, {userName || '게스트'}님!</h1>
                         <p className="text-slate-500 mt-1">{dateString} 입니다.</p>
                     </div>
 

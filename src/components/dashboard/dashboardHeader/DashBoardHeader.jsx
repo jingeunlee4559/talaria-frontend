@@ -4,6 +4,7 @@ import NotificationDropdown from './NotificationDropdown';
 import ProfileDropdown from './ProfileDropdown';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
+import axios from '../../../axios';
 
 // setIsMobileSidebarOpen 함수를 props로 받아옵니다.
 const DashBoardHeader = ({ setIsMobileSidebarOpen }) => {
@@ -68,8 +69,8 @@ const DashBoardHeader = ({ setIsMobileSidebarOpen }) => {
         };
     }, []);
 
-    const handleLogout = () => {
-        Swal.fire({
+    const handleLogout = async () => {
+        const result = await Swal.fire({
             title: '로그아웃 하시겠습니까?',
             text: '현재 세션이 종료됩니다.',
             icon: 'warning',
@@ -78,12 +79,26 @@ const DashBoardHeader = ({ setIsMobileSidebarOpen }) => {
             cancelButtonColor: '#d33',
             confirmButtonText: '네, 로그아웃 할게요',
             cancelButtonText: '취소',
-        }).then((result) => {
-            if (result.isConfirmed) {
-                Swal.fire('로그아웃 완료!', '성공적으로 로그아웃되었습니다.', 'success');
-                navigate('/');
-            }
         });
+
+        if (result.isConfirmed) {
+            try {
+                // ✅ 서버에 로그아웃 요청 보내기
+                await axios.post('/api/users/logout', {}, { withCredentials: true });
+
+                // ✅ 클라이언트에 저장된 로그인 정보 삭제
+                sessionStorage.removeItem('loggedInUser'); // sessionStorage 사용 시
+                localStorage.removeItem('loggedInUser'); // localStorage 사용 시 필요하면 함께 삭제
+
+                await Swal.fire('로그아웃 완료!', '성공적으로 로그아웃되었습니다.', 'success');
+
+                // ✅ 로그인 페이지로 이동
+                navigate('/');
+            } catch (error) {
+                console.error('로그아웃 오류:', error);
+                Swal.fire('오류', '로그아웃 중 문제가 발생했습니다.', 'error');
+            }
+        }
     };
 
     const handleProfileClick = () => {

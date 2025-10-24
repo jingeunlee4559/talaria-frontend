@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { EyeIcon, GoogleIcon } from '../components/icons/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from '../axios';
+import Swal from 'sweetalert2';
 
 // --- 메인 로그인 페이지 컴포넌트 ---
 const LoginPage = () => {
@@ -19,26 +20,51 @@ const LoginPage = () => {
         try {
             const response = await axios.post('/api/users/login', {
                 email: email,
-                password: password, // ✅ 비밀번호도 함께 보냄 (서버에서 비교용)
+                password: password,
             });
 
             if (response.status === 200) {
                 console.log('로그인 성공:', response.data);
 
-                // ✅ 사용자 정보 저장 (JWT 없이 단순 저장)
+                // 사용자 정보 저장
                 sessionStorage.setItem('loggedInUser', JSON.stringify(response.data));
 
-                // ✅ 로그인 성공 후 대시보드 이동
+                // ✅ SweetAlert2 로그인 성공
+                await Swal.fire({
+                    title: '로그인 성공!',
+                    text: `${response.data.name}님 환영합니다!`,
+                    icon: 'success',
+                    confirmButtonColor: '#8B5CF6',
+                    confirmButtonText: '대시보드로 이동',
+                });
+
+                // 로그인 성공 후 대시보드 이동
                 navigate('/Dashboardhome');
             }
         } catch (err) {
             console.error('로그인 실패:', err);
 
+            // SweetAlert2 로그인 실패
             if (err.response && err.response.status === 401) {
-                setError('아이디 또는 비밀번호가 잘못되었습니다.');
+                Swal.fire({
+                    title: '로그인 실패',
+                    text: '아이디 또는 비밀번호가 잘못되었습니다.',
+                    icon: 'error',
+                    confirmButtonColor: '#d33',
+                    confirmButtonText: '다시 시도',
+                });
             } else {
-                setError('로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+                Swal.fire({
+                    title: '로그인 오류',
+                    text: '로그인 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.',
+                    icon: 'warning',
+                    confirmButtonColor: '#f59e0b',
+                    confirmButtonText: '확인',
+                });
             }
+
+            // React 상태에도 에러 메시지 반영
+            setError('아이디 또는 비밀번호를 확인해주세요.');
         }
     };
 

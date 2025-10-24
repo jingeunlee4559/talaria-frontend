@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react';
 import { FiX, FiBellOff } from 'react-icons/fi';
 
-const NotificationDropdown = ({ isOpen, onClose, notifications, onNotificationClick, isLoading }) => {
+// 🔄 [수정된 부분] onMarkAllAsRead prop을 받습니다.
+const NotificationDropdown = ({ isOpen, onClose, notifications, onNotificationClick, isLoading, onMarkAllAsRead }) => {
     const [visibleCount, setVisibleCount] = useState(4);
+
+    // ✨ [추가된 부분] 읽지 않은 알림이 있는지 확인하는 변수
+    const hasUnread = notifications.some((n) => n.status === 'PENDING');
 
     useEffect(() => {
         if (isOpen) {
@@ -29,11 +33,20 @@ const NotificationDropdown = ({ isOpen, onClose, notifications, onNotificationCl
 
     return (
         <div className="absolute top-full right-0 mt-3 w-80 md:w-96 bg-white rounded-xl shadow-2xl border border-gray-100 z-20 overflow-hidden animate-fade-in-down">
+            {/* 🔄 [수정된 부분] 헤더 구조 변경 및 '모두 읽음' 버튼 추가 */}
             <div className="flex justify-between items-center p-4 border-b border-gray-200 bg-gray-50">
                 <h3 className="font-semibold text-lg text-gray-800">알림</h3>
-                <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-                    <FiX className="text-xl" />
-                </button>
+                <div className="flex items-center space-x-3">
+                    {/* 읽지 않은 알림이 있을 때만 '모두 읽음' 버튼 표시 */}
+                    {hasUnread && !isLoading && (
+                        <button onClick={onMarkAllAsRead} className="text-sm font-medium text-purple-600 hover:text-purple-800 transition-colors">
+                            모두 읽음
+                        </button>
+                    )}
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                        <FiX className="text-xl" />
+                    </button>
+                </div>
             </div>
 
             {isLoading ? (
@@ -48,15 +61,10 @@ const NotificationDropdown = ({ isOpen, onClose, notifications, onNotificationCl
                 <>
                     <div className="divide-y divide-gray-100 max-h-96 overflow-y-auto">
                         {notifications.slice(0, visibleCount).map((notification) => (
-                            // 🔽 [수정된 부분] 🔽 status 값에 따라 스타일을 동적으로 변경합니다.
                             <div
                                 key={notification.id}
                                 onClick={() => onNotificationClick(notification.id)}
-                                className={`flex items-start p-4 transition-colors duration-200 ${
-                                    notification.status === 'PENDING' // .type -> .status
-                                        ? 'cursor-pointer hover:bg-gray-50'
-                                        : 'bg-gray-50 opacity-60'
-                                }`}
+                                className={`flex items-start p-4 transition-colors duration-200 ${notification.status === 'PENDING' ? 'cursor-pointer hover:bg-gray-50' : 'bg-gray-50 opacity-60'}`}
                             >
                                 <div className="flex-shrink-0 mt-1 text-2xl">{notification.icon}</div>
                                 <div className="ml-4 flex-grow">

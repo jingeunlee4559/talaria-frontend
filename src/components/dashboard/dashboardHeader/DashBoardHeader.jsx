@@ -47,27 +47,16 @@ const DashBoardHeader = ({ setIsMobileSidebarOpen }) => {
 
                 const userId = loggedInUser.userId;
                 const response = await axios.get(`/api/users/${userId}/alerts`);
-                console.log(response, 'Dfsfsdddddddddd');
-                const processedNotifications = response.data.items.map((noti) => {
-                    // 🔽 [수정된 부분] 🔽
-                    // 디버깅을 위해 서버에서 실제로 어떤 alertType 값을 보내주는지 확인합니다.
-                    // 브라우저 개발자 도구(F12)의 콘솔 탭에서 이 로그를 확인해 보세요.
-                    console.log('서버 응답 alertType:', noti.Type);
 
-                    return {
-                        id: noti.id,
-                        // 이 부분의 noti.alertType이 iconMap의 키와 일치해야 합니다.
-                        icon: iconMap[noti.type] || iconMap['DEFAULT'],
-                        message: noti.title,
-                        body: noti.body,
-                        time: formatDistanceToNow(new Date(noti.created_at), { addSuffix: true, locale: ko }),
-                        createdAt: noti.created_at,
-                        status: noti.status,
-                    };
-                });
-
-                console.log(processedNotifications, 'Dfsfsd');
-                console.log(response, 'Dfsfsdddddddddd');
+                const processedNotifications = response.data.items.map((noti) => ({
+                    id: noti.id,
+                    icon: iconMap[noti.type] || iconMap['DEFAULT'],
+                    message: noti.title,
+                    body: noti.body,
+                    time: formatDistanceToNow(new Date(noti.created_at), { addSuffix: true, locale: ko }),
+                    createdAt: noti.created_at,
+                    status: noti.status,
+                }));
 
                 setNotifications(sortNotifications(processedNotifications));
             } catch (error) {
@@ -100,9 +89,34 @@ const DashBoardHeader = ({ setIsMobileSidebarOpen }) => {
             console.log(`알림 ${notificationId}를 읽음 처리했습니다.`);
         } catch (error) {
             console.error('알림 읽음 처리 중 오류 발생:', error);
-            console.log(`알림 ${notificationId} 선택`);
-            setNotifications(originalNotifications);
+            setNotifications(originalNotifications); // 오류 발생 시 원래 상태로 롤백
             Swal.fire('오류', '알림을 읽음 처리하는 데 실패했습니다.', 'error');
+        }
+    };
+
+    // ✨ [추가된 부분] 전체 읽음 처리 핸들러
+    const handleMarkAllAsRead = async () => {
+        if (unreadCount === 0) return; // 읽지 않은 알림이 없으면 함수 종료
+
+        const originalNotifications = [...notifications]; // 롤백을 위해 원래 상태 저장
+        // UI를 즉시 업데이트 (Optimistic UI Update)
+        const updatedNotifications = notifications.map((n) => ({ ...n, status: 'SEEN' }));
+        setNotifications(sortNotifications(updatedNotifications));
+
+        try {
+            const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser'));
+            const userId = loggedInUser?.userId;
+            if (!userId) {
+                throw new Error('사용자 정보를 찾을 수 없습니다.');
+            }
+            // 🚨 참고: 백엔드 API 주소는 `/api/users/${userId}/alerts/seen`으로 가정했습니다.
+            // 만약 주소가 다르다면 이 부분을 수정해주세요.
+            await axios.patch(`/api/users/${userId}/alerts/seen`);
+            console.log('모든 알림을 읽음 처리했습니다.');
+        } catch (error) {
+            console.error('전체 알림 읽음 처리 중 오류 발생:', error);
+            setNotifications(originalNotifications); // 오류 발생 시 원래 상태로 롤백
+            Swal.fire('오류', '전체 알림을 읽음 처리하는 데 실패했습니다.', 'error');
         }
     };
 
@@ -126,8 +140,37 @@ const DashBoardHeader = ({ setIsMobileSidebarOpen }) => {
 
     const unreadCount = notifications.filter((n) => n.status === 'PENDING').length;
 
-    // 로그아웃 핸들러 (내용 생략)
-    const handleLogout = async () => {};
+    const handleLogout = async () => {
+        const result = await Swal.fire({
+            title: '로그아웃 하시겠습니까?',
+            text: '현재 세션이 종료됩니다.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#8B5CF6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: '네, 로그아웃 할게요',
+            cancelButtonText: '취소',
+        });
+
+        if (result.isConfirmed) {
+            try {
+                // ✅ 서버에 로그아웃 요청 보내기
+                await axios.post('/api/users/logout', {}, { withCredentials: true });
+
+                // ✅ 클라이언트에 저장된 로그인 정보 삭제
+                sessionStorage.removeItem('loggedInUser'); // sessionStorage 사용 시
+                localStorage.removeItem('loggedInUser'); // localStorage 사용 시 필요하면 함께 삭제
+
+                await Swal.fire('로그아웃 완료!', '성공적으로 로그아웃되었습니다.', 'success');
+
+                // ✅ 로그인 페이지로 이동
+                navigate('/');
+            } catch (error) {
+                console.error('로그아웃 오류:', error);
+                Swal.fire('오류', '로그아웃 중 문제가 발생했습니다.', 'error');
+            }
+        }
+    };
 
     return (
         <header className="sticky top-0 bg-white shadow-md z-10">
@@ -153,6 +196,7 @@ const DashBoardHeader = ({ setIsMobileSidebarOpen }) => {
                             notifications={notifications}
                             isLoading={isLoading}
                             onNotificationClick={handleNotificationClick}
+                            onMarkAllAsRead={handleMarkAllAsRead} // ✨ [추가된 부분] props 전달
                         />
                     </div>
                     <div className="relative" ref={profileRef}>

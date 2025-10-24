@@ -1,21 +1,45 @@
 import React, { useState } from 'react';
 import { EyeIcon, GoogleIcon } from '../components/icons/icons';
 import { Link, useNavigate } from 'react-router-dom';
+import axios from '../axios';
 
 // --- 메인 로그인 페이지 컴포넌트 ---
 const LoginPage = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+    const [error, setError] = useState('');
 
     const navigate = useNavigate();
 
-    const handleLogin = (e) => {
-        e.preventDefault();
-        // 실제 로그인 로직 구현
-        console.log('로그인 시도:', { email, password });
-        console.log('Navigating to /dashboard...');
-        navigate('/Dashboardhome');
+    const handleLogin = async (e) => {
+        e.preventDefault(); // form 기본 새로고침 방지
+        setError(''); // 이전 에러 초기화
+
+        try {
+            const response = await axios.post('/api/users/login', {
+                email: email,
+                password: password, // ✅ 비밀번호도 함께 보냄 (서버에서 비교용)
+            });
+
+            if (response.status === 200) {
+                console.log('로그인 성공:', response.data);
+
+                // ✅ 사용자 정보 저장 (JWT 없이 단순 저장)
+                sessionStorage.setItem('loggedInUser', JSON.stringify(response.data));
+
+                // ✅ 로그인 성공 후 대시보드 이동
+                navigate('/Dashboardhome');
+            }
+        } catch (err) {
+            console.error('로그인 실패:', err);
+
+            if (err.response && err.response.status === 401) {
+                setError('아이디 또는 비밀번호가 잘못되었습니다.');
+            } else {
+                setError('로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+            }
+        }
     };
 
     // **요청하신 버튼을 컴포넌트 내부에서 함수로 정의 (useNavigate 대신 onClick 사용)**

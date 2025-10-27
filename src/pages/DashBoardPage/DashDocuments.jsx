@@ -1,85 +1,115 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import DocumentModal from '../../components/dashboard/dashDoc/DocumentModal';
 import Pagination from '../../components/Pagination';
-import { documents as initialDocuments, mockMinutes } from './mockDocuments';
+import { mockMinutes } from './mockDocuments';
 import { SubTabButton, TabButton } from '../../components/dashboard/dashDoc/TabButtons';
 import { DocumentList, MeetingMinutesList } from '../../components/dashboard/dashDoc/DocList';
 import DocHeader from '../../components/dashboard/dashDoc/DocHeader';
+import axios from '../../axios';
+import { UserContext } from '../../contexts/UserContext';
 
-// --- 재사용 가능한 컴포넌트 ---
 const ITEMS_PER_PAGE = 5;
 
-// --- 메인 컴포넌트 ---
 const DashDocuments = () => {
     const [activeTab, setActiveTab] = useState('번역 문서');
-    const [docSubTab, setDocSubTab] = useState('전체'); // 🎯 새로운 하위 탭 상태
+    const [docSubTab, setDocSubTab] = useState('전체');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
     const [docCurrentPage, setDocCurrentPage] = useState(1);
     const [minCurrentPage, setMinCurrentPage] = useState(1);
     const [searchTerm, setSearchTerm] = useState('');
-    const [documents, setDocuments] = useState(initialDocuments);
+    const [documents, setDocuments] = useState([]);
 
-    // 검색어나 탭이 바뀔 때 페이지네이션을 1로 리셋
+    const { user } = useContext(UserContext);
+
+    useEffect(() => {
+        if (!user?.userId) return;
+
+        const fetchDocuments = async () => {
+            try {
+                const response = await axios.get(`/api/users/${user?.userId}/documents`);
+                if (response.data && Array.isArray(response.data.items)) {
+                    const formattedDocuments = response.data.items.map((doc) => ({
+                        id: doc.doc_id,
+                        title: doc.original_name,
+                        lastModified: doc.uploaded_at
+                            ? new Date(doc.uploaded_at).toLocaleDateString('ko-KR', {
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric',
+                              })
+                            : '날짜 정보 없음',
+                        fromLang: doc.original_lang,
+                        // ✅ [수정 1] 서버 응답에 'translated_lang'가 있을 때만 toLang 값을 할당합니다.
+                        // 이 필드가 없거나 null이면 toLang은 undefined가 되어 번역이 안 된 것으로 간주합니다.
+                        size: `${(doc.size / 1024 / 1024).toFixed(2)} MB`,
+                        author: `${doc.uploader_name}`,
+                        filepath: doc.filepath,
+                    }));
+                    setDocuments(formattedDocuments);
+                } else {
+                    setDocuments([]);
+                }
+            } catch (error) {
+                console.error('문서 불러오기 오류:', error);
+                setDocuments([]);
+            }
+        };
+
+        fetchDocuments();
+    }, [user?.userId]);
+
     useEffect(() => {
         setDocCurrentPage(1);
         setMinCurrentPage(1);
-    }, [searchTerm, activeTab, docSubTab]); // 🎯 docSubTab이 바뀔 때도 리셋
+    }, [searchTerm, activeTab, docSubTab]);
 
-    const handleAddNewDocument = (uploadedData) => {
-        const newDocument = {
-            id: `doc_${Date.now()}`, // 고유 ID 생성
-            title: uploadedData.fileName,
-            summary: `새롭게 추가된 문서입니다: ${uploadedData.file.name}`,
-            lastModified: new Date().toISOString().split('T')[0],
-            // '원문'/'번역' 구분을 위한 속성 (필요에 따라 로직 추가)
-            // 예시: 파일 이름에 'ko'가 있으면 원문으로 간주
-            toLang: uploadedData.file.name.includes('_ko') ? '영어' : '한국어',
-            date: new Date().toISOString().split('T')[0],
-            size: '2.4 MB',
-            author: '김철수',
+    const handleAddNewDocument = (newDocumentFromServer) => {
+        const formattedNewDocument = {
+            id: newDocumentFromServer.doc_id,
+            title: newDocumentFromServer.original_name,
+            lastModified: newDocumentFromServer.uploaded_at
+                ? new Date(newDocumentFromServer.uploaded_at).toLocaleDateString('ko-KR', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                  })
+                : '날짜 정보 없음',
+            fromLang: newDocumentFromServer.original_lang,
+            // 새로 추가된 문서도 마찬가지로 translated_lang이 없으면 toLang은 undefined가 됩니다.
+            size: `${(newDocumentFromServer.size / 1024 / 1024).toFixed(2)} MB`,
+            author: `${newDocumentFromServer.uploader_name}`,
         };
-
-        // 기존 문서 목록의 맨 앞에 새 문서를 추가하여 즉시 보이게 함
-        setDocuments((prevDocs) => [newDocument, ...prevDocs]);
+        setDocuments((prevDocs) => [formattedNewDocument, ...prevDocs]);
     };
 
-    // 1. 검색어 필터링
-    const filteredDocumentsBySearch = useMemo(
-        () => documents.filter((doc) => doc.title.toLowerCase().includes(searchTerm.toLowerCase())),
-        [documents, searchTerm], // 👈 documents를 의존성 배열에 추가
-    );
+    const filteredDocumentsBySearch = useMemo(() => (Array.isArray(documents) ? documents.filter((doc) => doc?.title?.toLowerCase().includes(searchTerm.toLowerCase())) : []), [documents, searchTerm]);
 
-    // 2. 검색 결과에 하위 탭 필터링 적용
+    // ✅ [수정 2] 하위 탭 필터링 로직: 이 로직은 이제 의도대로 정확하게 동작합니다.
     const filteredDocumentsBySubTab = useMemo(() => {
-        if (docSubTab === '전체') return filteredDocumentsBySearch;
-
-        // 원문 (Original) 언어로 필터링
+        // '전체' 탭: 모든 문서를 보여줍니다.
+        if (docSubTab === '전체') {
+            return filteredDocumentsBySearch;
+        }
+        // '원문' 탭: fromLang이 있는 모든 문서를 보여줍니다. (업로드된 모든 문서)
         if (docSubTab === '원문') {
-            // 원문: 한국어 문서만 필터링 (toLang이 '영어'인 문서)
-            return filteredDocumentsBySearch.filter((doc) => doc.toLang === '영어');
+            return filteredDocumentsBySearch.filter((doc) => doc.fromLang);
         }
-
-        // 번역 (Translated) 언어로 필터링
+        // '번역' 탭: toLang 속성값이 존재하는 (번역이 완료된) 문서만 보여줍니다.
         if (docSubTab === '번역') {
-            // 번역: 한국어 문서만 필터링 (toLang이 '한국어'인 문서)
-            return filteredDocumentsBySearch.filter((doc) => doc.toLang === '한국어');
+            return filteredDocumentsBySearch.filter((doc) => doc.toLang);
         }
-
         return filteredDocumentsBySearch;
     }, [docSubTab, filteredDocumentsBySearch]);
 
-    // 3. 회의록 검색 필터링
     const filteredMinutes = useMemo(() => mockMinutes.filter((minute) => minute.title.toLowerCase().includes(searchTerm.toLowerCase())), [searchTerm]);
 
-    // 문서 페이지네이션 로직
     const totalDocPages = Math.ceil(filteredDocumentsBySubTab.length / ITEMS_PER_PAGE);
     const currentDocuments = useMemo(() => {
         const firstPageIndex = (docCurrentPage - 1) * ITEMS_PER_PAGE;
         return filteredDocumentsBySubTab.slice(firstPageIndex, firstPageIndex + ITEMS_PER_PAGE);
     }, [docCurrentPage, filteredDocumentsBySubTab]);
 
-    // 회의록 페이지네이션 로직
     const totalMinPages = Math.ceil(filteredMinutes.length / ITEMS_PER_PAGE);
     const currentMinutes = useMemo(() => {
         const firstPageIndex = (minCurrentPage - 1) * ITEMS_PER_PAGE;
@@ -95,7 +125,6 @@ const DashDocuments = () => {
         setSelectedItem(null);
     };
 
-    // 탭 클릭 핸들러: 메인 탭이 바뀌면 하위 탭도 '전체'로 리셋
     const handleTabChange = (tab) => {
         setActiveTab(tab);
         setDocSubTab('전체');
@@ -104,19 +133,13 @@ const DashDocuments = () => {
     return (
         <div className="bg-slate-50 min-h-screen p-4 sm:p-6 lg:p-8 font-sans">
             <div className="max-w-8xl mx-auto">
-                {/* 헤더 */}
                 <header className="mb-6 sm:mb-8">
                     <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-800">문서 & 회의록</h1>
                     <p className="text-slate-500 mt-1 text-sm sm:text-base">과거의 모든 기록을 찾아보고 원하는 정보를 탐색하세요. (Total: {documents.length + mockMinutes.length}건)</p>
                 </header>
 
-                <DocHeader
-                    searchTerm={searchTerm}
-                    setSearchTerm={setSearchTerm}
-                    onDocumentAdd={handleAddNewDocument} // 👈 여기!
-                />
+                <DocHeader searchTerm={searchTerm} setSearchTerm={setSearchTerm} onDocumentAdd={handleAddNewDocument} />
 
-                {/* 메인 탭 */}
                 <div className="border-b border-slate-200 mb-6">
                     <nav className="flex gap-4 sm:gap-6">
                         <TabButton title="번역 문서" isActive={activeTab === '번역 문서'} onClick={() => handleTabChange('번역 문서')} />
@@ -127,14 +150,12 @@ const DashDocuments = () => {
                 <main>
                     {activeTab === '번역 문서' && (
                         <>
-                            {/* 🎯 번역 문서 하위 탭 */}
                             <div className="flex gap-2 mb-4">
                                 <SubTabButton title="전체" isActive={docSubTab === '전체'} onClick={() => setDocSubTab('전체')} />
-                                <SubTabButton title="원문" isActive={docSubTab === '번역'} onClick={() => setDocSubTab('번역')} />
-                                <SubTabButton title="번역" isActive={docSubTab === '원문'} onClick={() => setDocSubTab('원문')} />
+                                <SubTabButton title="원문" isActive={docSubTab === '원문'} onClick={() => setDocSubTab('원문')} />
+                                <SubTabButton title="번역" isActive={docSubTab === '번역'} onClick={() => setDocSubTab('번역')} />
                             </div>
 
-                            {/* 문서 목록 */}
                             {currentDocuments.length > 0 ? (
                                 <>
                                     <DocumentList documents={currentDocuments} onItemClick={handleItemClick} />
@@ -155,9 +176,9 @@ const DashDocuments = () => {
                         </>
                     )}
 
+                    {/* ... 회의록 부분은 동일 ... */}
                     {activeTab === '회의록' && (
                         <>
-                            {/* 회의록 목록 */}
                             {currentMinutes.length > 0 ? (
                                 <>
                                     <MeetingMinutesList minutes={currentMinutes} onItemClick={handleItemClick} />

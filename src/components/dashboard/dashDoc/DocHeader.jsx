@@ -11,6 +11,7 @@ const DocHeader = ({ searchTerm, setSearchTerm, onDocumentAdd }) => {
         console.log('업로드 성공! 부모 컴포넌트로 데이터 전달:', data);
         onDocumentAdd(data);
     };
+
     return (
         <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
             <div className="w-full md:flex-grow">

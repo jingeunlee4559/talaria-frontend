@@ -278,7 +278,7 @@ const DocumentModal = ({ isOpen, onClose, itemData }) => {
                         <span>
                             {itemData.date} | {isDocument ? `${itemData.fromLang} → ${itemData.toLang}` : `회의록 ID: ${itemData.id}`}
                         </span>
-                        {isDocument && <span>총 {itemData.originalContent.split(/\s+/).length} 단어</span>}
+                        {isDocument && <span>총 {itemData.originalContent?.split(/\s+/).length || 0} 단어</span>}
                     </div>
                 </footer>
             </div>

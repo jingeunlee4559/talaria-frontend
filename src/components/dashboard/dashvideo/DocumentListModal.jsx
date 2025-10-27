@@ -2,8 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, FileText, Check, Download, UploadCloud, Search, Info, Trash2, Layers, CircleDot } from 'lucide-react';
 
-// --- 서브 컴포넌트들 (디자인 개선) ---
-
 // 1. 탭 버튼 컴포넌트
 const TabButton = ({ isActive, onClick, children }) => (
     <button
@@ -17,8 +15,6 @@ const TabButton = ({ isActive, onClick, children }) => (
     </button>
 );
 
-// 2. 문서 아이템 컴포넌트
-// ✨ 개선점: 호버/선택 시 효과 강화, 삭제 버튼 추가, 더 많은 정보(날짜, 크기) 표시
 const DocumentItem = ({ doc, isSelected, onSelect, onDelete }) => (
     <motion.li variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} transition={{ type: 'spring', stiffness: 260, damping: 25 }} layout="position">
         <div
@@ -26,7 +22,7 @@ const DocumentItem = ({ doc, isSelected, onSelect, onDelete }) => (
             className={`flex items-center gap-4 p-3.5 rounded-xl border-2 cursor-pointer transition-all duration-300 group relative
                 ${isSelected ? 'bg-white border-indigo-500 shadow-lg shadow-indigo-500/20' : 'bg-white border-transparent hover:border-indigo-400 hover:bg-white'}`}
         >
-            {/* ✨ 개선점: 선택 시 나타나는 세련된 체크 아이콘 */}
+            {/* 선택 아이콘 */}
             <motion.div
                 className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all duration-300"
                 animate={{
@@ -43,16 +39,17 @@ const DocumentItem = ({ doc, isSelected, onSelect, onDelete }) => (
                 </AnimatePresence>
             </motion.div>
 
+            {/* 문서 정보 (수정된 부분) */}
             <div className="flex-grow overflow-hidden">
-                <p className="font-bold text-zinc-800 truncate">{doc.name}</p>
+                <p className="font-bold text-zinc-800 truncate">{doc.title ?? doc.name}</p>
                 <p className="text-sm text-zinc-500">
-                    {doc.date} · {doc.size || 'N/A'}
+                    {doc.lastModified ?? doc.date} · {doc.size || 'N/A'}
                 </p>
             </div>
 
             <FileText className="w-5 h-5 text-zinc-400 flex-shrink-0 group-hover:text-indigo-500 transition-colors" />
 
-            {/* ✨ 개선점: '내 문서'에서만 보이는 삭제 버튼 */}
+            {/* 삭제 버튼 */}
             {onDelete && (
                 <button
                     onClick={(e) => {
@@ -107,7 +104,7 @@ const DocumentListModal = ({ isOpen, onClose, myDocuments = [], roomDocuments = 
     const [searchTerm, setSearchTerm] = useState('');
 
     const documents = useMemo(() => (mode === 'myDocs' ? myDocuments : roomDocuments), [mode, myDocuments, roomDocuments]);
-    const filteredDocuments = useMemo(() => documents.filter((doc) => doc.name.toLowerCase().includes(searchTerm.toLowerCase())), [documents, searchTerm]);
+    const filteredDocuments = useMemo(() => documents.filter((doc) => (doc.title ?? doc.name).toLowerCase().includes(searchTerm.toLowerCase())), [documents, searchTerm]);
 
     useEffect(() => {
         if (isOpen) {

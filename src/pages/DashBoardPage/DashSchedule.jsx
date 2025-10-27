@@ -9,8 +9,10 @@ import TodayHighlight from '../../components/dashboard/dashSchedule/TodayHighlig
 import UpcomingEvents from '../../components/dashboard/dashSchedule/UpcomingEvents';
 import EventModal from '../../components/dashboard/dashSchedule/EventModal';
 import { Plus } from 'lucide-react';
+import MoreEventsPopover from '../../components/dashboard/dashSchedule/MoreEventsPopover';
 
 // --- Data & Types (Assume eventTypes definition is here or imported) ---
+
 const eventTypes = {
     회의: { color: '#3b82f6' },
     프로젝트: { color: '#a855f7' },
@@ -19,16 +21,21 @@ const eventTypes = {
     '내 일정': { color: '#ec4899' },
     '기타 일정': { color: '#9ca3af' },
 };
+
 const initialEvents = [
     { id: '1', title: '오전 글로벌 마케팅', start: '2025-10-22T10:00:00', end: '2025-10-22T11:30:00', extendedProps: { type: '회의', participants: ['J', 'E', 'M'] } },
+
     { id: '2', title: '프로젝트 Helios 제안서 마감', start: '2025-10-23', extendedProps: { type: '마감일' } },
+
     { id: '3', title: '오후 3분기 실적 리뷰', start: '2025-10-22T14:30:00', end: '2025-10-22T16:00:00', extendedProps: { type: '휴가', participants: ['S'] } },
+
     { id: '4', title: '월간 전체 회의', start: '2025-10-25T15:00:00', end: '2025-10-25T17:00:00', extendedProps: { type: '휴가' } },
+
     { id: '5', title: '신규 프로젝트 킥오프', start: '2025-11-04T11:00:00', extendedProps: { type: '프로젝트', participants: ['D', 'W'] } },
 ];
 
 const DashSchedule = () => {
-    const [currentDate, setCurrentDate] = useState(new Date('2025-10-22'));
+    const [currentDate, setCurrentDate] = useState(new Date());
     const [events, setEvents] = useState(
         initialEvents.map((e) => ({ ...e, backgroundColor: eventTypes[e.extendedProps.type]?.color || '#6b7280', borderColor: eventTypes[e.extendedProps.type]?.color || '#6b7280' })),
     );
@@ -36,14 +43,32 @@ const DashSchedule = () => {
     const [selectedInfo, setSelectedInfo] = useState(null);
     const calendarRef = useRef(null);
 
-    // --- Handlers (No changes) ---
+    // --- 💡 Popover State 추가 ---
+    const [popoverState, setPopoverState] = useState({
+        isOpen: false,
+        top: 0,
+        left: 0,
+        date: null,
+        events: [],
+    });
+
+    // --- Handlers (Modal) ---
     const handleOpenModal = (info) => {
         setSelectedInfo(info);
         setIsModalOpen(true);
     };
     const handleCloseModal = () => setIsModalOpen(false);
+
     const handleSaveEvent = (eventData) => {
         const color = eventTypes[eventData.type]?.color || '#6b7280';
+
+        const currentExtendedProps = selectedInfo?.event?.extendedProps || {};
+        const newExtendedProps = {
+            ...currentExtendedProps,
+            ...eventData.extendedProps,
+            type: eventData.type,
+        };
+
         if (eventData.id) {
             setEvents(
                 events.map((e) =>
@@ -55,7 +80,7 @@ const DashSchedule = () => {
                               end: eventData.end,
                               backgroundColor: color,
                               borderColor: color,
-                              extendedProps: { ...e.extendedProps, ...eventData.extendedProps, type: eventData.type },
+                              extendedProps: newExtendedProps,
                           }
                         : e,
                 ),
@@ -68,15 +93,44 @@ const DashSchedule = () => {
                 end: eventData.end,
                 backgroundColor: color,
                 borderColor: color,
-                extendedProps: { ...eventData.extendedProps, type: eventData.type },
+                extendedProps: newExtendedProps,
             };
-            setEvents([...events, newEvent].sort((a, b) => new Date(a.start) - new Date(b.date)));
+            // 💡 버그 수정: b.date -> b.start
+            setEvents((prevEvents) => [...prevEvents, newEvent].sort((a, b) => new Date(a.start) - new Date(b.start)));
         }
         handleCloseModal();
     };
+
     const handleDeleteEvent = (eventId) => {
         setEvents(events.filter((e) => e.id !== eventId));
         handleCloseModal();
+    };
+
+    // --- 💡 Handlers (Popover) 추가 ---
+    const handleMoreLinkClick = (info) => {
+        info.jsEvent.preventDefault(); // 기본 동작(페이지 이동) 방지
+
+        // 💡 오류 수정: info.el 대신 info.jsEvent.currentTarget 사용
+        const rect = info.jsEvent.currentTarget.getBoundingClientRect(); // '+N more' 링크의 DOM 위치
+
+        setPopoverState({
+            isOpen: true,
+            top: rect.top + window.scrollY + rect.height, // 링크 바로 아래
+            left: rect.left + window.scrollX, // 링크 왼쪽 정렬
+            date: info.date,
+            events: info.allSegs.map((seg) => seg.event), // 해당 날짜의 모든 이벤트
+        });
+
+        return 'none';
+    };
+
+    const handleClosePopover = () => {
+        setPopoverState((prev) => ({ ...prev, isOpen: false }));
+    };
+
+    const handlePopoverEventClick = (event) => {
+        handleClosePopover(); // 팝업 닫기
+        handleOpenModal({ event }); // 상세 수정 모달 열기
     };
 
     return (
@@ -92,11 +146,11 @@ const DashSchedule = () => {
                         <div className="flex items-center gap-3">
                             <button
                                 onClick={() => handleOpenModal({ date: new Date() })}
-                                className="flex items-center gap-3 bg-gradient-to-r from-indigo-500 to-violet-600 
-               text-white font-semibold text-base sm:text-lg px-6 py-3 
-               rounded-xl shadow-lg hover:from-indigo-600 hover:to-violet-700 
-               hover:shadow-2xl transition-all transform hover:-translate-y-1 
-               focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                className="flex items-center gap-3 bg-gradient-to-r from-indigo-500 to-violet-600
+                                text-white font-semibold text-base sm:text-lg px-6 py-3
+                                rounded-xl shadow-lg hover:from-indigo-600 hover:to-violet-700
+                                hover:shadow-2xl transition-all transform hover:-translate-y-1
+                                focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                             >
                                 <Plus size={20} />
                                 <span>새 일정</span>
@@ -121,10 +175,13 @@ const DashSchedule = () => {
                                     height="100%"
                                     dateClick={(arg) => handleOpenModal({ date: arg.date })}
                                     eventClick={(info) => handleOpenModal({ event: info.event })}
-                                    dayMaxEvents={true}
+                                    dayMaxEvents={true} // 💡이게 true여야 '+N more'가 생깁니다.
                                     eventDisplay="block"
                                     eventTimeFormat={{ hour: 'numeric', minute: '2-digit', meridiem: false }}
                                     dayHeaderFormat={{ weekday: 'short' }}
+                                    // --- 💡 Popover 핸들러 연결 ---
+                                    moreLinkClick={handleMoreLinkClick}
+                                    moreLinkPopover={false}
                                 />
                             </div>
                             <CalendarLegend />
@@ -135,6 +192,16 @@ const DashSchedule = () => {
                             <UpcomingEvents events={events} onEventClick={(event) => handleOpenModal({ event })} />
                         </aside>
 
+                        {/* --- 💡 Popover와 Modal 모두 렌더링 --- */}
+                        <MoreEventsPopover
+                            isOpen={popoverState.isOpen}
+                            top={popoverState.top}
+                            left={popoverState.left}
+                            date={popoverState.date}
+                            events={popoverState.events}
+                            onClose={handleClosePopover}
+                            onEventClick={handlePopoverEventClick}
+                        />
                         <EventModal isOpen={isModalOpen} onClose={handleCloseModal} onSave={handleSaveEvent} onDelete={handleDeleteEvent} selectedInfo={selectedInfo} />
                     </div>
                 </div>
@@ -142,61 +209,72 @@ const DashSchedule = () => {
 
             {/* --- FullCalendar 커스텀 스타일 --- */}
             <style>{`
-        /* --- ✨ 1. 변경된 부분 --- */
-        /* 날짜 칸의 전체 구조(frame)에 직접 패딩을 줍니다. */
-        .fc-daygrid-day-frame {
-            position: relative; /* 자식 요소의 absolute 위치 기준점 */
-            min-height: 110px;
-            padding: 2.25rem 4px 4px 4px; /* 상단에 36px의 충분한 공간 확보 */
-        }
-        /* 날짜 숫자를 frame의 좌측 상단에 절대 위치로 고정합니다. */
-        .fc-daygrid-day-top {
-            position: absolute;
-            top: 8px;
-            left: 8px;
-        }
-        /* 이벤트 목록의 불필요한 상단 여백을 제거합니다. */
-        .fc-daygrid-day-events {
-            margin-top: 0;
-        }
+                /* --- 날짜 칸 패딩 조정 --- */
+                .fc-daygrid-day-frame {
+                    position: relative;
+                    min-height: 110px;
+                    padding: 2.25rem 4px 4px 4px;
+                }
+                .fc-daygrid-day-top {
+                    position: absolute;
+                    top: 8px;
+                    left: 8px;
+                }
+                .fc-daygrid-day-events {
+                    margin-top: 0;
+                }
 
-        /* --- ✨ 2. 오늘 날짜 하이라이트 스타일 --- */
-        .fc-day-today .fc-daygrid-day-number {
-            background-color: #6366f1; color: white;
-            display: flex; align-items: center; justify-content: center;
-            padding: 0;
-        }
+                /* --- 오늘 날짜 하이라이트 --- */
+                .fc-day-today .fc-daygrid-day-number {
+                    background-color: #6366f1; color: white !important;
+                    width: 28px; height: 28px;
+                    border-radius: 9999px;
+                    display: flex; align-items: center; justify-content: center;
+                    padding: 0;
+                }
 
-        /* --- 기존 스타일 --- */
-        .fc .fc-button { 
-            background: white !important; border: 1px solid #cbd5e1 !important; color: #475569 !important;
-            text-transform: none !important; padding: 0.5rem 0.8rem !important; border-radius: 0.5rem !important;
-            font-weight: 600 !important; font-size: 0.875rem !important; box-shadow: none !important; transition: all 0.2s; 
-        }
-        .fc .fc-button:hover { background-color: #f8fafc !important; }
-        .fc .fc-button-primary:not(:disabled).fc-button-active {
-             background: #eff6ff !important; border-color: #3b82f6 !important; color: #3b82f6 !important; box-shadow: none !important;
-        }
-         .fc .fc-today-button {
-             background-color: #eef2ff !important; border-color: #e0e7ff !important; color: #4f46e5 !important;
-         }
-         .fc .fc-today-button:hover { background-color: #e0e7ff !important; }
-        .fc .fc-toolbar-title { font-size: 1.125rem !important; font-weight: 700 !important; color: #1e293b; }
-        .fc-toolbar.fc-header-toolbar { margin-bottom: 1.5rem !important; padding: 0 0.5rem; }
+                /* --- 캘린더 버튼/헤더 기본 스타일 --- */
+                .fc .fc-button {
+                    background: white !important; border: 1px solid #cbd5e1 !important; color: #475569 !important;
+                    text-transform: none !important; padding: 0.5rem 0.8rem !important; border-radius: 0.5rem !important;
+                    font-weight: 600 !important; font-size: 0.875rem !important; box-shadow: none !important; transition: all 0.2s;
+                }
+                .fc .fc-button:hover { background-color: #f8fafc !important; }
+                .fc .fc-button-primary:not(:disabled).fc-button-active {
+                     background: #eff6ff !important; border-color: #3b82f6 !important; color: #3b82f6 !importaAnt; box-shadow: none !important;
+                }
+                 .fc .fc-today-button {
+                     background-color: #eef2ff !important; border-color: #e0e7ff !important; color: #4f46e5 !important;
+                 }
+                 .fc .fc-today-button:hover { background-color: #e0e7ff !important; }
+                .fc .fc-toolbar-title { font-size: 1.125rem !important; font-weight: 700 !important; color: #1e293b; }
+                .fc-toolbar.fc-header-toolbar { margin-bottom: 1.5rem !important; padding: 0 0.5rem; }
 
-        .calendar-container { --fc-border-color: #f1f5f9; --fc-today-bg-color: transparent; min-height: 600px; }
-        .fc-col-header-cell { border-width: 0 0 1px 0 !important; font-size: 0.75rem; color: #94a3b8; font-weight: 500; text-transform: none; padding: 0.75rem 0; }
-        .fc .fc-view-harness { flex-grow: 1; height: 100%; }
-        .fc-daygrid-day-number { font-size: 0.875rem; font-weight: 600; color: #475569; }
-        .fc-daygrid-day:hover { background-color: #f8fafc; }
-        .fc-event { padding: 3px 6px; border: none !important; border-radius: 6px; font-weight: 600; font-size: 0.75rem; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; line-height: 1.4; margin-bottom: 3px; }
-        .fc-event:hover { transform: translateY(-1px); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .fc-daygrid-event-dot { display: none; }
-        .fc-event .fc-event-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: white; }
-        .fc-daygrid-more-link { font-weight: 600; font-size: 0.75rem; color: #4f46e5; margin-top: 2px; display: block; padding: 2px 4px;}
-        .fc .fc-scrollgrid, .fc table { border: none; }
-        .fc-theme-standard td, .fc-theme-standard th { border-color: #f1f5f9; }
-      `}</style>
+                /* --- 캘린더 전반적인 스타일 --- */
+                .calendar-container { --fc-border-color: #f1f5f9; --fc-today-bg-color: transparent; min-height: 600px; }
+                .fc-col-header-cell { border-width: 0 0 1px 0 !important; font-size: 0.75rem; color: #94a3b8; font-weight: 500; text-transform: none; padding: 0.75rem 0; }
+                .fc .fc-view-harness { flex-grow: 1; height: 100%; }
+                .fc-daygrid-day-number { font-size: 0.875rem; font-weight: 600; color: #475569; }
+                .fc-daygrid-day:hover { background-color: #f8fafc; }
+                .fc-event { padding: 3px 6px; border: none !important; border-radius: 6px; font-weight: 600; font-size: 0.75rem; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; line-height: 1.4; margin-bottom: 3px; }
+                .fc-event:hover { transform: translateY(-1px); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+                .fc-daygrid-event-dot { display: none; }
+                .fc-event .fc-event-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: white; }
+                
+                /* --- 💡 '+N more' 링크 스타일 --- */
+                .fc-daygrid-more-link { 
+                    font-weight: 600; font-size: 0.75rem; color: #4f46e5; 
+                    margin-top: 2px; display: block; padding: 2px 4px;
+                    border-radius: 4px;
+                }
+                .fc-daygrid-more-link:hover {
+                    background-color: #eef2ff;
+                    color: #4338ca;
+                }
+                
+                .fc .fc-scrollgrid, .fc table { border: none; }
+                .fc-theme-standard td, .fc-theme-standard th { border-color: #f1f5f9; }
+            `}</style>
         </>
     );
 };

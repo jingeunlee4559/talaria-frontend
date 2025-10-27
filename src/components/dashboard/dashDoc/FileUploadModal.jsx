@@ -1,13 +1,26 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useContext } from 'react';
 import { FilePlus2, FileText, UploadCloud, X } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
-import Swal from 'sweetalert2'; // This import is good for type-checking, but we'll stick to window.Swal per your code's pattern.
+import Swal from 'sweetalert2';
+import axios from '../../../axios';
+import { UserContext } from '../../../contexts/UserContext';
 
-const FileUploadModal = ({ isOpen, onClose, onUploadSuccess }) => {
+// 언어 옵션 배열
+const languageOptions = [
+    { value: 'ko', label: '한국어' },
+    { value: 'en', label: '영어' },
+    { value: 'ja', label: '일본어' },
+    { value: 'zh', label: '중국어' },
+];
+
+const FileUploadModal = ({ isOpen, onClose, onUploadSuccess, meetingId }) => {
     const [fileName, setFileName] = useState('');
     const [file, setFile] = useState(null);
+    const [language, setLanguage] = useState('ko'); // ✅ 1. 언어 상태 추가 (기본값 'ko')
     const [uploadProgress, setUploadProgress] = useState(0);
-    const [message, setMessage] = useState(''); // For validation errors
+    const [message, setMessage] = useState('');
+
+    const { user, setUser } = useContext(UserContext);
 
     const onDrop = useCallback(
         (acceptedFiles) => {
@@ -24,112 +37,85 @@ const FileUploadModal = ({ isOpen, onClose, onUploadSuccess }) => {
         [fileName],
     );
 
-    const { getRootProps, getInputProps, isDragActive } = useDropzone({
-        onDrop,
-        multiple: false,
-    });
+    const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, multiple: false });
+    console.log(language);
 
-    // Reset state when modal closes
     const handleClose = () => {
         onClose();
         setTimeout(() => {
             setFileName('');
             setFile(null);
+            setLanguage('ko'); // ✅ 5. 상태 초기화
             setUploadProgress(0);
             setMessage('');
-        }, 300); // Wait for fade-out animation
+        }, 300);
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setMessage('');
 
-        if (!fileName || !file) {
-            setMessage('문서 이름과 파일을 모두 선택해주세요.');
+        if (!fileName || !file || !language) {
+            setMessage('문서 이름, 언어, 파일을 모두 선택해주세요.');
             return;
         }
 
-        setUploadProgress(10); // Start progress
+        if (!user?.userId) {
+            setMessage('로그인 정보가 없습니다.');
+            return;
+        }
 
-        // Simulate upload
-        let progress = 10;
-        const interval = setInterval(() => {
-            progress += Math.floor(Math.random() * 15) + 5;
-            if (progress >= 100) {
-                progress = 100;
-                setUploadProgress(100);
-                clearInterval(interval);
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('original_name', fileName);
+            formData.append('original_lang', language); // ✅ 4. FormData에 언어 추가
+            formData.append('uploader_user_id', user.userId);
+            if (meetingId) formData.append('meeting_id', meetingId);
 
-                // --- NEW: 성공 또는 실패 시뮬레이션 ---
-                const didFail = Math.random() < 0.3; // 30% 확률로 실패 시연
+            setUploadProgress(10);
 
-                if (didFail) {
-                    // --- 실패 케이스 ---
-                    setUploadProgress(0); // 진행률 표시줄 리셋
+            const response = await axios.post(`/api/users/${user.userId}/documents`, formData, {
+                onUploadProgress: (progressEvent) => {
+                    const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                    setUploadProgress(percentCompleted);
+                },
+            });
 
-                    if (Swal) {
-                        Swal.fire({
-                            icon: 'error',
-                            title: '업로드 실패',
-                            text: '파일 업로드 중 오류가 발생했습니다. 다시 시도해주세요.',
-                            confirmButtonColor: '#d33',
-                            confirmButtonText: '확인',
-                        });
-                    } else {
-                        // SweetAlert2 스크립트가 로드되지 않았을 경우의 폴백
-                        console.error('업로드 실패: 파일 업로드 중 오류가 발생했습니다.');
-                        setMessage('업로드 실패: 파일 업로드 중 오류가 발생했습니다.'); // Show message in modal
-                    }
-                    // 모달을 닫지 않고, 사용자가 재시도하거나 취소할 수 있도록 함.
-                } else {
-                    // --- 성공 케이스 (기존 로직) ---
-                    // 부모 컴포넌트에 알림
-                    onUploadSuccess({ fileName, file });
+            setUploadProgress(100);
 
-                    // SweetAlert2 성공 메시지 표시
-                    if (Swal) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: '업로드 완료!',
-                            text: `'${fileName}' 문서가 성공적으로 등록되었습니다.`,
-                            timer: 2000,
-                            timerProgressBar: true,
-                            showConfirmButton: false,
-                        }).then(() => {
-                            // 알림 후 모달 닫기
-                            handleClose();
-                        });
-                    } else {
-                        // 스크립트가 로드되지 않았을 경우의 폴백 (예: 네트워크 오류)
-                        console.log('업로드 완료!', `'${fileName}' 문서가 성공적으로 등록되었습니다.`);
-                        // 알림 후 모달 닫기
-                        handleClose();
-                    }
-                }
-            } else {
-                setUploadProgress(progress);
-            }
-        }, 200);
+            Swal.fire({
+                icon: 'success',
+                title: '업로드 완료!',
+                text: `'${fileName}' 문서가 성공적으로 등록되었습니다.`,
+                timer: 2000,
+                timerProgressBar: true,
+                showConfirmButton: false,
+            }).then(() => {
+                handleClose();
+                onUploadSuccess(response.data);
+            });
+        } catch (err) {
+            console.error(err);
+            setUploadProgress(0);
+            Swal.fire({
+                icon: 'error',
+                title: '업로드 실패',
+                text: '파일 업로드 중 오류가 발생했습니다. 다시 시도해주세요.',
+                confirmButtonColor: '#d33',
+                confirmButtonText: '확인',
+            });
+        }
     };
 
-    if (!isOpen) {
-        return null;
-    }
+    if (!isOpen) return null;
 
     return (
-        // Overlay
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 p-4 transition-opacity duration-300 backdrop-blur-sm" onClick={handleClose}>
-            {/* Modal Content */}
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 sm:p-10 relative transform transition-all duration-300 scale-100" onClick={(e) => e.stopPropagation()}>
-                {/* Close Button */}
-                <button
-                    onClick={handleClose}
-                    className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 transition-colors rounded-full p-1 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2"
-                >
+                <button onClick={handleClose} className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 transition-colors rounded-full p-1">
                     <X size={24} />
                 </button>
-
-                {/* Header with Icon */}
                 <div className="mb-6 text-center">
                     <div className="flex justify-center items-center mb-4">
                         <div className="p-3 bg-violet-100 rounded-full">
@@ -140,9 +126,8 @@ const FileUploadModal = ({ isOpen, onClose, onUploadSuccess }) => {
                     <p className="text-sm text-gray-500 mt-1">업로드할 파일의 이름과 파일을 선택하세요.</p>
                 </div>
 
-                {/* Form */}
+                {/* ✅ 3. Form에 Select 요소 추가 */}
                 <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-                    {/* Document Name Input */}
                     <div>
                         <label htmlFor="fileName" className="text-sm font-semibold text-gray-700 mb-1.5 block">
                             문서 이름
@@ -158,7 +143,27 @@ const FileUploadModal = ({ isOpen, onClose, onUploadSuccess }) => {
                         />
                     </div>
 
-                    {/* Drag & Drop Zone */}
+                    {/* === 언어 선택 Select 추가된 부분 시작 === */}
+                    <div>
+                        <label htmlFor="language" className="text-sm font-semibold text-gray-700 mb-1.5 block">
+                            언어 선택
+                        </label>
+                        <select
+                            id="language"
+                            value={language}
+                            onChange={(e) => setLanguage(e.target.value)}
+                            className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition shadow-sm bg-white text-gray-900"
+                            required
+                        >
+                            {languageOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    {/* === 언어 선택 Select 추가된 부분 끝 === */}
+
                     <div>
                         <label className="text-sm font-semibold text-gray-700 mb-1.5 block">파일 첨부</label>
                         <div
@@ -190,7 +195,6 @@ const FileUploadModal = ({ isOpen, onClose, onUploadSuccess }) => {
                         </div>
                     </div>
 
-                    {/* Messages & Progress Bar */}
                     {(uploadProgress > 0 || message) && (
                         <div className="mt-2 space-y-2">
                             {uploadProgress > 0 && (
@@ -201,10 +205,7 @@ const FileUploadModal = ({ isOpen, onClose, onUploadSuccess }) => {
                                     </div>
                                     <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden shadow-inner">
                                         <div
-                                            className={`h-2.5 rounded-full transition-all duration-300 ease-out ${
-                                                // Change color on success (or failure if you kept progress at 100)
-                                                uploadProgress === 100 ? 'bg-green-500' : 'bg-violet-600'
-                                            }`}
+                                            className={`h-2.5 rounded-full transition-all duration-300 ease-out ${uploadProgress === 100 ? 'bg-green-500' : 'bg-violet-600'}`}
                                             style={{ width: `${uploadProgress}%` }}
                                         ></div>
                                     </div>
@@ -214,7 +215,6 @@ const FileUploadModal = ({ isOpen, onClose, onUploadSuccess }) => {
                         </div>
                     )}
 
-                    {/* Submit Button */}
                     <button
                         type="submit"
                         disabled={uploadProgress > 0 && uploadProgress < 100}

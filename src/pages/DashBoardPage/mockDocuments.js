@@ -1,181 +1,181 @@
-export const documents = [
-    {
-        id: 1,
-        type: 'document',
-        title: '파트너십 계약서',
-        isStarred: true,
-        fromLang: '영어',
-        toLang: '한국어',
-        date: '2025-09-27',
-        size: '2.4 MB',
-        author: '김철수',
-        originalContent:
-            "This Partnership Agreement ('Agreement') is entered into as of September 27, 2025, by and between: Party A: TechCorp International Ltd. Address: 123 Business Street, San Francisco, CA 94105. Party B: Innovation Korea Co., Ltd. Address: 456 Gangnam-daero, Seoul, South Korea. The purpose of this agreement is to establish a cooperative framework for joint development and marketing of future products.",
-        translatedContent:
-            "본 파트너십 계약('본 계약')은 2025년 9월 27일부로 다음 당사자 간에 체결됩니다: 당사자 A: TechCorp International Ltd. 주소: 123 Business Street, San Francisco, CA 94105. 당사자 B: 이노베이션 코리아 주식회사. 주소: 서울특별시 강남대로 456. 본 계약의 목적은 향후 제품의 공동 개발 및 마케팅을 위한 협력 체계를 구축하는 것입니다.",
-    },
-    {
-        id: 2,
-        type: 'document',
-        title: '제품 사양서',
-        isStarred: false,
-        fromLang: '한국어',
-        toLang: '영어',
-        date: '2025-09-25',
-        size: '1.8 MB',
-        author: '이영희',
-        originalContent: '제품명: 제미니 AI 프로세서. 주요 기능: 초당 100조 회의 연산 능력, 저전력 설계. 개발 팀: AI솔루션팀. 출시 예정일: 2026년 1월.',
-        translatedContent:
-            'Product Name: Gemini AI Processor. Key Features: 100 trillion operations per second, low power design. Development Team: AI Solution Team. Estimated Release Date: January 2026.',
-    },
-    {
-        id: 3,
-        type: 'document',
-        title: '마케팅 전략 검토 보고서',
-        isStarred: true,
-        fromLang: '영어',
-        toLang: '한국어',
-        date: '2025-09-23',
-        size: '3.2 MB',
-        author: '박민수',
-        originalContent:
-            'The Q4 marketing campaign will focus primarily on digital channels, specifically targeting Gen Z users through short-form video content. Budget allocation: 60% digital ads, 30% influencer collaborations, 10% traditional media.',
-        translatedContent:
-            '4분기 마케팅 캠페인은 주로 디지털 채널에 집중하며, 특히 짧은 형식의 비디오 콘텐츠를 통해 Gen Z 사용자를 타겟팅할 것입니다. 예산 할당: 디지털 광고 60%, 인플루언서 협업 30%, 전통 미디어 10%.',
-    },
-    {
-        id: 4,
-        type: 'document',
-        title: '파트너십 계약서',
-        isStarred: true,
-        fromLang: '영어',
-        toLang: '한국어',
-        date: '2025-09-27',
-        size: '2.4 MB',
-        author: '김철수',
-        originalContent:
-            "This Partnership Agreement ('Agreement') is entered into as of September 27, 2025, by and between: Party A: TechCorp International Ltd. Address: 123 Business Street, San Francisco, CA 94105. Party B: Innovation Korea Co., Ltd. Address: 456 Gangnam-daero, Seoul, South Korea. The purpose of this agreement is to establish a cooperative framework for joint development and marketing of future products.",
-        translatedContent:
-            "본 파트너십 계약('본 계약')은 2025년 9월 27일부로 다음 당사자 간에 체결됩니다: 당사자 A: TechCorp International Ltd. 주소: 123 Business Street, San Francisco, CA 94105. 당사자 B: 이노베이션 코리아 주식회사. 주소: 서울특별시 강남대로 456. 본 계약의 목적은 향후 제품의 공동 개발 및 마케팅을 위한 협력 체계를 구축하는 것입니다.",
-    },
-    {
-        id: 5,
-        type: 'document',
-        title: '제품 사양서',
-        isStarred: false,
-        fromLang: '한국어',
-        toLang: '영어',
-        date: '2025-09-25',
-        size: '1.8 MB',
-        author: '이영희',
-        originalContent: '제품명: 제미니 AI 프로세서. 주요 기능: 초당 100조 회의 연산 능력, 저전력 설계. 개발 팀: AI솔루션팀. 출시 예정일: 2026년 1월.',
-        translatedContent:
-            'Product Name: Gemini AI Processor. Key Features: 100 trillion operations per second, low power design. Development Team: AI Solution Team. Estimated Release Date: January 2026.',
-    },
-    {
-        id: 6,
-        type: 'document',
-        title: '마케팅 전략 검토 보고서',
-        isStarred: true,
-        fromLang: '영어',
-        toLang: '한국어',
-        date: '2025-09-23',
-        size: '3.2 MB',
-        author: '박민수',
-        originalContent:
-            'The Q4 marketing campaign will focus primarily on digital channels, specifically targeting Gen Z users through short-form video content. Budget allocation: 60% digital ads, 30% influencer collaborations, 10% traditional media.',
-        translatedContent:
-            '4분기 마케팅 캠페인은 주로 디지털 채널에 집중하며, 특히 짧은 형식의 비디오 콘텐츠를 통해 Gen Z 사용자를 타겟팅할 것입니다. 예산 할당: 디지털 광고 60%, 인플루언서 협업 30%, 전통 미디어 10%.',
-    },
-    {
-        id: 7,
-        type: 'document',
-        title: '파트너십 계약서',
-        isStarred: true,
-        fromLang: '영어',
-        toLang: '한국어',
-        date: '2025-09-27',
-        size: '2.4 MB',
-        author: '김철수',
-        originalContent:
-            "This Partnership Agreement ('Agreement') is entered into as of September 27, 2025, by and between: Party A: TechCorp International Ltd. Address: 123 Business Street, San Francisco, CA 94105. Party B: Innovation Korea Co., Ltd. Address: 456 Gangnam-daero, Seoul, South Korea. The purpose of this agreement is to establish a cooperative framework for joint development and marketing of future products.",
-        translatedContent:
-            "본 파트너십 계약('본 계약')은 2025년 9월 27일부로 다음 당사자 간에 체결됩니다: 당사자 A: TechCorp International Ltd. 주소: 123 Business Street, San Francisco, CA 94105. 당사자 B: 이노베이션 코리아 주식회사. 주소: 서울특별시 강남대로 456. 본 계약의 목적은 향후 제품의 공동 개발 및 마케팅을 위한 협력 체계를 구축하는 것입니다.",
-    },
-    {
-        id: 8,
-        type: 'document',
-        title: '제품 사양서',
-        isStarred: false,
-        fromLang: '한국어',
-        toLang: '영어',
-        date: '2025-09-25',
-        size: '1.8 MB',
-        author: '이영희',
-        originalContent: '제품명: 제미니 AI 프로세서. 주요 기능: 초당 100조 회의 연산 능력, 저전력 설계. 개발 팀: AI솔루션팀. 출시 예정일: 2026년 1월.',
-        translatedContent:
-            'Product Name: Gemini AI Processor. Key Features: 100 trillion operations per second, low power design. Development Team: AI Solution Team. Estimated Release Date: January 2026.',
-    },
-    {
-        id: 9,
-        type: 'document',
-        title: '마케팅 전략 검토 보고서',
-        isStarred: true,
-        fromLang: '영어',
-        toLang: '한국어',
-        date: '2025-09-23',
-        size: '3.2 MB',
-        author: '박민수',
-        originalContent:
-            'The Q4 marketing campaign will focus primarily on digital channels, specifically targeting Gen Z users through short-form video content. Budget allocation: 60% digital ads, 30% influencer collaborations, 10% traditional media.',
-        translatedContent:
-            '4분기 마케팅 캠페인은 주로 디지털 채널에 집중하며, 특히 짧은 형식의 비디오 콘텐츠를 통해 Gen Z 사용자를 타겟팅할 것입니다. 예산 할당: 디지털 광고 60%, 인플루언서 협업 30%, 전통 미디어 10%.',
-    },
-    {
-        id: 10,
-        type: 'document',
-        title: '파트너십 계약서',
-        isStarred: true,
-        fromLang: '영어',
-        toLang: '한국어',
-        date: '2025-09-27',
-        size: '2.4 MB',
-        author: '김철수',
-        originalContent:
-            "This Partnership Agreement ('Agreement') is entered into as of September 27, 2025, by and between: Party A: TechCorp International Ltd. Address: 123 Business Street, San Francisco, CA 94105. Party B: Innovation Korea Co., Ltd. Address: 456 Gangnam-daero, Seoul, South Korea. The purpose of this agreement is to establish a cooperative framework for joint development and marketing of future products.",
-        translatedContent:
-            "본 파트너십 계약('본 계약')은 2025년 9월 27일부로 다음 당사자 간에 체결됩니다: 당사자 A: TechCorp International Ltd. 주소: 123 Business Street, San Francisco, CA 94105. 당사자 B: 이노베이션 코리아 주식회사. 주소: 서울특별시 강남대로 456. 본 계약의 목적은 향후 제품의 공동 개발 및 마케팅을 위한 협력 체계를 구축하는 것입니다.",
-    },
-    {
-        id: 11,
-        type: 'document',
-        title: '제품 사양서',
-        isStarred: false,
-        fromLang: '한국어',
-        toLang: '영어',
-        date: '2025-09-25',
-        size: '1.8 MB',
-        author: '이영희',
-        originalContent: '제품명: 제미니 AI 프로세서. 주요 기능: 초당 100조 회의 연산 능력, 저전력 설계. 개발 팀: AI솔루션팀. 출시 예정일: 2026년 1월.',
-        translatedContent:
-            'Product Name: Gemini AI Processor. Key Features: 100 trillion operations per second, low power design. Development Team: AI Solution Team. Estimated Release Date: January 2026.',
-    },
-    {
-        id: 12,
-        type: 'document',
-        title: '마케팅 전략 검토 보고서',
-        isStarred: true,
-        fromLang: '영어',
-        toLang: '한국어',
-        date: '2025-09-23',
-        size: '3.2 MB',
-        author: '박민수',
-        originalContent:
-            'The Q4 marketing campaign will focus primarily on digital channels, specifically targeting Gen Z users through short-form video content. Budget allocation: 60% digital ads, 30% influencer collaborations, 10% traditional media.',
-        translatedContent:
-            '4분기 마케팅 캠페인은 주로 디지털 채널에 집중하며, 특히 짧은 형식의 비디오 콘텐츠를 통해 Gen Z 사용자를 타겟팅할 것입니다. 예산 할당: 디지털 광고 60%, 인플루언서 협업 30%, 전통 미디어 10%.',
-    },
-];
+// export const documents = [
+//     {
+//         id: 1,
+//         type: 'document',
+//         title: '파트너십 계약서',
+//         isStarred: true,
+//         fromLang: '영어',
+//         toLang: '한국어',
+//         date: '2025-09-27',
+//         size: '2.4 MB',
+//         author: '김철수',
+//         originalContent:
+//             "This Partnership Agreement ('Agreement') is entered into as of September 27, 2025, by and between: Party A: TechCorp International Ltd. Address: 123 Business Street, San Francisco, CA 94105. Party B: Innovation Korea Co., Ltd. Address: 456 Gangnam-daero, Seoul, South Korea. The purpose of this agreement is to establish a cooperative framework for joint development and marketing of future products.",
+//         translatedContent:
+//             "본 파트너십 계약('본 계약')은 2025년 9월 27일부로 다음 당사자 간에 체결됩니다: 당사자 A: TechCorp International Ltd. 주소: 123 Business Street, San Francisco, CA 94105. 당사자 B: 이노베이션 코리아 주식회사. 주소: 서울특별시 강남대로 456. 본 계약의 목적은 향후 제품의 공동 개발 및 마케팅을 위한 협력 체계를 구축하는 것입니다.",
+//     },
+//     {
+//         id: 2,
+//         type: 'document',
+//         title: '제품 사양서',
+//         isStarred: false,
+//         fromLang: '한국어',
+//         toLang: '영어',
+//         date: '2025-09-25',
+//         size: '1.8 MB',
+//         author: '이영희',
+//         originalContent: '제품명: 제미니 AI 프로세서. 주요 기능: 초당 100조 회의 연산 능력, 저전력 설계. 개발 팀: AI솔루션팀. 출시 예정일: 2026년 1월.',
+//         translatedContent:
+//             'Product Name: Gemini AI Processor. Key Features: 100 trillion operations per second, low power design. Development Team: AI Solution Team. Estimated Release Date: January 2026.',
+//     },
+//     {
+//         id: 3,
+//         type: 'document',
+//         title: '마케팅 전략 검토 보고서',
+//         isStarred: true,
+//         fromLang: '영어',
+//         toLang: '한국어',
+//         date: '2025-09-23',
+//         size: '3.2 MB',
+//         author: '박민수',
+//         originalContent:
+//             'The Q4 marketing campaign will focus primarily on digital channels, specifically targeting Gen Z users through short-form video content. Budget allocation: 60% digital ads, 30% influencer collaborations, 10% traditional media.',
+//         translatedContent:
+//             '4분기 마케팅 캠페인은 주로 디지털 채널에 집중하며, 특히 짧은 형식의 비디오 콘텐츠를 통해 Gen Z 사용자를 타겟팅할 것입니다. 예산 할당: 디지털 광고 60%, 인플루언서 협업 30%, 전통 미디어 10%.',
+//     },
+//     {
+//         id: 4,
+//         type: 'document',
+//         title: '파트너십 계약서',
+//         isStarred: true,
+//         fromLang: '영어',
+//         toLang: '한국어',
+//         date: '2025-09-27',
+//         size: '2.4 MB',
+//         author: '김철수',
+//         originalContent:
+//             "This Partnership Agreement ('Agreement') is entered into as of September 27, 2025, by and between: Party A: TechCorp International Ltd. Address: 123 Business Street, San Francisco, CA 94105. Party B: Innovation Korea Co., Ltd. Address: 456 Gangnam-daero, Seoul, South Korea. The purpose of this agreement is to establish a cooperative framework for joint development and marketing of future products.",
+//         translatedContent:
+//             "본 파트너십 계약('본 계약')은 2025년 9월 27일부로 다음 당사자 간에 체결됩니다: 당사자 A: TechCorp International Ltd. 주소: 123 Business Street, San Francisco, CA 94105. 당사자 B: 이노베이션 코리아 주식회사. 주소: 서울특별시 강남대로 456. 본 계약의 목적은 향후 제품의 공동 개발 및 마케팅을 위한 협력 체계를 구축하는 것입니다.",
+//     },
+//     {
+//         id: 5,
+//         type: 'document',
+//         title: '제품 사양서',
+//         isStarred: false,
+//         fromLang: '한국어',
+//         toLang: '영어',
+//         date: '2025-09-25',
+//         size: '1.8 MB',
+//         author: '이영희',
+//         originalContent: '제품명: 제미니 AI 프로세서. 주요 기능: 초당 100조 회의 연산 능력, 저전력 설계. 개발 팀: AI솔루션팀. 출시 예정일: 2026년 1월.',
+//         translatedContent:
+//             'Product Name: Gemini AI Processor. Key Features: 100 trillion operations per second, low power design. Development Team: AI Solution Team. Estimated Release Date: January 2026.',
+//     },
+//     {
+//         id: 6,
+//         type: 'document',
+//         title: '마케팅 전략 검토 보고서',
+//         isStarred: true,
+//         fromLang: '영어',
+//         toLang: '한국어',
+//         date: '2025-09-23',
+//         size: '3.2 MB',
+//         author: '박민수',
+//         originalContent:
+//             'The Q4 marketing campaign will focus primarily on digital channels, specifically targeting Gen Z users through short-form video content. Budget allocation: 60% digital ads, 30% influencer collaborations, 10% traditional media.',
+//         translatedContent:
+//             '4분기 마케팅 캠페인은 주로 디지털 채널에 집중하며, 특히 짧은 형식의 비디오 콘텐츠를 통해 Gen Z 사용자를 타겟팅할 것입니다. 예산 할당: 디지털 광고 60%, 인플루언서 협업 30%, 전통 미디어 10%.',
+//     },
+//     {
+//         id: 7,
+//         type: 'document',
+//         title: '파트너십 계약서',
+//         isStarred: true,
+//         fromLang: '영어',
+//         toLang: '한국어',
+//         date: '2025-09-27',
+//         size: '2.4 MB',
+//         author: '김철수',
+//         originalContent:
+//             "This Partnership Agreement ('Agreement') is entered into as of September 27, 2025, by and between: Party A: TechCorp International Ltd. Address: 123 Business Street, San Francisco, CA 94105. Party B: Innovation Korea Co., Ltd. Address: 456 Gangnam-daero, Seoul, South Korea. The purpose of this agreement is to establish a cooperative framework for joint development and marketing of future products.",
+//         translatedContent:
+//             "본 파트너십 계약('본 계약')은 2025년 9월 27일부로 다음 당사자 간에 체결됩니다: 당사자 A: TechCorp International Ltd. 주소: 123 Business Street, San Francisco, CA 94105. 당사자 B: 이노베이션 코리아 주식회사. 주소: 서울특별시 강남대로 456. 본 계약의 목적은 향후 제품의 공동 개발 및 마케팅을 위한 협력 체계를 구축하는 것입니다.",
+//     },
+//     {
+//         id: 8,
+//         type: 'document',
+//         title: '제품 사양서',
+//         isStarred: false,
+//         fromLang: '한국어',
+//         toLang: '영어',
+//         date: '2025-09-25',
+//         size: '1.8 MB',
+//         author: '이영희',
+//         originalContent: '제품명: 제미니 AI 프로세서. 주요 기능: 초당 100조 회의 연산 능력, 저전력 설계. 개발 팀: AI솔루션팀. 출시 예정일: 2026년 1월.',
+//         translatedContent:
+//             'Product Name: Gemini AI Processor. Key Features: 100 trillion operations per second, low power design. Development Team: AI Solution Team. Estimated Release Date: January 2026.',
+//     },
+//     {
+//         id: 9,
+//         type: 'document',
+//         title: '마케팅 전략 검토 보고서',
+//         isStarred: true,
+//         fromLang: '영어',
+//         toLang: '한국어',
+//         date: '2025-09-23',
+//         size: '3.2 MB',
+//         author: '박민수',
+//         originalContent:
+//             'The Q4 marketing campaign will focus primarily on digital channels, specifically targeting Gen Z users through short-form video content. Budget allocation: 60% digital ads, 30% influencer collaborations, 10% traditional media.',
+//         translatedContent:
+//             '4분기 마케팅 캠페인은 주로 디지털 채널에 집중하며, 특히 짧은 형식의 비디오 콘텐츠를 통해 Gen Z 사용자를 타겟팅할 것입니다. 예산 할당: 디지털 광고 60%, 인플루언서 협업 30%, 전통 미디어 10%.',
+//     },
+//     {
+//         id: 10,
+//         type: 'document',
+//         title: '파트너십 계약서',
+//         isStarred: true,
+//         fromLang: '영어',
+//         toLang: '한국어',
+//         date: '2025-09-27',
+//         size: '2.4 MB',
+//         author: '김철수',
+//         originalContent:
+//             "This Partnership Agreement ('Agreement') is entered into as of September 27, 2025, by and between: Party A: TechCorp International Ltd. Address: 123 Business Street, San Francisco, CA 94105. Party B: Innovation Korea Co., Ltd. Address: 456 Gangnam-daero, Seoul, South Korea. The purpose of this agreement is to establish a cooperative framework for joint development and marketing of future products.",
+//         translatedContent:
+//             "본 파트너십 계약('본 계약')은 2025년 9월 27일부로 다음 당사자 간에 체결됩니다: 당사자 A: TechCorp International Ltd. 주소: 123 Business Street, San Francisco, CA 94105. 당사자 B: 이노베이션 코리아 주식회사. 주소: 서울특별시 강남대로 456. 본 계약의 목적은 향후 제품의 공동 개발 및 마케팅을 위한 협력 체계를 구축하는 것입니다.",
+//     },
+//     {
+//         id: 11,
+//         type: 'document',
+//         title: '제품 사양서',
+//         isStarred: false,
+//         fromLang: '한국어',
+//         toLang: '영어',
+//         date: '2025-09-25',
+//         size: '1.8 MB',
+//         author: '이영희',
+//         originalContent: '제품명: 제미니 AI 프로세서. 주요 기능: 초당 100조 회의 연산 능력, 저전력 설계. 개발 팀: AI솔루션팀. 출시 예정일: 2026년 1월.',
+//         translatedContent:
+//             'Product Name: Gemini AI Processor. Key Features: 100 trillion operations per second, low power design. Development Team: AI Solution Team. Estimated Release Date: January 2026.',
+//     },
+//     {
+//         id: 12,
+//         type: 'document',
+//         title: '마케팅 전략 검토 보고서',
+//         isStarred: true,
+//         fromLang: '영어',
+//         toLang: '한국어',
+//         date: '2025-09-23',
+//         size: '3.2 MB',
+//         author: '박민수',
+//         originalContent:
+//             'The Q4 marketing campaign will focus primarily on digital channels, specifically targeting Gen Z users through short-form video content. Budget allocation: 60% digital ads, 30% influencer collaborations, 10% traditional media.',
+//         translatedContent:
+//             '4분기 마케팅 캠페인은 주로 디지털 채널에 집중하며, 특히 짧은 형식의 비디오 콘텐츠를 통해 Gen Z 사용자를 타겟팅할 것입니다. 예산 할당: 디지털 광고 60%, 인플루언서 협업 30%, 전통 미디어 10%.',
+//     },
+// ];
 
 export const mockMinutes = [
     {

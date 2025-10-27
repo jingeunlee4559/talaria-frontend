@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useContext } from 'react';
 import { Plus, Inbox, Video, VideoOff } from 'lucide-react';
 import FilterTabs from '../../components/dashboard/dashvideo/FilterTabs';
 import MeetingCard from '../../components/dashboard/dashvideo/MeetingCard';
@@ -10,6 +10,8 @@ import { motion } from 'framer-motion';
 import Pagination from '../../components/Pagination';
 import { v4 as uuidv4 } from 'uuid';
 import DocumentListModal from '../../components/dashboard/dashvideo/DocumentListModal';
+import { UserContext } from '../../contexts/UserContext';
+import axios from '../../axios';
 
 const mockMeetings = [
     { id: 1, title: '10월 2주차 주간 보고 회의', status: '진행중', participants: 3, date: '2025년 10월 2일', time: '오후 2:00', invited_ids: ['user1', 'user2'] },
@@ -23,14 +25,14 @@ const mockMeetings = [
     { id: 9, title: '연말 프로모션 아이디어 회의', status: '예정', participants: 7, date: '2025년 10월 6일', time: '오전 10:30', invited_ids: ['marketer1', 'designer_jane', 'sales_rep'] },
 ];
 
-const DUMMY_MY_DOCS = [
-    { id: 'm-01', name: '1분기 실적 보고서_v3_최종.docx', date: '2025-10-22' },
-    { id: 'm-02', name: '신규 프로젝트 제안서 (코드명: 아폴로).pdf', date: '2025-10-21' },
-    { id: 'm-03', name: '사용자 피드백 분석 및 개선 방안.pptx', date: '2025-10-20' },
-    { id: 'm-04', name: '마케팅 캠페인 A/B 테스트 결과.xlsx', date: '2025-10-19' },
-    { id: 'm-05', name: '2026년 사업 계획 초안.docx', date: '2025-10-18' },
-    { id: 'm-06', name: '경쟁사 분석 자료.pdf', date: '2025-10-17' },
-];
+// const DUMMY_MY_DOCS = [
+//     { id: 'm-01', name: '1분기 실적 보고서_v3_최종.docx', date: '2025-10-22' },
+//     { id: 'm-02', name: '신규 프로젝트 제안서 (코드명: 아폴로).pdf', date: '2025-10-21' },
+//     { id: 'm-03', name: '사용자 피드백 분석 및 개선 방안.pptx', date: '2025-10-20' },
+//     { id: 'm-04', name: '마케팅 캠페인 A/B 테스트 결과.xlsx', date: '2025-10-19' },
+//     { id: 'm-05', name: '2026년 사업 계획 초안.docx', date: '2025-10-18' },
+//     { id: 'm-06', name: '경쟁사 분석 자료.pdf', date: '2025-10-17' },
+// ];
 
 const DUMMY_ROOM_DOCS = [
     { id: 'r-01', name: '회의록 (2025-10-15).docx', date: '2025-10-15' },
@@ -48,9 +50,49 @@ const DashVideoPage = () => {
     const [isDocModalOpen, setIsDocModalOpen] = useState(false);
     const [selectedMeetingDocs, setSelectedMeetingDocs] = useState([]);
     const [savedDocs, setSavedDocs] = useState([]);
+    const [documents, setDocuments] = useState([]);
 
     const filters = ['전체', '진행중', '예정', '준비', '종료'];
     const MEETINGS_PER_PAGE = 6;
+
+    const { user } = useContext(UserContext);
+
+    useEffect(() => {
+        if (!user?.userId) return;
+
+        const fetchDocuments = async () => {
+            try {
+                const response = await axios.get(`/api/users/${user?.userId}/documents`);
+                if (response.data && Array.isArray(response.data.items)) {
+                    const formattedDocuments = response.data.items.map((doc) => ({
+                        id: doc.doc_id,
+                        title: doc.original_name,
+                        lastModified: doc.uploaded_at
+                            ? new Date(doc.uploaded_at).toLocaleDateString('ko-KR', {
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric',
+                              })
+                            : '날짜 정보 없음',
+                        fromLang: doc.original_lang,
+                        size: `${(doc.size / 1024 / 1024).toFixed(2)} MB`,
+                        author: `${doc.uploader_name}`,
+                        filepath: doc.filepath,
+                    }));
+                    setDocuments(formattedDocuments);
+                } else {
+                    setDocuments([]);
+                }
+            } catch (error) {
+                console.error('문서 불러오기 오류:', error);
+                setDocuments([]);
+            }
+        };
+
+        fetchDocuments();
+    }, [user?.userId]);
+
+    console.log(documents, 'sdfdsfs');
 
     // --- Memos & Effects ---
     const inProgressMeetings = useMemo(() => (activeFilter === '전체' || activeFilter === '진행중' ? meetings.filter((m) => m.status === '진행중') : []), [meetings, activeFilter]);
@@ -275,7 +317,7 @@ const DashVideoPage = () => {
                 isOpen={isDocModalOpen}
                 onClose={() => setIsDocModalOpen(false)}
                 documents={selectedMeetingDocs}
-                myDocuments={DUMMY_MY_DOCS}
+                myDocuments={documents}
                 roomDocuments={DUMMY_ROOM_DOCS}
                 initialSelectedDocs={savedDocs}
                 onSaveSelected={(selected) => setSavedDocs(selected)}

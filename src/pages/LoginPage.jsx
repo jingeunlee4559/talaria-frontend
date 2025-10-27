@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { EyeIcon, GoogleIcon } from '../components/icons/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from '../axios';
 import Swal from 'sweetalert2';
+import { UserContext } from '../contexts/UserContext';
 
 // --- 메인 로그인 페이지 컴포넌트 ---
 const LoginPage = () => {
@@ -10,6 +11,8 @@ const LoginPage = () => {
     const [password, setPassword] = useState('');
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
     const [error, setError] = useState('');
+
+    const { setUser } = useContext(UserContext);
 
     const navigate = useNavigate();
 
@@ -29,6 +32,8 @@ const LoginPage = () => {
                 // 사용자 정보 저장
                 localStorage.setItem('loggedInUser', JSON.stringify(response.data));
 
+                const userData = response.data;
+
                 // ✅ SweetAlert2 로그인 성공
                 await Swal.fire({
                     title: '로그인 성공!',
@@ -39,6 +44,7 @@ const LoginPage = () => {
                 });
 
                 // 로그인 성공 후 대시보드 이동
+                setUser(userData);
                 navigate('/Dashboardhome');
             }
         } catch (err) {

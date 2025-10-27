@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { FiHome, FiVideo, FiFileText, FiSettings, FiX, FiLogOut } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import axios from '../axios'; //
 import { Calendar } from 'lucide-react';
+import { UserContext } from '../contexts/UserContext';
 
 const Sidebar = ({ isOpen, setIsOpen, className }) => {
     const navigate = useNavigate();
+    const { setUser } = useContext(UserContext);
 
     const menuItems = [
         { name: '대시보드', icon: FiHome, path: '/dashboardhome' },
@@ -39,7 +41,7 @@ const Sidebar = ({ isOpen, setIsOpen, className }) => {
                 localStorage.removeItem('loggedInUser'); // localStorage 사용 시 필요하면 함께 삭제
 
                 await Swal.fire('로그아웃 완료!', '성공적으로 로그아웃되었습니다.', 'success');
-
+                setUser(null);
                 // ✅ 로그인 페이지로 이동
                 navigate('/');
             } catch (error) {

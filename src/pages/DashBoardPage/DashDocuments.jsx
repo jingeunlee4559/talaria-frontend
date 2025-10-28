@@ -16,10 +16,15 @@ const DashDocuments = () => {
     const [docSubTab, setDocSubTab] = useState('전체');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
-    const [docCurrentPage, setDocCurrentPage] = useState(1);
     const [searchTerm, setSearchTerm] = useState('');
     const [documents, setDocuments] = useState([]);
     const [selectedDocs, setSelectedDocs] = useState([]); // ✅ 선택된 문서 ID 관리
+
+    // === State for Documents ===
+    const [docCurrentPage, setDocCurrentPage] = useState(1);
+
+    // === State for Meeting Minutes ===
+    const [minCurrentPage, setMinCurrentPage] = useState(1);
 
     const { user, loading } = useContext(UserContext);
 
@@ -61,7 +66,6 @@ const DashDocuments = () => {
     }, [user, loading]);
 
     const handleDocumentAdd = (newDocumentData) => {
-        // 서버에서 받은 새 문서 데이터를 화면 형식에 맞게 가공합니다.
         const formattedNewDocument = {
             id: newDocumentData.doc_id,
             title: newDocumentData.original_name,
@@ -71,16 +75,12 @@ const DashDocuments = () => {
             author: newDocumentData.uploader_name,
             filepath: newDocumentData.filepath,
         };
-
-        // ✨ 2. 기존 문서 목록(state)의 맨 앞에 새로 추가된 문서를 더해줍니다.
-        // 이렇게 하면 API를 다시 호출하지 않아도 화면이 즉시 갱신됩니다.
         setDocuments((prevDocuments) => [formattedNewDocument, ...prevDocuments]);
     };
 
-    // ✅ 검색 필터링
+    // --- Filtering and Pagination for Documents ---
     const filteredDocumentsBySearch = useMemo(() => (Array.isArray(documents) ? documents.filter((doc) => doc?.title?.toLowerCase().includes(searchTerm.toLowerCase())) : []), [documents, searchTerm]);
 
-    // ✅ 서브탭 필터링
     const filteredDocumentsBySubTab = useMemo(() => {
         if (docSubTab === '전체') return filteredDocumentsBySearch;
         if (docSubTab === '원문') return filteredDocumentsBySearch.filter((doc) => doc.fromLang);
@@ -93,6 +93,17 @@ const DashDocuments = () => {
         const startIndex = (docCurrentPage - 1) * ITEMS_PER_PAGE;
         return filteredDocumentsBySubTab.slice(startIndex, startIndex + ITEMS_PER_PAGE);
     }, [docCurrentPage, filteredDocumentsBySubTab]);
+
+    // --- Filtering and Pagination for Meeting Minutes ---
+    const filteredMinutes = useMemo(() => {
+        return mockMinutes.filter((minute) => minute.title.toLowerCase().includes(searchTerm.toLowerCase()));
+    }, [searchTerm]);
+
+    const totalMinPages = Math.ceil(filteredMinutes.length / ITEMS_PER_PAGE);
+    const currentMinutes = useMemo(() => {
+        const startIndex = (minCurrentPage - 1) * ITEMS_PER_PAGE;
+        return filteredMinutes.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    }, [minCurrentPage, filteredMinutes]);
 
     // ✅ 선택 토글
     const handleSelectDoc = (id) => {
@@ -119,31 +130,24 @@ const DashDocuments = () => {
             return;
         }
 
-        // 1. 삭제 여부 확인 (confirm)
         Swal.fire({
             title: `총 ${selectedDocs.length}개의 문서를 삭제하시겠습니까?`,
             text: '삭제된 문서는 다시 복구할 수 없습니다.',
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#d33', // 삭제 버튼 색상
-            cancelButtonColor: '#3085d6', // 취소 버튼 색상
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
             confirmButtonText: '네, 삭제할게요',
             cancelButtonText: '아니요',
         }).then(async (result) => {
-            // 2. 사용자가 '삭제' 버튼을 눌렀을 때만 실행
             if (result.isConfirmed) {
                 try {
                     await Promise.all(selectedDocs.map((id) => axios.delete(`/api/users/${user.userId}/documents/${id}`)));
-
                     setDocuments((prev) => prev.filter((doc) => !selectedDocs.includes(doc.id)));
                     setSelectedDocs([]);
-
-                    // 3. 성공 알림 (success)
                     Swal.fire('삭제 완료!', '선택한 문서가 성공적으로 삭제되었습니다.', 'success');
                 } catch (error) {
                     console.error('문서 삭제 오류:', error);
-
-                    // 4. 실패 알림 (error)
                     Swal.fire('오류 발생', '문서 삭제 중 문제가 발생했습니다.', 'error');
                 }
             }
@@ -168,14 +172,26 @@ const DashDocuments = () => {
                     <p className="text-slate-500 mt-1 text-sm sm:text-base">과거의 모든 기록을 찾아보고 원하는 정보를 탐색하세요. (Total: {documents.length + mockMinutes.length}건)</p>
                 </header>
 
-                {/* ✅ DocHeader에 삭제 버튼 연결 */}
                 <DocHeader searchTerm={searchTerm} setSearchTerm={setSearchTerm} onDocumentAdd={handleDocumentAdd} onDeleteSelected={handleDeleteSelected} />
 
-                {/* ✅ 상단 탭 */}
                 <div className="border-b border-slate-200 mb-6">
                     <nav className="flex gap-4 sm:gap-6">
-                        <TabButton title="번역 문서" isActive={activeTab === '번역 문서'} onClick={() => setActiveTab('번역 문서')} />
-                        <TabButton title="회의록" isActive={activeTab === '회의록'} onClick={() => setActiveTab('회의록')} />
+                        <TabButton
+                            title="번역 문서"
+                            isActive={activeTab === '번역 문서'}
+                            onClick={() => {
+                                setActiveTab('번역 문서');
+                                setMinCurrentPage(1); // 다른 탭으로 이동 시 페이지 1로 초기화
+                            }}
+                        />
+                        <TabButton
+                            title="회의록"
+                            isActive={activeTab === '회의록'}
+                            onClick={() => {
+                                setActiveTab('회의록');
+                                setDocCurrentPage(1); // 다른 탭으로 이동 시 페이지 1로 초기화
+                            }}
+                        />
                     </nav>
                 </div>
 
@@ -186,7 +202,6 @@ const DashDocuments = () => {
                                 <SubTabButton title="전체" isActive={docSubTab === '전체'} onClick={() => setDocSubTab('전체')} />
                                 <SubTabButton title="원문" isActive={docSubTab === '원문'} onClick={() => setDocSubTab('원문')} />
                                 <SubTabButton title="번역" isActive={docSubTab === '번역'} onClick={() => setDocSubTab('번역')} />
-                                {/* ✅ 전체 선택 버튼 */}
                                 <button onClick={handleSelectAll} className="ml-auto text-sm text-slate-500 hover:text-slate-700">
                                     {selectedDocs.length === currentDocuments.length ? '전체 해제' : '전체 선택'}
                                 </button>
@@ -199,7 +214,30 @@ const DashDocuments = () => {
                                 </>
                             ) : (
                                 <div className="text-center py-16 text-slate-500 bg-white rounded-xl border border-slate-200">
-                                    <p>표시할 문서가 없습니다.</p>
+                                    <p>{searchTerm ? `"${searchTerm}"에 대한 검색 결과가 없습니다.` : '표시할 문서가 없습니다.'}</p>
+                                </div>
+                            )}
+                        </>
+                    )}
+
+                    {/* ✨ 회의록 탭 콘텐츠 */}
+                    {activeTab === '회의록' && (
+                        <>
+                            {currentMinutes.length > 0 ? (
+                                <>
+                                    <MeetingMinutesList minutes={currentMinutes} onItemClick={handleItemClick} />
+                                    <Pagination
+                                        currentPage={minCurrentPage}
+                                        totalPages={totalMinPages}
+                                        onPageChange={(page) => {
+                                            setMinCurrentPage(page);
+                                            window.scrollTo(0, 0);
+                                        }}
+                                    />
+                                </>
+                            ) : (
+                                <div className="text-center py-16 text-slate-500 bg-white rounded-xl border border-slate-200">
+                                    <p>{searchTerm ? `"${searchTerm}"에 대한 검색 결과가 없습니다.` : '표시할 회의록이 없습니다.'}</p>
                                 </div>
                             )}
                         </>

@@ -29,7 +29,7 @@ const InProgressMeetingCard = ({ meeting, onJoinMeeting }) => {
                 </div>
             </div>
             <button
-                onClick={() => onJoinMeeting(meeting.id, meeting.title)}
+                onClick={() => onJoinMeeting(meeting.id, meeting.title, meeting.invite_code)}
                 className="flex-shrink-0 w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-green-600 text-white font-semibold rounded-lg text-base
                            hover:bg-green-700 transition-colors shadow-md hover:shadow-lg"
             >

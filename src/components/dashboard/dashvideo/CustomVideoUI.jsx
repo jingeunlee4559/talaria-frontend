@@ -1,17 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { RoomContext } from '@livekit/components-react';
 import { Room } from 'livekit-client';
 import '@livekit/components-styles';
 import ConferenceUI from './ConferenceUI';
 import axios from 'axios';
+import { UserContext } from '../../../contexts/UserContext';
 
 // 뒤 슬래시 제거 유틸
 const makeBase = () => (import.meta.env.VITE_API_BASE || 'http://localhost:8080').replace(/\/+$/, '');
 
-export default function CustomVideoConference({ roomName, identity, username, onLeave }) {
+export default function CustomVideoConference({ roomName, identity, username, onLeave, meetingId }) {
     const [room] = useState(() => new Room({ adaptiveStream: true, dynacast: true }));
     const [connected, setConnected] = useState(false);
     const [needAudioUnlock, setNeedAudioUnlock] = useState(false);
+    const { user } = useContext(UserContext);
 
     useEffect(() => {
         const fetchTokenAndConnect = async () => {
@@ -19,8 +21,10 @@ export default function CustomVideoConference({ roomName, identity, username, on
                 const url = `${makeBase()}/livekit/token`;
                 const body = {
                     room: roomName || 'demo-room',
+                    meetingId: meetingId,
                     identity: identity || `user-${Math.random().toString(36).slice(2, 8)}`,
                     name: (username && username.trim()) || '참가자',
+                    hostId: user.userId,
                     ttlSec: 60,
                 };
                 console.log('🎯 요청 전송:', url, body);

@@ -288,7 +288,7 @@ const DashVideoPage = () => {
                                             {...meeting}
                                             onJoinMeeting={() => handleJoinMeeting(meeting.id, meeting.title, meeting.invite_code)}
                                             onEdit={() => handleOpenEditMeetingModal(meeting)}
-                                            onDelete={() => handleDeleteMeeting(meeting.id, meeting.title)}
+                                            onDelete={() => handleDeleteMeeting(meeting.id, meeting.title, meeting.invite_code)}
                                             onOpenDocuments={() => handleOpenDocuments(meeting)}
                                         />
                                     </motion.div>

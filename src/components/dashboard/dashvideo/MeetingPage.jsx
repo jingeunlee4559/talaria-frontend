@@ -4,37 +4,50 @@ import Lobby from './Lobby';
 import CustomVideoConference from './CustomVideoUI'; // 토큰은 내부에서 직접 요청/연결
 
 const MeetingPage = () => {
-    // URL 파라미터
+    // ✅ URL 파라미터 읽기
     const [searchParams] = useSearchParams();
-    const meetingId = searchParams.get('id') || 'demo-room';
+    const meetingId = searchParams.get('id'); // ✅ PK
     const meetingTitle = searchParams.get('title') || 'Untitled Meeting';
+    const inviteCode = searchParams.get('invite'); // ✅ 초대코드
 
-    // 화면 상태 & 회의 인자
-    const [view, setView] = useState('lobby'); // 'lobby' | 'meeting'
-    const [meetingArgs, setMeetingArgs] = useState({ roomName: '', identity: '', username: '' });
+    // ✅ 상태
+    const [view, setView] = useState('lobby');
+    const [meetingArgs, setMeetingArgs] = useState({
+        roomName: '',
+        meetingId: '',
+        identity: '',
+        username: '',
+    });
 
-    // 로비 → 회의 입장
+    // ✅ 로비 → 회의 입장
     const handleConfirmJoin = async (userName) => {
         const uniqueIdentity = `user-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+        // ✅ 방 이름 규칙: 초대코드 우선, 없으면 meeting_{id}
+        const roomName = inviteCode || (meetingId ? `meeting_${meetingId}` : 'demo-room');
+
         setMeetingArgs({
-            roomName: meetingId,
+            roomName,
+            meetingId,
             identity: uniqueIdentity,
-            username: (userName && userName.trim()) || '참가자',
+            username: userName?.trim() || '참가자',
         });
+
         setView('meeting');
     };
 
-    // 회의 나가기
+    // ✅ 회의 나가기
     const handleLeaveMeeting = () => {
         try {
-            window.close(); // 새 창일 경우
-        } catch {}
-        setView('lobby'); // 새 창이 아닐 경우
+            window.close();
+        } catch {
+            setView('lobby');
+        }
     };
 
-    // 렌더링
+    // ✅ 렌더링
     if (view === 'meeting') {
-        return <CustomVideoConference roomName={meetingArgs.roomName} identity={meetingArgs.identity} username={meetingArgs.username} onLeave={handleLeaveMeeting} />;
+        return <CustomVideoConference roomName={meetingArgs.roomName} meetingId={meetingArgs.meetingId} identity={meetingArgs.identity} username={meetingArgs.username} onLeave={handleLeaveMeeting} />;
     }
 
     return <Lobby meetingTitle={meetingTitle} onJoin={handleConfirmJoin} />;

@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { IoIosAirplane } from 'react-icons/io';
 import { UserContext } from '../../../contexts/UserContext';
 import axios from '../../../axios';
+import Swal from 'sweetalert2';
 
 const eventTypes = [
     { name: '회의', value: 'meeting', icon: <Video size={16} />, color: 'blue' },
@@ -22,10 +23,17 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
     const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
     const typeDropdownRef = useRef(null);
 
+    // ✅ 한글 타입을 영어 value로 역변환하는 함수
+    const getTypeValue = (typeString) => {
+        const found = eventTypes.find((t) => t.name === typeString);
+        return found ? found.value : typeString; // 한글이면 영어로, 이미 영어면 그대로
+    };
+
     useEffect(() => {
         if (isOpen) {
             const now = new Date();
             const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            const endOfDay = '23:59'; // ✅ 종료 시간 기본값
 
             if (isEditing) {
                 const { event } = selectedInfo;
@@ -34,14 +42,19 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
                 if (!String(event.end).includes('T') && event.start !== event.end) {
                     endDate.setDate(endDate.getDate() - 1);
                 }
+
+                // ✅ 한글 타입을 영어 value로 변환
+                const eventType = event.extendedProps?.type || 'meeting';
+                const typeValue = getTypeValue(eventType);
+
                 setFormData({
                     id: event.id,
                     title: event.title || '',
-                    type: event.extendedProps?.type || 'meeting',
+                    type: typeValue, // 영어 value 사용
                     date: startDate,
                     endDate: format(endDate, 'yyyy-MM-dd'),
                     startTime: String(event.start).includes('T') ? format(new Date(event.start), 'HH:mm') : currentTime,
-                    endTime: event.end && String(event.end).includes('T') ? format(new Date(event.end), 'HH:mm') : '',
+                    endTime: event.end && String(event.end).includes('T') ? format(new Date(event.end), 'HH:mm') : endOfDay,
                     location: event.extendedProps?.location || '',
                     description: event.extendedProps?.description || '',
                 });
@@ -53,7 +66,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
                     date: initialDate,
                     endDate: initialDate,
                     startTime: currentTime,
-                    endTime: '',
+                    endTime: endOfDay, // ✅ 새 일정 추가 시에도 23:59로 설정
                     location: '',
                     description: '',
                 });
@@ -85,7 +98,15 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
 
     const handleSave = async (e) => {
         e.preventDefault();
-        if (!user) return alert('로그인 정보가 없습니다.');
+        if (!user) {
+            Swal.fire({
+                icon: 'warning',
+                title: '로그인 필요',
+                text: '로그인 정보가 없습니다.',
+                confirmButtonColor: '#6366f1',
+            });
+            return;
+        }
 
         const effectiveEndDate = !formData.endDate || formData.endDate < formData.date ? formData.date : formData.endDate;
 
@@ -137,6 +158,16 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
             };
 
             console.log('FullCalendar에 전달할 이벤트:', calendarEvent);
+
+            // ✅ 성공 알림
+            await Swal.fire({
+                icon: 'success',
+                title: formData.id ? '일정 수정 완료' : '일정 추가 완료',
+                text: `"${savedEvent.title}" 일정이 ${formData.id ? '수정' : '저장'}되었습니다.`,
+                timer: 1500,
+                showConfirmButton: false,
+            });
+
             onSave(calendarEvent);
             onClose();
         } catch (error) {
@@ -144,8 +175,59 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
             if (error.response) {
                 console.error('서버 응답 데이터:', error.response.data);
             }
-            alert('일정 저장에 실패했습니다. 콘솔을 확인해주세요.');
+
+            // ✅ 실패 알림
+            Swal.fire({
+                icon: 'error',
+                title: '일정 저장 실패',
+                text: error.response?.data?.error || '일정 저장 중 오류가 발생했습니다.',
+                confirmButtonColor: '#6366f1',
+            });
         }
+    };
+
+    // ✅ 삭제 핸들러
+    const handleDelete = async () => {
+        if (!user) {
+            Swal.fire({
+                icon: 'warning',
+                title: '로그인 필요',
+                text: '로그인 정보가 없습니다.',
+                confirmButtonColor: '#6366f1',
+            });
+            return;
+        }
+        if (!formData.id) return;
+
+        // ✅ 삭제 확인 다이얼로그
+        const result = await Swal.fire({
+            title: '일정을 삭제하시겠습니까?',
+            text: `"${formData.title}" 일정이 영구적으로 삭제됩니다.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: '삭제',
+            cancelButtonText: '취소',
+        });
+
+        if (!result.isConfirmed) return;
+
+        // ✅ 서버 요청은 하지 않고, 부모 컴포넌트에게만 알림
+        console.log('🗑️ [EventModal] 삭제 요청을 부모에게 전달:', formData.id);
+        onDelete(formData.id);
+        onClose();
+
+        // ✅ 삭제 성공 알림 (onClose 후에 표시)
+        setTimeout(() => {
+            Swal.fire({
+                icon: 'success',
+                title: '삭제 완료',
+                text: '일정이 삭제되었습니다.',
+                timer: 1500,
+                showConfirmButton: false,
+            });
+        }, 100);
     };
 
     const selectedType = eventTypes.find((t) => t.value === formData.type);
@@ -341,11 +423,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
                             {/* Modal Footer */}
                             <div className="p-4 bg-slate-50/50 flex justify-between items-center rounded-b-2xl border-t border-slate-200/80">
                                 {isEditing ? (
-                                    <button
-                                        type="button"
-                                        onClick={() => onDelete(formData.id)}
-                                        className="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors disabled:opacity-50"
-                                    >
+                                    <button type="button" onClick={handleDelete} className="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors disabled:opacity-50">
                                         <Trash2 size={18} />
                                     </button>
                                 ) : (

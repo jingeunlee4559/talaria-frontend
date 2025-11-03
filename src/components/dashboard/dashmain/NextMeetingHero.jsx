@@ -1,8 +1,9 @@
 import { ArrowRightIcon, ClockIcon } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
-const NextMeetingHero = ({ meeting }) => {
+const NextMeetingHero = ({ meeting, onJoinMeeting }) => {
     const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
+
     useEffect(() => {
         if (!meeting) return;
         const meetingTime = new Date(Date.now() + 2 * 3600 * 1000 + 15 * 60 * 1000);
@@ -25,6 +26,12 @@ const NextMeetingHero = ({ meeting }) => {
 
     if (!meeting) return null;
 
+    const handleJoinClick = () => {
+        if (onJoinMeeting && meeting.id && meeting.title && meeting.invite_code) {
+            onJoinMeeting(meeting.id, meeting.title, meeting.invite_code);
+        }
+    };
+
     return (
         <div className={`relative w-full p-6 sm:p-8 rounded-2xl flex flex-col md:flex-row md:items-center justify-between text-white overflow-hidden min-h-[260px] ${meeting.gradient}`}>
             <div className="absolute inset-0 bg-black/10"></div>
@@ -36,9 +43,9 @@ const NextMeetingHero = ({ meeting }) => {
                     <span>다음 회의</span>
                 </p>
                 <h3 className="text-3xl md:text-4xl font-bold mt-2">{meeting.title}</h3>
-                <p className="mt-3 font-medium opacity-80 bg-white/20 rounded-full px-3 py-1 w-fit text-sm backdrop-blur-sm">{meeting.lang}</p>
+                {meeting.lang && <p className="mt-3 font-medium opacity-80 bg-white/20 rounded-full px-3 py-1 w-fit text-sm backdrop-blur-sm">{meeting.lang}</p>}
                 <div className="flex -space-x-3 mt-4">
-                    {meeting.participants.map((p, i) => (
+                    {meeting.participants?.map((p, i) => (
                         <img key={i} className="inline-block h-12 w-12 rounded-full ring-2 ring-white/50" src={p.avatar} alt={p.name} title={p.name} />
                     ))}
                 </div>
@@ -60,7 +67,7 @@ const NextMeetingHero = ({ meeting }) => {
                         <p className="opacity-70">초</p>
                     </div>
                 </div>
-                <button className="mt-4 bg-white text-slate-800 font-bold py-3 px-6 rounded-lg hover:bg-slate-200 transition-colors shadow-lg flex items-center space-x-2">
+                <button onClick={handleJoinClick} className="mt-4 bg-white text-slate-800 font-bold py-3 px-6 rounded-lg hover:bg-slate-200 transition-colors shadow-lg flex items-center space-x-2">
                     <span>참여하기</span>
                     <ArrowRightIcon className="w-5 h-5" />
                 </button>

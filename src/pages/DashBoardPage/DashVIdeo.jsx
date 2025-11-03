@@ -180,23 +180,132 @@ const DashVideoPage = () => {
         setTimeout(() => setEditingMeeting(null), 300);
     };
 
-    const handleConfirmMeeting = (meetingData) => {
+    const handleConfirmMeeting = async (meetingData) => {
         const isEditing = editingMeeting !== null;
-        if (isEditing) {
-            setMeetings((prev) => prev.map((m) => (m.id === meetingData.id ? meetingData : m)));
-        } else {
-            setMeetings((prev) => [{ ...meetingData, id: Date.now() }, ...prev]);
-        }
-        handleCloseModal();
 
-        Swal.fire({
-            icon: 'success',
-            title: isEditing ? '수정 완료!' : '예약 완료!',
-            text: `'${meetingData.title}' 회의 정보가 저장되었습니다.`,
-            timer: 2000,
-            showConfirmButton: false,
-            timerProgressBar: true,
-        });
+        try {
+            // 날짜와 시간을 ISO 형식으로 변환 (공통 로직)
+            const [year, month, day] = meetingData.date
+                .replace(/년|월|일/g, '-')
+                .split('-')
+                .map((s) => s.trim());
+
+            const [period, timeStr] = meetingData.time.split(' ');
+            let [hour, minute] = timeStr.split(':').map((h) => parseInt(h, 10));
+
+            if (period === '오후' && hour !== 12) {
+                hour += 12;
+            } else if (period === '오전' && hour === 12) {
+                hour = 0;
+            }
+
+            const scheduledAt = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
+
+            // API 요청 데이터 구성 (공통)
+            const requestData = {
+                title: meetingData.title,
+                scheduled_at: scheduledAt,
+                invited_user_ids: meetingData.invited_ids || [],
+            };
+
+            if (isEditing) {
+                // 수정 모드 (PATCH 요청)
+                console.log('회의 수정 요청:', requestData);
+
+                await axios.patch(`/api/users/${user.userId}/meetings/${meetingData.id}`, requestData);
+
+                Swal.fire({
+                    icon: 'success',
+                    title: '수정 완료!',
+                    text: `'${meetingData.title}' 회의 정보가 수정되었습니다.`,
+                    timer: 2000,
+                    showConfirmButton: false,
+                    timerProgressBar: true,
+                });
+
+                // 회의 목록 새로고침
+                const res = await axios.get(`/api/users/${user.userId}/meetings`);
+                if (Array.isArray(res.data.items)) {
+                    const formatted = res.data.items.map((m) => ({
+                        id: m.meetings_id,
+                        title: m.title,
+                        status: mapStatusToKorean(m.status),
+                        date: new Date(m.scheduled_at).toLocaleDateString('ko-KR', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                        }),
+                        time: new Date(m.scheduled_at).toLocaleTimeString('ko-KR', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                        }),
+                        invite_code: m.invite_code,
+                        participants: m.participants || 1,
+                        invited_ids: [],
+                    }));
+                    setMeetings(formatted);
+                }
+            } else {
+                // 새 회의 생성 모드 (POST 요청)
+                console.log('회의 생성 요청:', requestData);
+
+                const response = await axios.post(`/api/users/${user.userId}/meetings`, requestData);
+
+                console.log('회의 생성 응답:', response.data);
+
+                Swal.fire({
+                    icon: 'success',
+                    title: '예약 완료!',
+                    text: `'${meetingData.title}' 회의가 생성되었습니다.`,
+                    timer: 2000,
+                    showConfirmButton: false,
+                    timerProgressBar: true,
+                });
+
+                // 회의 목록 새로고침
+                const res = await axios.get(`/api/users/${user.userId}/meetings`);
+                if (Array.isArray(res.data.items)) {
+                    const formatted = res.data.items.map((m) => ({
+                        id: m.meetings_id,
+                        title: m.title,
+                        status: mapStatusToKorean(m.status),
+                        date: new Date(m.scheduled_at).toLocaleDateString('ko-KR', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                        }),
+                        time: new Date(m.scheduled_at).toLocaleTimeString('ko-KR', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                        }),
+                        invite_code: m.invite_code,
+                        participants: m.participants || 1,
+                        invited_ids: [],
+                    }));
+                    setMeetings(formatted);
+                }
+            }
+
+            handleCloseModal();
+        } catch (error) {
+            console.error('회의 처리 오류:', error);
+
+            let errorMessage = isEditing ? '회의 수정 중 오류가 발생했습니다.' : '회의 생성 중 오류가 발생했습니다.';
+
+            if (error.response) {
+                errorMessage = error.response.data?.message || error.response.data?.error || errorMessage;
+                console.error('서버 응답 오류:', error.response.data);
+            } else if (error.request) {
+                errorMessage = '서버와 통신할 수 없습니다. 네트워크 연결을 확인해주세요.';
+                console.error('네트워크 오류:', error.request);
+            }
+
+            Swal.fire({
+                icon: 'error',
+                title: isEditing ? '수정 실패' : '생성 실패',
+                text: errorMessage,
+            });
+        }
     };
 
     const handleDeleteMeeting = (meetingId, meetingTitle) => {

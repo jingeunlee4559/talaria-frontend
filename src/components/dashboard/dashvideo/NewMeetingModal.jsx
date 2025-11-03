@@ -80,7 +80,10 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
     // 사용자 검색 API 호출 (디바운싱)
     useEffect(() => {
         const searchUsers = async () => {
-            if (!participantInput.trim() || participantInput.length < 2) {
+            const trimmedInput = participantInput.trim();
+
+            // ✅ 3글자 미만이면 API를 호출하지 않음
+            if (trimmedInput.length < 3) {
                 setSearchResults([]);
                 setShowSearchResults(false);
                 return;
@@ -88,22 +91,37 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
 
             setIsSearching(true);
             try {
-                // 사용자 검색 API 호출
+                // ✅ 변경점 1: API 주소 변경
+                // ✅ 변경점 2: 파라미터 이름을 'keyword'로 변경
                 const response = await axios.get(`/api/users/search`, {
-                    params: { query: participantInput },
+                    params: { keyword: trimmedInput },
                 });
 
                 console.log('검색 결과:', response.data);
 
-                // 이미 추가된 참가자는 제외
-                const filteredResults = response.data.items?.filter((user) => !participants.some((p) => p.userId === user.user_id)) || [];
+                // ✅ 변경점 3: 백엔드가 이제 배열을 바로 반환하므로 .items가 필요 없음
+                const foundUsers = response.data || [];
 
-                setSearchResults(filteredResults);
-                setShowSearchResults(filteredResults.length > 0);
+                // 이미 추가된 참가자는 검색 결과에서 제외
+                const filteredResults = foundUsers.filter(
+                    (user) => !participants.some((p) => p.userId === user.userId), // 백엔드 DTO 필드명은 userId
+                );
+
+                // 프론트엔드에서 사용하는 키(user_id)에 맞게 매핑
+                const mappedResults = filteredResults.map((user) => ({
+                    user_id: user.userId,
+                    email: user.email,
+                    name: user.name,
+                    username: user.name,
+                }));
+
+                setSearchResults(mappedResults);
+                setShowSearchResults(true); // 입력값이 있으면 항상 검색창을 보여줌
             } catch (error) {
                 console.error('사용자 검색 오류:', error);
                 setSearchResults([]);
-                setShowSearchResults(false);
+                // 검색 실패 시에도 입력창이 있으면 빈 결과창을 보여주는 것이 좋음
+                setShowSearchResults(participantInput.trim().length > 0);
             } finally {
                 setIsSearching(false);
             }

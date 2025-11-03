@@ -9,7 +9,7 @@ import { UserContext } from '../../../contexts/UserContext';
 // 뒤 슬래시 제거 유틸
 const makeBase = () => (import.meta.env.VITE_API_BASE || 'http://localhost:8080').replace(/\/+$/, '');
 
-export default function CustomVideoConference({ roomName, identity, username, onLeave, meetingId }) {
+export default function CustomVideoConference({ roomName, identity, username, onLeave, meetingId, meetingTitle }) {
     const [room] = useState(() => new Room({ adaptiveStream: true, dynacast: true }));
     const [connected, setConnected] = useState(false);
     const [needAudioUnlock, setNeedAudioUnlock] = useState(false);
@@ -93,7 +93,7 @@ export default function CustomVideoConference({ roomName, identity, username, on
                     </button>
                 </div>
             )}
-            <ConferenceUI room={room} onLeave={onLeave} />
+            <ConferenceUI room={room} onLeave={onLeave} meetingTitle={meetingTitle} />
         </RoomContext.Provider>
     );
 }

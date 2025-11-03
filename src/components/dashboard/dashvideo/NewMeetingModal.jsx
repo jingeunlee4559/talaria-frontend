@@ -1,8 +1,9 @@
 import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { X, Calendar, Clock, Users, Plus, Hash, AlertCircle, Pencil } from 'lucide-react';
+import { X, Calendar, Clock, Users, Plus, Hash, AlertCircle, Pencil, Search } from 'lucide-react';
+import axios from '../../../axios';
 
-// Helper Component는 외부로 분리하여 불필요한 재정의를 방지합니다.
+// Helper Component
 const InputField = ({ id, label, icon, error, children }) => (
     <div>
         <label htmlFor={id} className="text-sm font-medium text-slate-700">
@@ -21,7 +22,6 @@ const InputField = ({ id, label, icon, error, children }) => (
     </div>
 );
 
-// meetingToEdit prop을 받아 수정 모드를 제어합니다.
 const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
     const isEditMode = Boolean(meetingToEdit);
 
@@ -31,14 +31,16 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
     const [participants, setParticipants] = useState([]);
     const [participantInput, setParticipantInput] = useState('');
     const [errors, setErrors] = useState({});
+    const [searchResults, setSearchResults] = useState([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const [showSearchResults, setShowSearchResults] = useState(false);
 
-    // 수정 모드일 때, 모달이 열리면 기존 데이터를 폼에 채워넣습니다.
+    // 수정 모드일 때 기존 데이터 로드
     useEffect(() => {
         if (isEditMode && isOpen) {
             setTitle(meetingToEdit.title);
             setParticipants(meetingToEdit.invited_ids || []);
 
-            // "2025년 10월 18일" 같은 문자열을 "2025-10-18" 형식으로 변환합니다.
             const dateStr = meetingToEdit.date.replace(
                 /(\d{4}년)\s*(\d{1,2}월)\s*(\d{1,2}일)/,
                 (_, y, m, d) => `${y.slice(0, -1)}-${m.slice(0, -1).padStart(2, '0')}-${d.slice(0, -1).padStart(2, '0')}`,
@@ -46,7 +48,6 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
             const formattedDate = new Date(dateStr).toISOString().split('T')[0];
             setDate(formattedDate);
 
-            // "오후 2:00" 같은 문자열을 "14:00" 형식으로 변환합니다.
             const [period, timeStr] = meetingToEdit.time.split(' ');
             let [hour, minute] = timeStr.split(':');
             hour = parseInt(hour, 10);
@@ -60,7 +61,7 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
         }
     }, [meetingToEdit, isEditMode, isOpen]);
 
-    // 모달이 닫힐 때 모든 상태를 초기화합니다.
+    // 모달 닫힐 때 초기화
     useEffect(() => {
         if (!isOpen) {
             setTimeout(() => {
@@ -70,15 +71,79 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
                 setParticipants([]);
                 setParticipantInput('');
                 setErrors({});
+                setSearchResults([]);
+                setShowSearchResults(false);
             }, 300);
         }
     }, [isOpen]);
 
-    const handleAddParticipant = () => {
-        const newParticipant = participantInput.trim();
-        if (newParticipant && !participants.includes(newParticipant)) {
+    // 사용자 검색 API 호출 (디바운싱)
+    useEffect(() => {
+        const searchUsers = async () => {
+            if (!participantInput.trim() || participantInput.length < 2) {
+                setSearchResults([]);
+                setShowSearchResults(false);
+                return;
+            }
+
+            setIsSearching(true);
+            try {
+                // 사용자 검색 API 호출
+                const response = await axios.get(`/api/users/search`, {
+                    params: { query: participantInput },
+                });
+
+                console.log('검색 결과:', response.data);
+
+                // 이미 추가된 참가자는 제외
+                const filteredResults = response.data.items?.filter((user) => !participants.some((p) => p.userId === user.user_id)) || [];
+
+                setSearchResults(filteredResults);
+                setShowSearchResults(filteredResults.length > 0);
+            } catch (error) {
+                console.error('사용자 검색 오류:', error);
+                setSearchResults([]);
+                setShowSearchResults(false);
+            } finally {
+                setIsSearching(false);
+            }
+        };
+
+        // 디바운싱: 300ms 후에 검색 실행
+        const timeoutId = setTimeout(searchUsers, 300);
+        return () => clearTimeout(timeoutId);
+    }, [participantInput, participants]);
+
+    // 검색 결과에서 사용자 선택
+    const handleSelectUser = (user) => {
+        const newParticipant = {
+            userId: user.user_id,
+            name: user.name || user.username,
+            email: user.email,
+        };
+
+        if (!participants.some((p) => p.userId === user.user_id)) {
             setParticipants([...participants, newParticipant]);
             setParticipantInput('');
+            setSearchResults([]);
+            setShowSearchResults(false);
+
+            if (errors.participants) {
+                const newErrors = { ...errors };
+                delete newErrors.participants;
+                setErrors(newErrors);
+            }
+        }
+    };
+
+    // 직접 ID 입력으로 추가 (기존 방식 유지)
+    const handleAddParticipant = () => {
+        const newParticipant = participantInput.trim();
+        if (newParticipant && !participants.some((p) => p.userId === newParticipant || p === newParticipant)) {
+            setParticipants([...participants, newParticipant]);
+            setParticipantInput('');
+            setSearchResults([]);
+            setShowSearchResults(false);
             if (errors.participants) {
                 const newErrors = { ...errors };
                 delete newErrors.participants;
@@ -88,7 +153,14 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
     };
 
     const handleRemoveParticipant = (participantToRemove) => {
-        setParticipants(participants.filter((p) => p !== participantToRemove));
+        setParticipants(
+            participants.filter((p) => {
+                if (typeof p === 'string') {
+                    return p !== participantToRemove;
+                }
+                return p.userId !== participantToRemove.userId;
+            }),
+        );
     };
 
     const handleSubmit = (e) => {
@@ -113,18 +185,20 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
         const formattedHour = hourNum % 12 || 12;
         const formattedTime = `${period} ${String(formattedHour).padStart(2, '0')}:${minute}`;
 
+        // 참가자 ID 배열 생성
+        const invitedUserIds = participants.map((p) => (typeof p === 'string' ? p : p.userId));
+
         const meetingData = {
             id: isEditMode ? meetingToEdit.id : `meeting-${Date.now()}`,
             title,
-            status: '예정', // 수정 시에도 status는 '예정'으로 유지됩니다.
+            status: '예정',
             participants: participants.length + 1,
-            invited_ids: participants,
+            invited_ids: invitedUserIds,
             date: formattedDate,
             time: formattedTime,
         };
 
         onConfirm(meetingData);
-        onClose();
     };
 
     return (
@@ -172,6 +246,7 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
                                                 className="block w-full rounded-lg border-slate-300 pl-10 shadow-sm focus:border-violet-500 focus:ring-violet-500 sm:text-sm"
                                             />
                                         </InputField>
+
                                         <div className="grid grid-cols-2 gap-4">
                                             <InputField id="date" label="날짜" icon={<Calendar className="h-5 w-5 text-slate-400" />} error={errors.date}>
                                                 <input
@@ -192,43 +267,89 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
                                                 />
                                             </InputField>
                                         </div>
-                                        <InputField id="participants" label="참가자 초대 (ID)" icon={<Users className="h-5 w-5 text-slate-400" />} error={errors.participants}>
-                                            <div className="flex gap-2">
-                                                <input
-                                                    id="participants"
-                                                    type="text"
-                                                    value={participantInput}
-                                                    onChange={(e) => setParticipantInput(e.target.value)}
-                                                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddParticipant())}
-                                                    placeholder="초대할 팀원의 ID 입력"
-                                                    className="block w-full rounded-lg border-slate-300 pl-10 shadow-sm focus:border-violet-500 focus:ring-violet-500 sm:text-sm"
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={handleAddParticipant}
-                                                    className="flex-shrink-0 rounded-lg bg-violet-100 p-2 text-sm font-semibold text-violet-700 hover:bg-violet-200 transition-transform active:scale-95"
-                                                >
-                                                    <Plus className="h-5 w-5" />
-                                                </button>
+
+                                        <InputField id="participants" label="참가자 초대 (이름 또는 ID)" icon={<Users className="h-5 w-5 text-slate-400" />} error={errors.participants}>
+                                            <div className="relative">
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        id="participants"
+                                                        type="text"
+                                                        value={participantInput}
+                                                        onChange={(e) => setParticipantInput(e.target.value)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                if (searchResults.length > 0) {
+                                                                    handleSelectUser(searchResults[0]);
+                                                                } else {
+                                                                    handleAddParticipant();
+                                                                }
+                                                            }
+                                                        }}
+                                                        placeholder="사용자 이름 또는 ID로 검색"
+                                                        className="block w-full rounded-lg border-slate-300 pl-10 shadow-sm focus:border-violet-500 focus:ring-violet-500 sm:text-sm"
+                                                        autoComplete="off"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleAddParticipant}
+                                                        className="flex-shrink-0 rounded-lg bg-violet-100 p-2 text-sm font-semibold text-violet-700 hover:bg-violet-200 transition-transform active:scale-95"
+                                                        title="직접 추가"
+                                                    >
+                                                        <Plus className="h-5 w-5" />
+                                                    </button>
+                                                </div>
+
+                                                {/* 검색 결과 드롭다운 */}
+                                                {showSearchResults && (
+                                                    <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                                        {isSearching ? (
+                                                            <div className="p-3 text-center text-sm text-slate-500">검색 중...</div>
+                                                        ) : (
+                                                            searchResults.map((user) => (
+                                                                <button
+                                                                    key={user.user_id}
+                                                                    type="button"
+                                                                    onClick={() => handleSelectUser(user)}
+                                                                    className="w-full px-4 py-2 text-left hover:bg-violet-50 transition-colors flex items-center gap-3"
+                                                                >
+                                                                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 font-semibold text-sm">
+                                                                        {(user.name || user.username || 'U')[0].toUpperCase()}
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <p className="text-sm font-medium text-slate-900 truncate">{user.name || user.username}</p>
+                                                                        <p className="text-xs text-slate-500 truncate">{user.email || user.user_id}</p>
+                                                                    </div>
+                                                                </button>
+                                                            ))
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         </InputField>
+
                                         {participants.length > 0 && (
                                             <div className="flex flex-wrap gap-2 pt-1">
-                                                {participants.map((p) => (
-                                                    <span
-                                                        key={p}
-                                                        className="inline-flex items-center gap-1.5 rounded-full bg-violet-100 px-2.5 py-1 text-xs font-medium text-violet-800 animate-in fade-in-50"
-                                                    >
-                                                        <Hash className="h-3 w-3" /> {p}
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleRemoveParticipant(p)}
-                                                            className="rounded-full text-violet-500 hover:bg-violet-200/80 hover:text-violet-700"
+                                                {participants.map((p) => {
+                                                    const displayName = typeof p === 'string' ? p : p.name || p.email;
+                                                    const key = typeof p === 'string' ? p : p.userId;
+
+                                                    return (
+                                                        <span
+                                                            key={key}
+                                                            className="inline-flex items-center gap-1.5 rounded-full bg-violet-100 px-2.5 py-1 text-xs font-medium text-violet-800 animate-in fade-in-50"
                                                         >
-                                                            <X className="h-4 w-4" />
-                                                        </button>
-                                                    </span>
-                                                ))}
+                                                            <Hash className="h-3 w-3" /> {displayName}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleRemoveParticipant(p)}
+                                                                className="rounded-full text-violet-500 hover:bg-violet-200/80 hover:text-violet-700"
+                                                            >
+                                                                <X className="h-4 w-4" />
+                                                            </button>
+                                                        </span>
+                                                    );
+                                                })}
                                             </div>
                                         )}
                                     </div>

@@ -61,12 +61,61 @@ const DashHome = () => {
     };
 
     // 회의 참여 함수
-    const handleJoinMeeting = (meetingId, meetingTitle, inviteCode) => {
-        const url = new URL('/meeting', window.location.origin);
-        url.searchParams.set('id', meetingId);
-        url.searchParams.set('title', meetingTitle);
-        url.searchParams.set('invite', inviteCode);
-        window.open(url.toString(), '_blank', 'noopener,noreferrer');
+    const handleJoinMeeting = async (meetingId, meetingTitle, inviteCode) => {
+        try {
+            // 회의 상태 업데이트 (SCHEDULED → ONGOING)
+            const currentMeeting = meetings.find((m) => m.id === meetingId);
+
+            if (currentMeeting && currentMeeting.status === '예정') {
+                console.log('회의 상태 업데이트 시작:', meetingId);
+
+                // 현재 시간을 ISO 형식으로
+                const now = new Date().toISOString();
+
+                const updateData = {
+                    title: meetingTitle,
+                    status: 'ONGOING',
+                    inviteCode: inviteCode,
+                    scheduledAt: currentMeeting.scheduled_at,
+                    // defaultLang은 선택사항이므로 있으면 포함
+                    ...(currentMeeting.lang && { defaultLang: currentMeeting.lang }),
+                };
+
+                console.log('상태 업데이트 요청:', updateData);
+
+                await axios.patch(`/api/users/${user.userId}/meetings/${meetingId}`, updateData);
+
+                console.log('회의 상태가 ONGOING으로 변경되었습니다.');
+
+                // 회의 목록 새로고침
+                await fetchMeetings();
+            }
+
+            // 회의방으로 이동
+            const url = new URL('/meeting', window.location.origin);
+            url.searchParams.set('id', meetingId);
+            url.searchParams.set('title', meetingTitle);
+            url.searchParams.set('invite', inviteCode);
+            window.open(url.toString(), '_blank', 'noopener,noreferrer');
+        } catch (error) {
+            console.error('회의 참여 중 오류:', error);
+
+            // 에러가 발생해도 회의방은 열어줌
+            const url = new URL('/meeting', window.location.origin);
+            url.searchParams.set('id', meetingId);
+            url.searchParams.set('title', meetingTitle);
+            url.searchParams.set('invite', inviteCode);
+            window.open(url.toString(), '_blank', 'noopener,noreferrer');
+
+            // 사용자에게 경고 표시 (선택사항)
+            Swal.fire({
+                icon: 'warning',
+                title: '상태 업데이트 실패',
+                text: '회의 상태 업데이트에 실패했지만, 회의에는 참여할 수 있습니다.',
+                timer: 2000,
+                showConfirmButton: false,
+            });
+        }
     };
 
     // 회의 정렬 함수: 진행 중 > 예정 > 완료

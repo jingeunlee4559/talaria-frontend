@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react';
-import { ControlBar, RoomAudioRenderer, LayoutContextProvider, useParticipants } from '@livekit/components-react';
+import {
+    ControlBar,
+    RoomAudioRenderer,
+    LayoutContextProvider,
+    useParticipants,
+    useRoomContext, // ✅ 최상위에서 import
+} from '@livekit/components-react';
 import Swal from 'sweetalert2';
 import TranscriptSidebar from './TranscriptSidebar';
 import DataSender from './DataSender';
@@ -7,7 +13,19 @@ import CustomVideoGrid from './CustomVideoGrid';
 import SubtitleOverlay from './SubtitleOverlay';
 import { FiCopy } from 'react-icons/fi';
 
-const ConferenceUI = ({ room, onLeave }) => {
+const ConferenceUI = ({ meetingTitle, onLeave }) => {
+    // ✅ 컴포넌트 최상위에서 Hook 호출
+    const room = useRoomContext();
+    const participants = useParticipants();
+    const participantCount = participants.length;
+
+    // 사이드바 표시 상태
+    const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+
+    // STT 수신 상태
+    const [partials, setPartials] = useState({});
+    const [finals, setFinals] = useState([]);
+
     const documents = [
         {
             id: 1,
@@ -55,33 +73,19 @@ const ConferenceUI = ({ room, onLeave }) => {
         },
     ];
 
-    // LiveKit 참가자 수
-    const participants = useParticipants();
-    const participantCount = participants.length;
-
-    // 사이드바 표시 상태
-    const [isSidebarVisible, setIsSidebarVisible] = useState(true);
-
-    //  STT 수신 상태: partial/ final
-    const [partials, setPartials] = useState({}); // key(화자) -> 현재 진행 중 텍스트
-    const [finals, setFinals] = useState([]); // [{ identity, text, ts }]
-
-    //  LiveKit DataTrack('stt') 수신
+    // ✅ room이 준비된 후에만 이벤트 리스너 등록
     useEffect(() => {
         if (!room) return;
 
         const onData = (payload, participant, dataChannel) => {
             try {
-                if (dataChannel?.topic !== 'stt') return; // STT 전용 topic만 처리
+                if (dataChannel?.topic !== 'stt') return;
                 const text = new TextDecoder().decode(payload);
                 const msg = JSON.parse(text);
-                // 기대 페이로드:
-                // { type:'stt', final:boolean, text:string, identity?:string, track_sid?:string, ts?:number }
 
                 const key = msg.identity || msg.track_sid || participant?.identity || 'unknown';
 
                 if (msg.final) {
-                    // 최종 문장: finals에 누적, partial 제거
                     setFinals((prev) => [...prev, { identity: key, text: msg.text || '', ts: msg.ts ?? Date.now() }]);
                     setPartials((prev) => {
                         const next = { ...prev };
@@ -89,11 +93,9 @@ const ConferenceUI = ({ room, onLeave }) => {
                         return next;
                     });
                 } else {
-                    // 진행 중 문장: partial 갱신
                     setPartials((prev) => ({ ...prev, [key]: msg.text || '' }));
                 }
             } catch (e) {
-                // 파싱 실패 등은 무시
                 console.debug('stt parse error', e);
             }
         };
@@ -136,16 +138,15 @@ const ConferenceUI = ({ room, onLeave }) => {
             <div data-lk-theme="default" className="w-full h-screen flex flex-col md:flex-row bg-slate-800">
                 <main className="w-full h-[60vh] md:h-full flex-grow relative flex flex-col">
                     <div className="absolute top-4 left-4 z-10 bg-black/50 p-2 rounded text-white text-sm">
-                        <p className="font-bold">Global Marketing Strategy Meeting</p>
-                        <p className="text-xs">{participantCount > 0 ? ` 인원수 ${participantCount}` : 'Connecting...'}</p>
+                        <p className="font-bold">{meetingTitle || '회의'}</p>
+                        <p className="text-xs">{participantCount > 0 ? `인원수 ${participantCount}` : 'Connecting...'}</p>
                     </div>
 
                     <div className="flex-grow relative overflow-hidden">
                         <CustomVideoGrid />
-                        {/* 기존 오버레이(유지): SubtitleOverlay가 내부 상태를 쓰면 그대로 사용 */}
                         <SubtitleOverlay />
 
-                        {/*  STT Partial 오버레이 (하단 중앙) */}
+                        {/* STT Partial 오버레이 */}
                         {Object.keys(partials).length > 0 && (
                             <div className="absolute bottom-24 left-1/2 -translate-x-1/2 w-[90%] max-w-3xl bg-black/60 text-white rounded-xl px-4 py-2 z-20">
                                 {Object.entries(partials).map(([key, txt]) => (
@@ -157,7 +158,7 @@ const ConferenceUI = ({ room, onLeave }) => {
                             </div>
                         )}
 
-                        {/*  STT Final 패널 (하단 우측, 최근 20개) */}
+                        {/* STT Final 패널 */}
                         {finals.length > 0 && (
                             <div className="absolute bottom-2 right-2 w-[26rem] max-h-64 overflow-auto bg-white/85 backdrop-blur rounded-xl p-3 shadow z-20">
                                 {finals.slice(-20).map((it, i) => (
@@ -205,7 +206,6 @@ const ConferenceUI = ({ room, onLeave }) => {
 
                 {isSidebarVisible && (
                     <aside className="w-full h-[40vh] md:w-[340px] md:h-full flex-shrink-0 bg-slate-700 transition-all duration-300">
-                        {/* 필요 시 finals/partials를 TranscriptSidebar로 내려서 기록/검색 UI 구현 가능 */}
                         <TranscriptSidebar documents={documents} />
                     </aside>
                 )}

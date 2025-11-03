@@ -8,12 +8,11 @@ const MeetingListItem = ({ id, time, title, participants, status, invite_code, o
     };
     const currentStatus = statusStyles[status] || statusStyles['예정'];
 
-    const handleJoinClick = () => {
+    const handleJoinClick = async () => {
         if (onJoinMeeting && id && title && invite_code) {
-            onJoinMeeting(id, title, invite_code);
+            await onJoinMeeting(id, title, invite_code);
         }
     };
-
     return (
         <div className={`flex items-center space-x-4 p-4 bg-slate-100/50 rounded-xl hover:shadow-md transition-shadow border-l-4 ${currentStatus.border}`}>
             <div className="text-center w-20">

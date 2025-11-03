@@ -25,10 +25,9 @@ const NextMeetingHero = ({ meeting, onJoinMeeting }) => {
     }, [meeting]);
 
     if (!meeting) return null;
-
-    const handleJoinClick = () => {
+    const handleJoinClick = async () => {
         if (onJoinMeeting && meeting.id && meeting.title && meeting.invite_code) {
-            onJoinMeeting(meeting.id, meeting.title, meeting.invite_code);
+            await onJoinMeeting(meeting.id, meeting.title, meeting.invite_code);
         }
     };
 

@@ -157,12 +157,82 @@ const DashVideoPage = () => {
         window.scrollTo(0, 0);
     };
 
-    const handleJoinMeeting = (meetingId, meetingTitle, inviteCode) => {
-        const url = new URL('/meeting', window.location.origin);
-        url.searchParams.set('id', meetingId);
-        url.searchParams.set('title', meetingTitle);
-        url.searchParams.set('invite', inviteCode); // ✅ 초대코드 추가
-        window.open(url.toString(), '_blank', 'noopener,noreferrer');
+    const handleJoinMeeting = async (meetingId, meetingTitle, inviteCode) => {
+        try {
+            // 회의 상태 업데이트 (SCHEDULED → ONGOING)
+            const currentMeeting = meetings.find((m) => m.id === meetingId);
+
+            if (currentMeeting && currentMeeting.status === '예정') {
+                console.log('회의 상태 업데이트 시작:', meetingId);
+
+                // API 요청용 상태값 (한국어 → 영문)
+                const statusMap = {
+                    예정: 'SCHEDULED',
+                    진행중: 'ONGOING',
+                    종료: 'ENDED',
+                };
+
+                const updateData = {
+                    title: meetingTitle,
+                    status: 'ONGOING',
+                    inviteCode: inviteCode,
+                    scheduledAt: currentMeeting.scheduled_at || new Date().toISOString(),
+                };
+
+                console.log('상태 업데이트 요청:', updateData);
+
+                await axios.patch(`/api/users/${user.userId}/meetings/${meetingId}`, updateData);
+
+                console.log('회의 상태가 ONGOING으로 변경되었습니다.');
+
+                // 회의 목록 새로고침
+                const res = await axios.get(`/api/users/${user.userId}/meetings`);
+                if (Array.isArray(res.data.items)) {
+                    const formatted = res.data.items.map((m) => ({
+                        id: m.meetings_id,
+                        title: m.title,
+                        status: mapStatusToKorean(m.status),
+                        date: new Date(m.scheduled_at).toLocaleDateString('ko-KR', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                        }),
+                        time: new Date(m.scheduled_at).toLocaleTimeString('ko-KR', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                        }),
+                        invite_code: m.invite_code,
+                        participants: 1 + (m.invited_user_ids?.length || 0),
+                        invited_ids: m.invited_user_ids || [],
+                    }));
+                    setMeetings(formatted);
+                }
+            }
+
+            // 회의방으로 이동
+            const url = new URL('/meeting', window.location.origin);
+            url.searchParams.set('id', meetingId);
+            url.searchParams.set('title', meetingTitle);
+            url.searchParams.set('invite', inviteCode);
+            window.open(url.toString(), '_blank', 'noopener,noreferrer');
+        } catch (error) {
+            console.error('회의 참여 중 오류:', error);
+
+            // 에러가 발생해도 회의방은 열어줌
+            const url = new URL('/meeting', window.location.origin);
+            url.searchParams.set('id', meetingId);
+            url.searchParams.set('title', meetingTitle);
+            url.searchParams.set('invite', inviteCode);
+            window.open(url.toString(), '_blank', 'noopener,noreferrer');
+
+            Swal.fire({
+                icon: 'warning',
+                title: '상태 업데이트 실패',
+                text: '회의 상태 업데이트에 실패했지만, 회의에는 참여할 수 있습니다.',
+                timer: 2000,
+                showConfirmButton: false,
+            });
+        }
     };
 
     const handleOpenNewMeetingModal = () => {

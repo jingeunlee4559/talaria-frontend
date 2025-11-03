@@ -48,33 +48,51 @@ const DashVideoPage = () => {
         }
     };
 
-    // --- 회의 데이터 가져오기 ---
+    // --- 회의 데이터 가져오기 (호스트 + 초대받은 회의 모두) ---
     useEffect(() => {
         if (!user?.userId) return;
 
         const fetchMeetings = async () => {
             try {
-                const res = await axios.get(`/api/users/${user.userId}/meetings`);
-                console.log(res.data.items, '나오니????');
+                // /all 엔드포인트로 변경 - 호스트인 회의 + 초대받은 회의 모두 조회
+                const res = await axios.get(`/api/users/${user.userId}/meetings/all`);
+                console.log(res.data.items, '회의 목록 (호스트 + 초대받은 회의)');
 
                 if (Array.isArray(res.data.items)) {
-                    const formatted = res.data.items.map((m) => ({
-                        id: m.meetings_id,
-                        title: m.title,
-                        status: mapStatusToKorean(m.status),
-                        date: new Date(m.scheduled_at).toLocaleDateString('ko-KR', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
+                    // 각 회의의 참가자 수를 가져오기
+                    const formatted = await Promise.all(
+                        res.data.items.map(async (m) => {
+                            let participantCount = 1; // 기본값
+
+                            try {
+                                // 각 회의의 참가자 수 조회
+                                const countRes = await axios.get(`/api/meetings/${m.meetings_id}/participants/count`);
+                                participantCount = countRes.data.totalCount || 1;
+                            } catch (err) {
+                                console.error(`회의 ${m.meetings_id} 참가자 수 조회 실패:`, err);
+                            }
+
+                            return {
+                                id: m.meetings_id,
+                                title: m.title,
+                                status: mapStatusToKorean(m.status),
+                                date: new Date(m.scheduled_at).toLocaleDateString('ko-KR', {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric',
+                                }),
+                                time: new Date(m.scheduled_at).toLocaleTimeString('ko-KR', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                }),
+                                invite_code: m.invite_code,
+                                participants: participantCount, // API에서 가져온 실제 참가자 수
+                                invited_ids: [],
+                                user_role: m.user_role, // 'HOST', 'GUEST', 'VIEWER'
+                                host_id: m.host_id, // 호스트 ID
+                            };
                         }),
-                        time: new Date(m.scheduled_at).toLocaleTimeString('ko-KR', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                        }),
-                        invite_code: m.invite_code,
-                        participants: m.participants || 1,
-                        invited_ids: [],
-                    }));
+                    );
                     setMeetings(formatted);
                 } else {
                     setMeetings([]);
@@ -162,15 +180,20 @@ const DashVideoPage = () => {
             // 회의 상태 업데이트 (SCHEDULED → ONGOING)
             const currentMeeting = meetings.find((m) => m.id === meetingId);
 
+            // GUEST는 진행중인 회의만 참여 가능
+            if (currentMeeting && currentMeeting.user_role === 'GUEST' && currentMeeting.status !== '진행중') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: '참여 불가',
+                    text: '게스트는 진행중인 회의만 참여할 수 있습니다.',
+                    timer: 2000,
+                    showConfirmButton: false,
+                });
+                return;
+            }
+
             if (currentMeeting && currentMeeting.status === '예정') {
                 console.log('회의 상태 업데이트 시작:', meetingId);
-
-                // API 요청용 상태값 (한국어 → 영문)
-                const statusMap = {
-                    예정: 'SCHEDULED',
-                    진행중: 'ONGOING',
-                    종료: 'ENDED',
-                };
 
                 const updateData = {
                     title: meetingTitle,
@@ -181,30 +204,48 @@ const DashVideoPage = () => {
 
                 console.log('상태 업데이트 요청:', updateData);
 
-                await axios.patch(`/api/users/${user.userId}/meetings/${meetingId}`, updateData);
-
-                console.log('회의 상태가 ONGOING으로 변경되었습니다.');
+                // 호스트인 경우에만 상태 업데이트
+                if (currentMeeting.user_role === 'HOST') {
+                    await axios.patch(`/api/users/${user.userId}/meetings/${meetingId}`, updateData);
+                    console.log('회의 상태가 ONGOING으로 변경되었습니다.');
+                }
 
                 // 회의 목록 새로고침
-                const res = await axios.get(`/api/users/${user.userId}/meetings`);
+                const res = await axios.get(`/api/users/${user.userId}/meetings/all`);
                 if (Array.isArray(res.data.items)) {
-                    const formatted = res.data.items.map((m) => ({
-                        id: m.meetings_id,
-                        title: m.title,
-                        status: mapStatusToKorean(m.status),
-                        date: new Date(m.scheduled_at).toLocaleDateString('ko-KR', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
+                    // 참가자 수도 함께 업데이트
+                    const formatted = await Promise.all(
+                        res.data.items.map(async (m) => {
+                            let participantCount = 1;
+
+                            try {
+                                const countRes = await axios.get(`/api/meetings/${m.meetings_id}/participants/count`);
+                                participantCount = countRes.data.totalCount || 1;
+                            } catch (err) {
+                                console.error(`참가자 수 조회 실패:`, err);
+                            }
+
+                            return {
+                                id: m.meetings_id,
+                                title: m.title,
+                                status: mapStatusToKorean(m.status),
+                                date: new Date(m.scheduled_at).toLocaleDateString('ko-KR', {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric',
+                                }),
+                                time: new Date(m.scheduled_at).toLocaleTimeString('ko-KR', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                }),
+                                invite_code: m.invite_code,
+                                participants: participantCount,
+                                invited_ids: m.invited_user_ids || [],
+                                user_role: m.user_role,
+                                host_id: m.host_id,
+                            };
                         }),
-                        time: new Date(m.scheduled_at).toLocaleTimeString('ko-KR', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                        }),
-                        invite_code: m.invite_code,
-                        participants: 1 + (m.invited_user_ids?.length || 0),
-                        invited_ids: m.invited_user_ids || [],
-                    }));
+                    );
                     setMeetings(formatted);
                 }
             }
@@ -241,6 +282,17 @@ const DashVideoPage = () => {
     };
 
     const handleOpenEditMeetingModal = (meeting) => {
+        // 호스트만 수정 가능
+        if (meeting.user_role !== 'HOST') {
+            Swal.fire({
+                icon: 'warning',
+                title: '권한 없음',
+                text: '호스트만 회의를 수정할 수 있습니다.',
+                timer: 2000,
+                showConfirmButton: false,
+            });
+            return;
+        }
         setEditingMeeting(meeting);
         setIsModalOpen(true);
     };
@@ -254,7 +306,7 @@ const DashVideoPage = () => {
         const isEditing = editingMeeting !== null;
 
         try {
-            // 날짜와 시간을 ISO 형식으로 변환 (공통 로직)
+            // 날짜/시간 변환 로직
             const [year, month, day] = meetingData.date
                 .replace(/년|월|일/g, '-')
                 .split('-')
@@ -271,18 +323,18 @@ const DashVideoPage = () => {
 
             const scheduledAt = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
 
-            // API 요청 데이터 구성 (공통)
             const requestData = {
                 title: meetingData.title,
                 scheduled_at: scheduledAt,
                 invited_user_ids: meetingData.invited_ids || [],
             };
 
-            if (isEditing) {
-                // 수정 모드 (PATCH 요청)
-                console.log('회의 수정 요청:', requestData);
+            let meetingId;
 
+            if (isEditing) {
+                // 수정 모드
                 await axios.patch(`/api/users/${user.userId}/meetings/${meetingData.id}`, requestData);
+                meetingId = meetingData.id;
 
                 Swal.fire({
                     icon: 'success',
@@ -292,36 +344,10 @@ const DashVideoPage = () => {
                     showConfirmButton: false,
                     timerProgressBar: true,
                 });
-
-                // 회의 목록 새로고침
-                const res = await axios.get(`/api/users/${user.userId}/meetings`);
-                if (Array.isArray(res.data.items)) {
-                    const formatted = res.data.items.map((m) => ({
-                        id: m.meetings_id,
-                        title: m.title,
-                        status: mapStatusToKorean(m.status),
-                        date: new Date(m.scheduled_at).toLocaleDateString('ko-KR', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                        }),
-                        time: new Date(m.scheduled_at).toLocaleTimeString('ko-KR', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                        }),
-                        invite_code: m.invite_code,
-                        participants: m.participants || 1,
-                        invited_ids: [],
-                    }));
-                    setMeetings(formatted);
-                }
             } else {
-                // 새 회의 생성 모드 (POST 요청)
-                console.log('회의 생성 요청:', requestData);
-
+                // 새 회의 생성 모드
                 const response = await axios.post(`/api/users/${user.userId}/meetings`, requestData);
-
-                console.log('회의 생성 응답:', response.data);
+                meetingId = response.data.meetings_id;
 
                 Swal.fire({
                     icon: 'success',
@@ -331,32 +357,48 @@ const DashVideoPage = () => {
                     showConfirmButton: false,
                     timerProgressBar: true,
                 });
+            }
 
-                // 회의 목록 새로고침
-                const res = await axios.get(`/api/users/${user.userId}/meetings`);
-                if (Array.isArray(res.data.items)) {
-                    const formatted = res.data.items.map((m) => ({
-                        id: m.meetings_id,
-                        title: m.title,
-                        status: mapStatusToKorean(m.status),
-                        date: new Date(m.scheduled_at).toLocaleDateString('ko-KR', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                        }),
-                        time: new Date(m.scheduled_at).toLocaleTimeString('ko-KR', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                        }),
-                        invite_code: m.invite_code,
-                        participants: m.participants || 1,
-                        invited_ids: [],
-                    }));
-                    setMeetings(formatted);
-                }
+            // 회의 목록 새로고침 (참가자 수 포함)
+            const res = await axios.get(`/api/users/${user.userId}/meetings/all`);
+            if (Array.isArray(res.data.items)) {
+                const formatted = await Promise.all(
+                    res.data.items.map(async (m) => {
+                        let participantCount = 1;
+
+                        try {
+                            const countRes = await axios.get(`/api/meetings/${m.meetings_id}/participants/count`);
+                            participantCount = countRes.data.totalCount || 1;
+                        } catch (err) {
+                            console.error(`참가자 수 조회 실패:`, err);
+                        }
+
+                        return {
+                            id: m.meetings_id,
+                            title: m.title,
+                            status: mapStatusToKorean(m.status),
+                            date: new Date(m.scheduled_at).toLocaleDateString('ko-KR', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                            }),
+                            time: new Date(m.scheduled_at).toLocaleTimeString('ko-KR', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                            }),
+                            invite_code: m.invite_code,
+                            participants: participantCount,
+                            invited_ids: [],
+                            user_role: m.user_role,
+                            host_id: m.host_id,
+                        };
+                    }),
+                );
+                setMeetings(formatted);
             }
 
             handleCloseModal();
+            return meetingId;
         } catch (error) {
             console.error('회의 처리 오류:', error);
 
@@ -364,10 +406,8 @@ const DashVideoPage = () => {
 
             if (error.response) {
                 errorMessage = error.response.data?.message || error.response.data?.error || errorMessage;
-                console.error('서버 응답 오류:', error.response.data);
             } else if (error.request) {
                 errorMessage = '서버와 통신할 수 없습니다. 네트워크 연결을 확인해주세요.';
-                console.error('네트워크 오류:', error.request);
             }
 
             Swal.fire({
@@ -375,10 +415,24 @@ const DashVideoPage = () => {
                 title: isEditing ? '수정 실패' : '생성 실패',
                 text: errorMessage,
             });
+
+            throw error;
         }
     };
 
-    const handleDeleteMeeting = (meetingId, meetingTitle) => {
+    const handleDeleteMeeting = (meetingId, meetingTitle, meeting) => {
+        // 호스트만 삭제 가능
+        if (meeting.user_role !== 'HOST') {
+            Swal.fire({
+                icon: 'warning',
+                title: '권한 없음',
+                text: '호스트만 회의를 삭제할 수 있습니다.',
+                timer: 2000,
+                showConfirmButton: false,
+            });
+            return;
+        }
+
         Swal.fire({
             title: '정말 삭제하시겠습니까?',
             text: `'${meetingTitle}' 회의를 삭제하면 되돌릴 수 없습니다.`,
@@ -467,7 +521,7 @@ const DashVideoPage = () => {
                                             {...meeting}
                                             onJoinMeeting={() => handleJoinMeeting(meeting.id, meeting.title, meeting.invite_code)}
                                             onEdit={() => handleOpenEditMeetingModal(meeting)}
-                                            onDelete={() => handleDeleteMeeting(meeting.id, meeting.title, meeting.invite_code)}
+                                            onDelete={() => handleDeleteMeeting(meeting.id, meeting.title, meeting)}
                                             onOpenDocuments={() => handleOpenDocuments(meeting)}
                                         />
                                     </motion.div>

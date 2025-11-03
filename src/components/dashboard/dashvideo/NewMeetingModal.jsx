@@ -1,7 +1,8 @@
 import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { X, Calendar, Clock, Users, Plus, Hash, AlertCircle, Pencil, Search } from 'lucide-react';
+import { X, Calendar, Clock, Users, Plus, Hash, AlertCircle, Pencil } from 'lucide-react';
 import axios from '../../../axios';
+import Swal from 'sweetalert2';
 
 // Helper Component
 const InputField = ({ id, label, icon, error, children }) => (
@@ -34,6 +35,7 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
     const [searchResults, setSearchResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
     const [showSearchResults, setShowSearchResults] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     // 수정 모드일 때 기존 데이터 로드
     useEffect(() => {
@@ -73,6 +75,7 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
                 setErrors({});
                 setSearchResults([]);
                 setShowSearchResults(false);
+                setIsSaving(false);
             }, 300);
         }
     }, [isOpen]);
@@ -81,8 +84,6 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
     useEffect(() => {
         const searchUsers = async () => {
             const trimmedInput = participantInput.trim();
-
-            // ✅ 3글자 미만이면 API를 호출하지 않음
             if (trimmedInput.length < 3) {
                 setSearchResults([]);
                 setShowSearchResults(false);
@@ -91,23 +92,12 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
 
             setIsSearching(true);
             try {
-                // ✅ 변경점 1: API 주소 변경
-                // ✅ 변경점 2: 파라미터 이름을 'keyword'로 변경
                 const response = await axios.get(`/api/users/search`, {
                     params: { keyword: trimmedInput },
                 });
-
-                console.log('검색 결과:', response.data);
-
-                // ✅ 변경점 3: 백엔드가 이제 배열을 바로 반환하므로 .items가 필요 없음
                 const foundUsers = response.data || [];
+                const filteredResults = foundUsers.filter((user) => !participants.some((p) => p.userId === user.userId));
 
-                // 이미 추가된 참가자는 검색 결과에서 제외
-                const filteredResults = foundUsers.filter(
-                    (user) => !participants.some((p) => p.userId === user.userId), // 백엔드 DTO 필드명은 userId
-                );
-
-                // 프론트엔드에서 사용하는 키(user_id)에 맞게 매핑
                 const mappedResults = filteredResults.map((user) => ({
                     user_id: user.userId,
                     email: user.email,
@@ -116,18 +106,16 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
                 }));
 
                 setSearchResults(mappedResults);
-                setShowSearchResults(true); // 입력값이 있으면 항상 검색창을 보여줌
+                setShowSearchResults(true);
             } catch (error) {
                 console.error('사용자 검색 오류:', error);
                 setSearchResults([]);
-                // 검색 실패 시에도 입력창이 있으면 빈 결과창을 보여주는 것이 좋음
                 setShowSearchResults(participantInput.trim().length > 0);
             } finally {
                 setIsSearching(false);
             }
         };
 
-        // 디바운싱: 300ms 후에 검색 실행
         const timeoutId = setTimeout(searchUsers, 300);
         return () => clearTimeout(timeoutId);
     }, [participantInput, participants]);
@@ -139,49 +127,25 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
             name: user.name || user.username,
             email: user.email,
         };
-
         if (!participants.some((p) => p.userId === user.user_id)) {
             setParticipants([...participants, newParticipant]);
             setParticipantInput('');
             setSearchResults([]);
             setShowSearchResults(false);
-
-            if (errors.participants) {
-                const newErrors = { ...errors };
-                delete newErrors.participants;
-                setErrors(newErrors);
-            }
         }
     };
 
-    // 직접 ID 입력으로 추가 (기존 방식 유지)
     const handleAddParticipant = () => {
-        const newParticipant = participantInput.trim();
-        if (newParticipant && !participants.some((p) => p.userId === newParticipant || p === newParticipant)) {
-            setParticipants([...participants, newParticipant]);
-            setParticipantInput('');
-            setSearchResults([]);
-            setShowSearchResults(false);
-            if (errors.participants) {
-                const newErrors = { ...errors };
-                delete newErrors.participants;
-                setErrors(newErrors);
-            }
+        if (searchResults.length > 0) {
+            handleSelectUser(searchResults[0]);
         }
     };
 
     const handleRemoveParticipant = (participantToRemove) => {
-        setParticipants(
-            participants.filter((p) => {
-                if (typeof p === 'string') {
-                    return p !== participantToRemove;
-                }
-                return p.userId !== participantToRemove.userId;
-            }),
-        );
+        setParticipants(participants.filter((p) => p.userId !== participantToRemove.userId));
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         const newErrors = {};
         if (!title.trim()) newErrors.title = '회의 제목을 입력해주세요.';
@@ -191,32 +155,87 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
 
         if (Object.keys(newErrors).length > 0) return;
 
-        const formattedDate = new Intl.DateTimeFormat('ko-KR', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-        }).format(new Date(`${date}T00:00:00`));
+        setIsSaving(true);
 
-        const [hour, minute] = time.split(':');
-        const hourNum = parseInt(hour, 10);
-        const period = hourNum >= 12 ? '오후' : '오전';
-        const formattedHour = hourNum % 12 || 12;
-        const formattedTime = `${period} ${String(formattedHour).padStart(2, '0')}:${minute}`;
+        try {
+            const formattedDate = new Intl.DateTimeFormat('ko-KR', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+            }).format(new Date(`${date}T00:00:00`));
 
-        // 참가자 ID 배열 생성
-        const invitedUserIds = participants.map((p) => (typeof p === 'string' ? p : p.userId));
+            const [hour, minute] = time.split(':');
+            const hourNum = parseInt(hour, 10);
+            const period = hourNum >= 12 ? '오후' : '오전';
+            const formattedHour = hourNum % 12 || 12;
+            const formattedTime = `${period} ${String(formattedHour).padStart(2, '0')}:${minute}`;
 
-        const meetingData = {
-            id: isEditMode ? meetingToEdit.id : `meeting-${Date.now()}`,
-            title,
-            status: '예정',
-            participants: participants.length + 1,
-            invited_ids: invitedUserIds,
-            date: formattedDate,
-            time: formattedTime,
-        };
+            const meetingData = {
+                id: isEditMode ? meetingToEdit.id : null,
+                title,
+                date: formattedDate,
+                time: formattedTime,
+            };
 
-        onConfirm(meetingData);
+            const savedMeetingId = await onConfirm(meetingData);
+
+            if (!savedMeetingId) {
+                throw new Error('회의 ID를 받아오지 못했습니다.');
+            }
+
+            // ⭐️ 참가자 초대 (백엔드 API 스펙에 맞게 수정)
+            const invitedUserIds = participants.map((p) => p.userId);
+
+            if (invitedUserIds.length > 0) {
+                console.log('초대할 사용자 IDs:', invitedUserIds);
+
+                try {
+                    // 각 사용자마다 개별 요청 (백엔드 API 스펙에 맞게)
+                    const invitePromises = invitedUserIds.map((userId) =>
+                        axios.post(`/api/meetings/${savedMeetingId}/participants/invite`, {
+                            userId: userId, // ⭐️ userId 키 사용
+                            role: 'GUEST', // ⭐️ role 포함
+                        }),
+                    );
+
+                    const results = await Promise.all(invitePromises);
+
+                    console.log('모든 참가자 초대 완료:', results);
+                } catch (inviteError) {
+                    console.error('========== 참가자 초대 실패 상세 정보 ==========');
+                    console.error('Status Code:', inviteError.response?.status);
+                    console.error('Response Data:', inviteError.response?.data);
+                    console.error('Error Message:', inviteError.response?.data?.message || inviteError.message);
+                    console.error('=============================================');
+
+                    // 초대 실패해도 회의는 생성되었으므로 경고만 표시
+                    Swal.fire({
+                        icon: 'warning',
+                        title: '일부 작업 실패',
+                        text: `회의는 생성되었지만 일부 참가자 초대에 실패했습니다.\n${inviteError.response?.data?.message || ''}`,
+                        confirmButtonColor: '#6366F1',
+                    });
+                }
+            }
+
+            setIsSaving(false);
+            Swal.fire({
+                icon: 'success',
+                title: isEditMode ? '회의가 수정되었습니다' : '회의가 예약되었습니다',
+                timer: 1500,
+                showConfirmButton: false,
+            });
+            onClose();
+        } catch (error) {
+            setIsSaving(false);
+            console.error('회의 저장 실패:', error);
+            Swal.fire({
+                icon: 'error',
+                title: '저장 실패',
+                text: error.response?.data?.message || error.message || '처리 중 오류가 발생했습니다.',
+                confirmButtonColor: '#6366F1',
+            });
+        }
     };
 
     return (
@@ -225,7 +244,6 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
                 <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0">
                     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" />
                 </Transition.Child>
-
                 <div className="fixed inset-0 overflow-y-auto">
                     <div className="flex min-h-full items-center justify-center p-4">
                         <Transition.Child
@@ -264,7 +282,6 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
                                                 className="block w-full rounded-lg border-slate-300 pl-10 shadow-sm focus:border-violet-500 focus:ring-violet-500 sm:text-sm"
                                             />
                                         </InputField>
-
                                         <div className="grid grid-cols-2 gap-4">
                                             <InputField id="date" label="날짜" icon={<Calendar className="h-5 w-5 text-slate-400" />} error={errors.date}>
                                                 <input
@@ -286,7 +303,7 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
                                             </InputField>
                                         </div>
 
-                                        <InputField id="participants" label="참가자 초대 (이름 또는 ID)" icon={<Users className="h-5 w-5 text-slate-400" />} error={errors.participants}>
+                                        <InputField id="participants" label="참가자 초대 (이메일로 검색)" icon={<Users className="h-5 w-5 text-slate-400" />} error={errors.participants}>
                                             <div className="relative">
                                                 <div className="flex gap-2">
                                                     <input
@@ -297,14 +314,10 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
                                                         onKeyDown={(e) => {
                                                             if (e.key === 'Enter') {
                                                                 e.preventDefault();
-                                                                if (searchResults.length > 0) {
-                                                                    handleSelectUser(searchResults[0]);
-                                                                } else {
-                                                                    handleAddParticipant();
-                                                                }
+                                                                handleAddParticipant();
                                                             }
                                                         }}
-                                                        placeholder="사용자 이름 또는 ID로 검색"
+                                                        placeholder="사용자 이메일로 검색"
                                                         className="block w-full rounded-lg border-slate-300 pl-10 shadow-sm focus:border-violet-500 focus:ring-violet-500 sm:text-sm"
                                                         autoComplete="off"
                                                     />
@@ -312,17 +325,18 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
                                                         type="button"
                                                         onClick={handleAddParticipant}
                                                         className="flex-shrink-0 rounded-lg bg-violet-100 p-2 text-sm font-semibold text-violet-700 hover:bg-violet-200 transition-transform active:scale-95"
-                                                        title="직접 추가"
+                                                        title="첫 번째 검색 결과 추가"
                                                     >
                                                         <Plus className="h-5 w-5" />
                                                     </button>
                                                 </div>
 
-                                                {/* 검색 결과 드롭다운 */}
                                                 {showSearchResults && (
                                                     <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                                                         {isSearching ? (
                                                             <div className="p-3 text-center text-sm text-slate-500">검색 중...</div>
+                                                        ) : searchResults.length === 0 ? (
+                                                            <div className="p-3 text-center text-sm text-slate-500">검색 결과가 없습니다.</div>
                                                         ) : (
                                                             searchResults.map((user) => (
                                                                 <button
@@ -332,11 +346,11 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
                                                                     className="w-full px-4 py-2 text-left hover:bg-violet-50 transition-colors flex items-center gap-3"
                                                                 >
                                                                     <div className="flex-shrink-0 w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 font-semibold text-sm">
-                                                                        {(user.name || user.username || 'U')[0].toUpperCase()}
+                                                                        {(user.name || 'U')[0].toUpperCase()}
                                                                     </div>
                                                                     <div className="flex-1 min-w-0">
-                                                                        <p className="text-sm font-medium text-slate-900 truncate">{user.name || user.username}</p>
-                                                                        <p className="text-xs text-slate-500 truncate">{user.email || user.user_id}</p>
+                                                                        <p className="text-sm font-medium text-slate-900 truncate">{user.name}</p>
+                                                                        <p className="text-xs text-slate-500 truncate">{user.email}</p>
                                                                     </div>
                                                                 </button>
                                                             ))
@@ -348,26 +362,21 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
 
                                         {participants.length > 0 && (
                                             <div className="flex flex-wrap gap-2 pt-1">
-                                                {participants.map((p) => {
-                                                    const displayName = typeof p === 'string' ? p : p.name || p.email;
-                                                    const key = typeof p === 'string' ? p : p.userId;
-
-                                                    return (
-                                                        <span
-                                                            key={key}
-                                                            className="inline-flex items-center gap-1.5 rounded-full bg-violet-100 px-2.5 py-1 text-xs font-medium text-violet-800 animate-in fade-in-50"
+                                                {participants.map((p) => (
+                                                    <span
+                                                        key={p.userId}
+                                                        className="inline-flex items-center gap-1.5 rounded-full bg-violet-100 px-2.5 py-1 text-xs font-medium text-violet-800 animate-in fade-in-50"
+                                                    >
+                                                        <Hash className="h-3 w-3" /> {p.name || p.email}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRemoveParticipant(p)}
+                                                            className="rounded-full text-violet-500 hover:bg-violet-200/80 hover:text-violet-700"
                                                         >
-                                                            <Hash className="h-3 w-3" /> {displayName}
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleRemoveParticipant(p)}
-                                                                className="rounded-full text-violet-500 hover:bg-violet-200/80 hover:text-violet-700"
-                                                            >
-                                                                <X className="h-4 w-4" />
-                                                            </button>
-                                                        </span>
-                                                    );
-                                                })}
+                                                            <X className="h-4 w-4" />
+                                                        </button>
+                                                    </span>
+                                                ))}
                                             </div>
                                         )}
                                     </div>
@@ -382,9 +391,10 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
                                         </button>
                                         <button
                                             type="submit"
-                                            className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-violet-700 focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 transition-colors"
+                                            disabled={isSaving}
+                                            className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-violet-700 focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
-                                            {isEditMode ? '변경사항 저장' : '회의 예약하기'}
+                                            {isSaving ? '저장 중...' : isEditMode ? '변경사항 저장' : '회의 예약하기'}
                                         </button>
                                     </div>
                                 </form>

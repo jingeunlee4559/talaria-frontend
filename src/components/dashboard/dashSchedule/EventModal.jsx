@@ -1,30 +1,32 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useContext } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Trash2, Clock, MapPin, AlignLeft, Video, FileText, Briefcase, Star, Users, Plus, ChevronDown, Calendar, User, Folder } from 'lucide-react';
-import { format, addDays } from 'date-fns';
+import { X, Trash2, Clock, MapPin, AlignLeft, Video, Briefcase, Star, Plus, ChevronDown, Calendar, User, Folder } from 'lucide-react';
+import { format } from 'date-fns';
 import { IoIosAirplane } from 'react-icons/io';
+import { UserContext } from '../../../contexts/UserContext';
+import axios from '../../../axios';
 
-// --- 이벤트 타입 정의 (기존과 동일) ---
 const eventTypes = [
-    { name: '회의', icon: <Video size={16} />, color: 'blue' },
-    { name: '프로젝트', icon: <Briefcase size={16} />, color: 'violet' },
-    { name: '마감일', icon: <Star size={16} />, color: 'orange' },
-    { name: '휴가', icon: <IoIosAirplane size={16} />, color: 'green' },
-    { name: '내 일정', icon: <User size={16} />, color: 'pink' },
-    { name: '기타 일정', icon: <Folder size={16} />, color: 'gray' },
+    { name: '회의', value: 'meeting', icon: <Video size={16} />, color: 'blue' },
+    { name: '프로젝트', value: 'project', icon: <Briefcase size={16} />, color: 'violet' },
+    { name: '마감일', value: 'duedate', icon: <Star size={16} />, color: 'orange' },
+    { name: '휴가', value: 'vacation', icon: <IoIosAirplane size={16} />, color: 'green' },
+    { name: '내 일정', value: 'schedule', icon: <User size={16} />, color: 'pink' },
+    { name: '기타 일정', value: 'etc', icon: <Folder size={16} />, color: 'gray' },
 ];
 
 const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
     const [formData, setFormData] = useState({});
     const isEditing = selectedInfo && selectedInfo.event;
-
-    // ✨ 1. 커스텀 드롭다운을 위한 상태와 참조 추가
+    const { user } = useContext(UserContext);
     const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
     const typeDropdownRef = useRef(null);
 
     useEffect(() => {
-        // 모달이 열릴 때 폼 데이터 설정 (기존 로직)
         if (isOpen) {
+            const now = new Date();
+            const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
             if (isEditing) {
                 const { event } = selectedInfo;
                 const startDate = format(new Date(event.start), 'yyyy-MM-dd');
@@ -35,10 +37,10 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
                 setFormData({
                     id: event.id,
                     title: event.title || '',
-                    type: event.extendedProps?.type || '회의',
+                    type: event.extendedProps?.type || 'meeting',
                     date: startDate,
                     endDate: format(endDate, 'yyyy-MM-dd'),
-                    startTime: String(event.start).includes('T') ? format(new Date(event.start), 'HH:mm') : '',
+                    startTime: String(event.start).includes('T') ? format(new Date(event.start), 'HH:mm') : currentTime,
                     endTime: event.end && String(event.end).includes('T') ? format(new Date(event.end), 'HH:mm') : '',
                     location: event.extendedProps?.location || '',
                     description: event.extendedProps?.description || '',
@@ -47,10 +49,10 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
                 const initialDate = selectedInfo?.date ? format(selectedInfo.date, 'yyyy-MM-dd') : '';
                 setFormData({
                     title: '',
-                    type: '회의',
+                    type: 'meeting',
                     date: initialDate,
                     endDate: initialDate,
-                    startTime: '',
+                    startTime: currentTime,
                     endTime: '',
                     location: '',
                     description: '',
@@ -59,7 +61,6 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
         }
     }, [isOpen, selectedInfo, isEditing]);
 
-    // ✨ 2. 드롭다운 외부 클릭 시 닫기 위한 useEffect
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (typeDropdownRef.current && !typeDropdownRef.current.contains(event.target)) {
@@ -82,27 +83,72 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
         });
     };
 
-    const handleSave = (e) => {
+    const handleSave = async (e) => {
         e.preventDefault();
+        if (!user) return alert('로그인 정보가 없습니다.');
+
         const effectiveEndDate = !formData.endDate || formData.endDate < formData.date ? formData.date : formData.endDate;
-        let start = formData.startTime ? `${formData.date}T${formData.startTime}` : formData.date;
-        let end = null;
-        if (formData.endTime) {
-            end = `${effectiveEndDate}T${formData.endTime}`;
-        } else if (effectiveEndDate > formData.date) {
-            end = format(addDays(new Date(effectiveEndDate), 1), 'yyyy-MM-dd');
-        }
-        onSave({
-            id: formData.id,
+
+        const eventPayload = {
             title: formData.title,
-            start,
-            end,
             type: formData.type,
-            extendedProps: { location: formData.location, description: formData.description },
-        });
+            startDate: formData.date,
+            endDate: effectiveEndDate,
+            startTime: formData.startTime ? `${formData.startTime}:00` : null,
+            endTime: formData.startTime && formData.endTime ? `${formData.endTime}:00` : null,
+            location: formData.location || '',
+            description: formData.description || '',
+            meetingId: null,
+        };
+
+        console.log('서버로 전송하는 데이터:', JSON.stringify(eventPayload, null, 2));
+
+        try {
+            const response = formData.id
+                ? await axios.put(`/api/users/${user.userId}/calendar/events/${formData.id}`, eventPayload)
+                : await axios.post(`/api/users/${user.userId}/calendar/events`, eventPayload);
+
+            const savedEvent = response.data;
+            console.log('서버로부터 받은 저장된 이벤트:', savedEvent);
+
+            // ✅ 서버에서 snake_case로 오는 필드명 사용
+            const calendarEvent = {
+                id: String(savedEvent.event_id),
+                title: savedEvent.title,
+                start: savedEvent.start_time ? `${savedEvent.start_date}T${savedEvent.start_time}` : savedEvent.start_date,
+                end: (() => {
+                    if (savedEvent.start_time && savedEvent.end_time) {
+                        const endDateStr = savedEvent.end_date || savedEvent.start_date;
+                        return `${endDateStr}T${savedEvent.end_time}`;
+                    }
+                    if (!savedEvent.start_time && savedEvent.end_date && savedEvent.start_date !== savedEvent.end_date) {
+                        const endDateObj = new Date(savedEvent.end_date);
+                        endDateObj.setDate(endDateObj.getDate() + 1);
+                        return endDateObj.toISOString().split('T')[0];
+                    }
+                    return null;
+                })(),
+                allDay: !savedEvent.start_time,
+                extendedProps: {
+                    type: savedEvent.type,
+                    location: savedEvent.location,
+                    description: savedEvent.description,
+                },
+            };
+
+            console.log('FullCalendar에 전달할 이벤트:', calendarEvent);
+            onSave(calendarEvent);
+            onClose();
+        } catch (error) {
+            console.error('일정 저장 실패:', error);
+            if (error.response) {
+                console.error('서버 응답 데이터:', error.response.data);
+            }
+            alert('일정 저장에 실패했습니다. 콘솔을 확인해주세요.');
+        }
     };
 
-    const selectedType = eventTypes.find((t) => t.name === formData.type);
+    const selectedType = eventTypes.find((t) => t.value === formData.type);
 
     return (
         <AnimatePresence>
@@ -123,7 +169,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
                         onClick={(e) => e.stopPropagation()}
                     >
                         <form onSubmit={handleSave}>
-                            {/* --- Modal Header --- */}
+                            {/* Modal Header */}
                             <div className="flex items-center justify-between p-4 border-b border-slate-200/80">
                                 <div className="flex items-center gap-3">
                                     <span className="bg-gradient-to-br from-indigo-500 to-violet-600 text-white p-2 rounded-lg shadow-lg shadow-indigo-500/30">
@@ -136,8 +182,9 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
                                 </button>
                             </div>
 
-                            {/* --- Modal Body --- */}
+                            {/* Modal Body */}
                             <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                                {/* Title Input */}
                                 <div className="relative">
                                     <label htmlFor="modal-title" className="absolute -top-2 left-3 text-xs text-slate-500 bg-white px-1">
                                         일정 제목 *
@@ -154,7 +201,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
                                     />
                                 </div>
 
-                                {/* ✨ 3. 커스텀 드롭다운으로 교체된 '유형' 섹션 */}
+                                {/* Custom Dropdown */}
                                 <div ref={typeDropdownRef} className="relative">
                                     <label className="absolute -top-2 left-3 text-xs text-slate-500 bg-white px-1 z-10">유형</label>
                                     <button
@@ -179,9 +226,9 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
                                             >
                                                 {eventTypes.map((type) => (
                                                     <div
-                                                        key={type.name}
+                                                        key={type.value}
                                                         onClick={() => {
-                                                            setFormData({ ...formData, type: type.name });
+                                                            setFormData({ ...formData, type: type.value });
                                                             setIsTypeDropdownOpen(false);
                                                         }}
                                                         className="flex items-center gap-3 p-3 text-sm font-semibold text-slate-700 cursor-pointer hover:bg-slate-50"
@@ -196,7 +243,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
                                     </AnimatePresence>
                                 </div>
 
-                                {/* --- 날짜 및 시간 (기존과 동일) --- */}
+                                {/* Date and Time inputs */}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="relative">
                                         <label htmlFor="modal-date" className="absolute -top-2 left-3 text-xs text-slate-500 bg-white px-1">
@@ -258,7 +305,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
                                     </div>
                                 </div>
 
-                                {/* --- 장소 및 설명 (기존과 동일) --- */}
+                                {/* Location and Description */}
                                 <div className="relative">
                                     <label htmlFor="modal-location" className="absolute -top-2 left-3 text-xs text-slate-500 bg-white px-1">
                                         장소
@@ -291,7 +338,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
                                 </div>
                             </div>
 
-                            {/* --- Modal Footer (기존과 동일) --- */}
+                            {/* Modal Footer */}
                             <div className="p-4 bg-slate-50/50 flex justify-between items-center rounded-b-2xl border-t border-slate-200/80">
                                 {isEditing ? (
                                     <button
@@ -327,4 +374,5 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
         </AnimatePresence>
     );
 };
+
 export default EventModal;

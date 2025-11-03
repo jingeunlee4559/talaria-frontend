@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useContext } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -10,8 +10,8 @@ import UpcomingEvents from '../../components/dashboard/dashSchedule/UpcomingEven
 import EventModal from '../../components/dashboard/dashSchedule/EventModal';
 import { Plus } from 'lucide-react';
 import MoreEventsPopover from '../../components/dashboard/dashSchedule/MoreEventsPopover';
-
-// --- Data & Types (Assume eventTypes definition is here or imported) ---
+import axios from '../../axios';
+import { UserContext } from '../../contexts/UserContext';
 
 const eventTypes = {
     회의: { color: '#3b82f6' },
@@ -22,28 +22,24 @@ const eventTypes = {
     '기타 일정': { color: '#9ca3af' },
 };
 
-const initialEvents = [
-    { id: '1', title: '오전 글로벌 마케팅', start: '2025-10-22T10:00:00', end: '2025-10-22T11:30:00', extendedProps: { type: '회의', participants: ['J', 'E', 'M'] } },
-
-    { id: '2', title: '프로젝트 Helios 제안서 마감', start: '2025-10-23', extendedProps: { type: '마감일' } },
-
-    { id: '3', title: '오후 3분기 실적 리뷰', start: '2025-10-22T14:30:00', end: '2025-10-22T16:00:00', extendedProps: { type: '휴가', participants: ['S'] } },
-
-    { id: '4', title: '월간 전체 회의', start: '2025-10-25T15:00:00', end: '2025-10-25T17:00:00', extendedProps: { type: '휴가' } },
-
-    { id: '5', title: '신규 프로젝트 킥오프', start: '2025-11-04T11:00:00', extendedProps: { type: '프로젝트', participants: ['D', 'W'] } },
-];
+// ✅ 영어 타입을 한글로 변환하는 맵
+const typeMap = {
+    meeting: '회의',
+    project: '프로젝트',
+    duedate: '마감일',
+    vacation: '휴가',
+    schedule: '내 일정',
+    etc: '기타 일정',
+};
 
 const DashSchedule = () => {
     const [currentDate, setCurrentDate] = useState(new Date());
-    const [events, setEvents] = useState(
-        initialEvents.map((e) => ({ ...e, backgroundColor: eventTypes[e.extendedProps.type]?.color || '#6b7280', borderColor: eventTypes[e.extendedProps.type]?.color || '#6b7280' })),
-    );
+    const [events, setEvents] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedInfo, setSelectedInfo] = useState(null);
     const calendarRef = useRef(null);
+    const { user, loading } = useContext(UserContext);
 
-    // --- 💡 Popover State 추가 ---
     const [popoverState, setPopoverState] = useState({
         isOpen: false,
         top: 0,
@@ -52,73 +48,117 @@ const DashSchedule = () => {
         events: [],
     });
 
-    // --- Handlers (Modal) ---
+    // ✅ 서버에서 일정 데이터 가져오기
+    useEffect(() => {
+        const fetchEvents = async () => {
+            if (!user) return;
+
+            try {
+                const response = await axios.get(`/api/users/${user.userId}/calendar/events`);
+
+                const fetchedEvents = response.data.items.map((e) => {
+                    const typeInKorean = typeMap[e.type] || '기타 일정';
+                    const color = eventTypes[typeInKorean]?.color || '#6b7280';
+
+                    // ✅ 서버에서 snake_case로 오는 필드명 사용
+                    const start = e.start_time ? `${e.start_date}T${e.start_time}` : e.start_date;
+
+                    // ✅ endTime이 있으면 시간 포함, 종일 이벤트면 +1일
+                    let end = null;
+                    if (e.start_time && e.end_time) {
+                        const endDateStr = e.end_date || e.start_date;
+                        end = `${endDateStr}T${e.end_time}`;
+                    } else if (!e.start_time && e.end_date && e.start_date !== e.end_date) {
+                        const endDateObj = new Date(e.end_date);
+                        endDateObj.setDate(endDateObj.getDate() + 1);
+                        end = endDateObj.toISOString().split('T')[0];
+                    }
+
+                    return {
+                        id: String(e.event_id),
+                        title: e.title,
+                        start,
+                        end,
+                        allDay: !e.start_time,
+                        backgroundColor: color,
+                        borderColor: color,
+                        extendedProps: {
+                            type: typeInKorean,
+                            location: e.location,
+                            description: e.description,
+                        },
+                    };
+                });
+
+                setEvents(fetchedEvents);
+            } catch (error) {
+                console.error('📛 일정 데이터를 불러오는 중 오류 발생:', error);
+                alert('일정 데이터를 불러오는 데 실패했습니다.');
+            }
+        };
+
+        fetchEvents();
+    }, [user]);
+
     const handleOpenModal = (info) => {
         setSelectedInfo(info);
         setIsModalOpen(true);
     };
+
     const handleCloseModal = () => setIsModalOpen(false);
 
-    const handleSaveEvent = (eventData) => {
-        const color = eventTypes[eventData.type]?.color || '#6b7280';
+    // ✅ 일정 저장 핸들러 개선 - EventModal에서 받은 calendarEvent를 그대로 사용
+    const handleSaveEvent = (calendarEvent) => {
+        console.log('📌 handleSaveEvent 호출됨:', calendarEvent);
 
-        const currentExtendedProps = selectedInfo?.event?.extendedProps || {};
-        const newExtendedProps = {
-            ...currentExtendedProps,
-            ...eventData.extendedProps,
-            type: eventData.type,
+        const typeInKorean = typeMap[calendarEvent.extendedProps.type] || calendarEvent.extendedProps.type;
+        const color = eventTypes[typeInKorean]?.color || '#6b7280';
+
+        const eventToAdd = {
+            ...calendarEvent,
+            backgroundColor: color,
+            borderColor: color,
+            extendedProps: {
+                ...calendarEvent.extendedProps,
+                type: typeInKorean,
+            },
         };
 
-        if (eventData.id) {
-            setEvents(
-                events.map((e) =>
-                    e.id === eventData.id
-                        ? {
-                              ...e,
-                              title: eventData.title,
-                              start: eventData.start,
-                              end: eventData.end,
-                              backgroundColor: color,
-                              borderColor: color,
-                              extendedProps: newExtendedProps,
-                          }
-                        : e,
-                ),
-            );
+        if (calendarEvent.id && events.find((e) => e.id === calendarEvent.id)) {
+            // 기존 이벤트 수정
+            setEvents(events.map((e) => (e.id === calendarEvent.id ? eventToAdd : e)));
         } else {
-            const newEvent = {
-                id: Date.now().toString(),
-                title: eventData.title,
-                start: eventData.start,
-                end: eventData.end,
-                backgroundColor: color,
-                borderColor: color,
-                extendedProps: newExtendedProps,
-            };
-            // 💡 버그 수정: b.date -> b.start
-            setEvents((prevEvents) => [...prevEvents, newEvent].sort((a, b) => new Date(a.start) - new Date(b.start)));
+            // 새 이벤트 추가
+            setEvents((prevEvents) => [...prevEvents, eventToAdd].sort((a, b) => new Date(a.start) - new Date(b.start)));
         }
+
         handleCloseModal();
     };
 
-    const handleDeleteEvent = (eventId) => {
-        setEvents(events.filter((e) => e.id !== eventId));
-        handleCloseModal();
+    // ✅ 일정 삭제 핸들러
+    const handleDeleteEvent = async (eventId) => {
+        if (!user) return;
+
+        try {
+            await axios.delete(`/api/users/${user.userId}/calendar/events/${eventId}`);
+            setEvents(events.filter((e) => e.id !== eventId));
+            handleCloseModal();
+        } catch (error) {
+            console.error('일정 삭제 실패:', error);
+            alert('일정 삭제에 실패했습니다.');
+        }
     };
 
-    // --- 💡 Handlers (Popover) 추가 ---
     const handleMoreLinkClick = (info) => {
-        info.jsEvent.preventDefault(); // 기본 동작(페이지 이동) 방지
-
-        // 💡 오류 수정: info.el 대신 info.jsEvent.currentTarget 사용
-        const rect = info.jsEvent.currentTarget.getBoundingClientRect(); // '+N more' 링크의 DOM 위치
+        info.jsEvent.preventDefault();
+        const rect = info.jsEvent.currentTarget.getBoundingClientRect();
 
         setPopoverState({
             isOpen: true,
-            top: rect.top + window.scrollY + rect.height, // 링크 바로 아래
-            left: rect.left + window.scrollX, // 링크 왼쪽 정렬
+            top: rect.top + window.scrollY + rect.height,
+            left: rect.left + window.scrollX,
             date: info.date,
-            events: info.allSegs.map((seg) => seg.event), // 해당 날짜의 모든 이벤트
+            events: info.allSegs.map((seg) => seg.event),
         });
 
         return 'none';
@@ -129,14 +169,14 @@ const DashSchedule = () => {
     };
 
     const handlePopoverEventClick = (event) => {
-        handleClosePopover(); // 팝업 닫기
-        handleOpenModal({ event }); // 상세 수정 모달 열기
+        handleClosePopover();
+        handleOpenModal({ event });
     };
 
     return (
         <>
             <div className="min-h-screen bg-slate-50 font-sans flex flex-col">
-                {/* --- Page Header --- */}
+                {/* Page Header */}
                 <header className="mb-6 mt-6 sm:mb-8">
                     <div className="flex flex-wrap items-center justify-between gap-4 max-w-screen-3xl mx-auto px-4 sm:px-6 lg:px-8">
                         <div>
@@ -159,7 +199,7 @@ const DashSchedule = () => {
                     </div>
                 </header>
 
-                {/* --- Main Content --- */}
+                {/* Main Content */}
                 <div className="flex-1 p-4 sm:p-6 lg:p-8">
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-screen-3xl mx-auto">
                         <main className="lg:col-span-8 xl:col-span-9 flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200/80 min-h-[85vh]">
@@ -175,13 +215,11 @@ const DashSchedule = () => {
                                     height="100%"
                                     dateClick={(arg) => handleOpenModal({ date: arg.date })}
                                     eventClick={(info) => handleOpenModal({ event: info.event })}
-                                    dayMaxEvents={true} // 💡이게 true여야 '+N more'가 생깁니다.
+                                    dayMaxEvents={true}
                                     eventDisplay="block"
                                     eventTimeFormat={{ hour: 'numeric', minute: '2-digit', meridiem: false }}
                                     dayHeaderFormat={{ weekday: 'short' }}
-                                    // --- 💡 Popover 핸들러 연결 ---
                                     moreLinkClick={handleMoreLinkClick}
-                                    moreLinkPopover={false}
                                 />
                             </div>
                             <CalendarLegend />
@@ -192,7 +230,6 @@ const DashSchedule = () => {
                             <UpcomingEvents events={events} onEventClick={(event) => handleOpenModal({ event })} />
                         </aside>
 
-                        {/* --- 💡 Popover와 Modal 모두 렌더링 --- */}
                         <MoreEventsPopover
                             isOpen={popoverState.isOpen}
                             top={popoverState.top}
@@ -207,9 +244,8 @@ const DashSchedule = () => {
                 </div>
             </div>
 
-            {/* --- FullCalendar 커스텀 스타일 --- */}
+            {/* FullCalendar 커스텀 스타일 */}
             <style>{`
-                /* --- 날짜 칸 패딩 조정 --- */
                 .fc-daygrid-day-frame {
                     position: relative;
                     min-height: 110px;
@@ -224,7 +260,6 @@ const DashSchedule = () => {
                     margin-top: 0;
                 }
 
-                /* --- 오늘 날짜 하이라이트 --- */
                 .fc-day-today .fc-daygrid-day-number {
                     background-color: #6366f1; color: white !important;
                     width: 28px; height: 28px;
@@ -233,7 +268,6 @@ const DashSchedule = () => {
                     padding: 0;
                 }
 
-                /* --- 캘린더 버튼/헤더 기본 스타일 --- */
                 .fc .fc-button {
                     background: white !important; border: 1px solid #cbd5e1 !important; color: #475569 !important;
                     text-transform: none !important; padding: 0.5rem 0.8rem !important; border-radius: 0.5rem !important;
@@ -241,7 +275,7 @@ const DashSchedule = () => {
                 }
                 .fc .fc-button:hover { background-color: #f8fafc !important; }
                 .fc .fc-button-primary:not(:disabled).fc-button-active {
-                     background: #eff6ff !important; border-color: #3b82f6 !important; color: #3b82f6 !importaAnt; box-shadow: none !important;
+                     background: #eff6ff !important; border-color: #3b82f6 !important; color: #3b82f6 !important; box-shadow: none !important;
                 }
                  .fc .fc-today-button {
                      background-color: #eef2ff !important; border-color: #e0e7ff !important; color: #4f46e5 !important;
@@ -250,7 +284,6 @@ const DashSchedule = () => {
                 .fc .fc-toolbar-title { font-size: 1.125rem !important; font-weight: 700 !important; color: #1e293b; }
                 .fc-toolbar.fc-header-toolbar { margin-bottom: 1.5rem !important; padding: 0 0.5rem; }
 
-                /* --- 캘린더 전반적인 스타일 --- */
                 .calendar-container { --fc-border-color: #f1f5f9; --fc-today-bg-color: transparent; min-height: 600px; }
                 .fc-col-header-cell { border-width: 0 0 1px 0 !important; font-size: 0.75rem; color: #94a3b8; font-weight: 500; text-transform: none; padding: 0.75rem 0; }
                 .fc .fc-view-harness { flex-grow: 1; height: 100%; }
@@ -261,7 +294,6 @@ const DashSchedule = () => {
                 .fc-daygrid-event-dot { display: none; }
                 .fc-event .fc-event-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: white; }
                 
-                /* --- 💡 '+N more' 링크 스타일 --- */
                 .fc-daygrid-more-link { 
                     font-weight: 600; font-size: 0.75rem; color: #4f46e5; 
                     margin-top: 2px; display: block; padding: 2px 4px;

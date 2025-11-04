@@ -4,11 +4,11 @@ import {
     RoomAudioRenderer,
     LayoutContextProvider,
     useParticipants,
-    useRoomContext, // ✅ 최상위에서 import
+    useRoomContext,
+    useDataChannel, // ✅ STT 수신을 위해 추가
 } from '@livekit/components-react';
 import Swal from 'sweetalert2';
 import TranscriptSidebar from './TranscriptSidebar';
-import DataSender from './DataSender';
 import CustomVideoGrid from './CustomVideoGrid';
 import SubtitleOverlay from './SubtitleOverlay';
 import { FiCopy } from 'react-icons/fi';
@@ -22,90 +22,54 @@ const ConferenceUI = ({ meetingTitle, onLeave }) => {
     // 사이드바 표시 상태
     const [isSidebarVisible, setIsSidebarVisible] = useState(true);
 
-    // STT 수신 상태
-    const [partials, setPartials] = useState({});
-    const [finals, setFinals] = useState([]);
+    // ✅ STT 수신 상태 (Partial & Final 분리)
+    const [partials, setPartials] = useState({}); // { identity: "텍스트" }
+    const [finals, setFinals] = useState([]); // [{ identity, text, ts }]
 
-    const documents = [
-        {
-            id: 1,
-            type: 'document',
-            title: '파트너십 계약서',
-            isStarred: true,
-            fromLang: '영어',
-            toLang: '한국어',
-            date: '2025-09-27',
-            size: '2.4 MB',
-            author: '김철수',
-            originalContent:
-                "This Partnership Agreement ('Agreement') is entered into as of September 27, 2025, by and between: Party A: TechCorp International Ltd. Address: 123 Business Street, San Francisco, CA 94105. Party B: Innovation Korea Co., Ltd. Address: 456 Gangnam-daero, Seoul, South Korea. The purpose of this agreement is to establish a cooperative framework for joint development and marketing of future products.",
-            translatedContent:
-                "본 파트너십 계약('본 계약')은 2025년 9월 27일부로 다음 당사자 간에 체결됩니다: 당사자 A: TechCorp International Ltd. 주소: 123 Business Street, San Francisco, CA 94105. 당사자 B: 이노베이션 코리아 주식회사. 주소: 서울특별시 강남대로 456. 본 계약의 목적은 향후 제품의 공동 개발 및 마케팅을 위한 협력 체계를 구축하는 것입니다.",
-        },
-        {
-            id: 2,
-            type: 'document',
-            title: '제품 사양서',
-            isStarred: false,
-            fromLang: '한국어',
-            toLang: '영어',
-            date: '2025-09-25',
-            size: '1.8 MB',
-            author: '이영희',
-            originalContent: '제품명: 제미니 AI 프로세서. 주요 기능: 초당 100조 회의 연산 능력, 저전력 설계. 개발 팀: AI솔루션팀. 출시 예정일: 2026년 1월.',
-            translatedContent:
-                'Product Name: Gemini AI Processor. Key Features: 100 trillion operations per second, low power design. Development Team: AI Solution Team. Estimated Release Date: January 2026.',
-        },
-        {
-            id: 3,
-            type: 'document',
-            title: '마케팅 전략 검토 보고서',
-            isStarred: true,
-            fromLang: '영어',
-            toLang: '한국어',
-            date: '2025-09-23',
-            size: '3.2 MB',
-            author: '박민수',
-            originalContent:
-                'The Q4 marketing campaign will focus primarily on digital channels, specifically targeting Gen Z users through short-form video content. Budget allocation: 60% digital ads, 30% influencer collaborations, 10% traditional media.',
-            translatedContent:
-                '4분기 마케팅 캠페인은 주로 디지털 채널에 집중하며, 특히 짧은 형식의 비디오 콘텐츠를 통해 Gen Z 사용자를 타겟팅할 것입니다. 예산 할당: 디지털 광고 60%, 인플루언서 협업 30%, 전통 미디어 10%.',
-        },
-    ];
+    // ✅ STT DataChannel 구독 (useDataChannel Hook 사용)
+    useDataChannel('stt', (msg) => {
+        try {
+            const text = new TextDecoder().decode(msg.payload);
+            const data = JSON.parse(text);
 
-    // ✅ room이 준비된 후에만 이벤트 리스너 등록
-    useEffect(() => {
-        if (!room) return;
+            console.log('📥 STT 데이터 수신:', data);
 
-        const onData = (payload, participant, dataChannel) => {
-            try {
-                if (dataChannel?.topic !== 'stt') return;
-                const text = new TextDecoder().decode(payload);
-                const msg = JSON.parse(text);
+            // 발화자 식별 키 (identity 우선, 없으면 track_sid)
+            const key = data.identity || data.track_sid || 'unknown';
 
-                const key = msg.identity || msg.track_sid || participant?.identity || 'unknown';
+            if (data.final) {
+                // ✅ Final (확정된 텍스트)
+                console.log(`✅ [FINAL] ${key}: ${data.text}`);
 
-                if (msg.final) {
-                    setFinals((prev) => [...prev, { identity: key, text: msg.text || '', ts: msg.ts ?? Date.now() }]);
-                    setPartials((prev) => {
-                        const next = { ...prev };
-                        delete next[key];
-                        return next;
-                    });
-                } else {
-                    setPartials((prev) => ({ ...prev, [key]: msg.text || '' }));
-                }
-            } catch (e) {
-                console.debug('stt parse error', e);
+                setFinals((prev) => [
+                    ...prev,
+                    {
+                        identity: key,
+                        text: data.text || '',
+                        ts: data.ts ?? Date.now(),
+                    },
+                ]);
+
+                // Partial에서 제거
+                setPartials((prev) => {
+                    const next = { ...prev };
+                    delete next[key];
+                    return next;
+                });
+            } else {
+                // ✅ Partial (실시간 중간 결과)
+                console.log(`🔄 [PARTIAL] ${key}: ${data.text}`);
+                setPartials((prev) => ({
+                    ...prev,
+                    [key]: data.text || '',
+                }));
             }
-        };
+        } catch (e) {
+            console.error('❌ STT 파싱 오류:', e);
+        }
+    });
 
-        room.on('dataReceived', onData);
-        return () => {
-            room.off('dataReceived', onData);
-        };
-    }, [room]);
-
+    // ✅ 회의 링크 복사
     const handleCopyLink = () => {
         const currentUrl = window.location.href;
         navigator.clipboard
@@ -137,16 +101,20 @@ const ConferenceUI = ({ meetingTitle, onLeave }) => {
         <LayoutContextProvider>
             <div data-lk-theme="default" className="w-full h-screen flex flex-col md:flex-row bg-slate-800">
                 <main className="w-full h-[60vh] md:h-full flex-grow relative flex flex-col">
+                    {/* 상단 정보 */}
                     <div className="absolute top-4 left-4 z-10 bg-black/50 p-2 rounded text-white text-sm">
                         <p className="font-bold">{meetingTitle || '회의'}</p>
                         <p className="text-xs">{participantCount > 0 ? `인원수 ${participantCount}` : 'Connecting...'}</p>
                     </div>
 
+                    {/* 비디오 영역 */}
                     <div className="flex-grow relative overflow-hidden">
                         <CustomVideoGrid />
+
+                        {/* 번역 자막 오버레이 (중앙 하단) */}
                         <SubtitleOverlay />
 
-                        {/* STT Partial 오버레이 */}
+                        {/* ✅ STT Partial 오버레이 (실시간 음성인식 - 번역 자막 위쪽) */}
                         {Object.keys(partials).length > 0 && (
                             <div className="absolute bottom-24 left-1/2 -translate-x-1/2 w-[90%] max-w-3xl bg-black/60 text-white rounded-xl px-4 py-2 z-20">
                                 {Object.entries(partials).map(([key, txt]) => (
@@ -158,19 +126,21 @@ const ConferenceUI = ({ meetingTitle, onLeave }) => {
                             </div>
                         )}
 
-                        {/* STT Final 패널 */}
+                        {/* ✅ STT Final 패널 (확정된 대화 내역 - 우측 하단) */}
                         {finals.length > 0 && (
                             <div className="absolute bottom-2 right-2 w-[26rem] max-h-64 overflow-auto bg-white/85 backdrop-blur rounded-xl p-3 shadow z-20">
+                                <div className="text-xs font-bold text-gray-500 mb-2 pb-2 border-b border-gray-300">실시간 자막 기록</div>
                                 {finals.slice(-20).map((it, i) => (
-                                    <div key={`${it.ts}-${i}`} className="text-sm text-gray-800 mb-1">
-                                        <span className="font-semibold mr-2">{it.identity}</span>
-                                        {it.text}
+                                    <div key={`${it.ts}-${i}`} className="text-sm text-gray-800 mb-2 pb-2 border-b border-gray-200 last:border-0">
+                                        <span className="font-bold text-blue-600 mr-2">{it.identity}</span>
+                                        <span className="text-gray-700">{it.text}</span>
                                     </div>
                                 ))}
                             </div>
                         )}
                     </div>
 
+                    {/* 하단 컨트롤 바 */}
                     <div className="flex flex-wrap items-center justify-center bg-slate-900 px-4 py-2 shadow-md rounded-t-lg gap-2">
                         <ControlBar variation="minimal" />
                         <button onClick={handleCopyLink} title="회의 주소 복사" className="lk-button lk-button-icon">
@@ -199,19 +169,20 @@ const ConferenceUI = ({ meetingTitle, onLeave }) => {
                         </button>
                     </div>
 
+                    {/* 나가기 버튼 */}
                     <button onClick={onLeave} className="absolute top-4 right-4 bg-red-600 text-white px-3 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors z-50 text-sm">
                         나가기
                     </button>
                 </main>
 
+                {/* 사이드바 */}
                 {isSidebarVisible && (
                     <aside className="w-full h-[40vh] md:w-[340px] md:h-full flex-shrink-0 bg-slate-700 transition-all duration-300">
-                        <TranscriptSidebar documents={documents} />
+                        <TranscriptSidebar sttFinals={finals} />
                     </aside>
                 )}
 
                 <RoomAudioRenderer />
-                <DataSender />
             </div>
         </LayoutContextProvider>
     );

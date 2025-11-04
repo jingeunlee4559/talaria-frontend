@@ -78,10 +78,15 @@ const MessageBubble = ({ msg }) => {
         <div className={`flex items-end gap-3 ${isLocal ? 'justify-end' : 'justify-start'}`}>
             {!isLocal && <img src={`https://i.pravatar.cc/40?u=${msg.sender}`} alt="avatar" className="w-9 h-9 rounded-full flex-shrink-0 self-start" />}
             <div className={`flex flex-col max-w-xs lg:max-w-sm ${isLocal ? 'items-end' : 'items-start'}`}>
-                <p className="text-sm font-medium text-gray-400 mb-1.5 px-2">
-                    {msg.sender}
-                    <span className="text-xs text-gray-500 ml-2">{msg.time}</span>
-                </p>
+                {!isLocal && (
+                    <p className="text-sm font-medium text-gray-400 mb-1.5 px-2">
+                        {msg.sender}
+                        <span className="text-xs text-gray-500 ml-2">{msg.time}</span>
+                    </p>
+                )}
+                {isLocal && (
+                    <p className="text-xs text-gray-500 mb-1.5 px-2">{msg.time}</p>
+                )}
                 <div className={`rounded-2xl px-4 py-3 shadow-md ${isLocal ? 'bg-blue-600 text-white rounded-br-none' : 'bg-[#3A425A] text-gray-200 rounded-bl-none'}`}>
                     <p className="text-sm break-words whitespace-pre-wrap">{msg.text}</p>
                 </div>
@@ -192,20 +197,31 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose }) => {
 
     useDataChannel('chat_messages', onMessage);
 
-    // ✅ STT Finals를 채팅창에 통합 (선택사항)
+    // ✅ STT Finals를 채팅창에 통합 - 본인 여부 판단 개선
     useEffect(() => {
-        if (sttFinals.length > 0) {
+        if (sttFinals.length > 0 && localParticipant) {
             const latestSTT = sttFinals[sttFinals.length - 1];
+            const myUsername = getParticipantNickname(localParticipant);
+            const sttUsername = latestSTT.username || latestSTT.identity;
+            
             const sttMessage = {
                 type: 'stt',
                 text: `🎤 ${latestSTT.text}`,
-                sender: latestSTT.username || latestSTT.identity, // 🆕 username 사용
+                sender: sttUsername,
                 time: new Date(latestSTT.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                isLocal: false,
+                isLocal: sttUsername === myUsername, // 🆕 username 비교로 본인 여부 판단
             };
+            
+            console.log('🎤 STT message:', {
+                sttUsername,
+                myUsername,
+                isLocal: sttMessage.isLocal,
+                text: latestSTT.text
+            });
+            
             setMessages((prev) => [...prev, sttMessage]);
         }
-    }, [sttFinals]);
+    }, [sttFinals, localParticipant]);
 
     // ✅ 자동 스크롤
     useEffect(() => {

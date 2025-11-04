@@ -133,7 +133,7 @@ const ConferenceUI = ({ meetingTitle, onLeave }) => {
                         {/* ✅ 자막 오버레이 (중앙 하단) - Final STT & 번역 표시 */}
                         <SubtitleOverlay />
 
-                        {/* ✅ Partial STT 오버레이 (실시간 음성인식 - 자막 위쪽) */}
+                        {/* ✅ Partial STT 오버레이 (실시간 음성인식) */}
                         {Object.keys(partials).length > 0 && (
                             <div className="absolute bottom-28 md:bottom-32 left-1/2 -translate-x-1/2 w-[90%] max-w-3xl z-30">
                                 {Object.entries(partials).map(([key, data]) => (
@@ -145,30 +145,6 @@ const ConferenceUI = ({ meetingTitle, onLeave }) => {
                                                 <span className="inline-block w-2 h-4 bg-yellow-400 ml-1 animate-blink"></span>
                                             </p>
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-
-                        {/* ✅ Final STT 패널 (확정된 대화 내역 - 우측 하단) */}
-                        {finals.length > 0 && (
-                            <div className="absolute bottom-2 right-2 w-[26rem] max-h-64 overflow-auto bg-white/90 backdrop-blur rounded-xl p-3 shadow-xl z-20 border border-gray-200">
-                                <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-300">
-                                    <span className="text-xs font-bold text-gray-600">💬 대화 기록</span>
-                                    <span className="text-xs text-blue-600 font-semibold">{finals.length}개</span>
-                                </div>
-                                {finals.slice(-20).map((it, i) => (
-                                    <div key={`${it.ts}-${i}`} className="text-sm text-gray-800 mb-2 pb-2 border-b border-gray-100 last:border-0 animate-fadeIn">
-                                        <div className="flex items-center justify-between mb-1">
-                                            <span className="font-bold text-blue-600">{it.username}</span>
-                                            <span className="text-xs text-gray-400">
-                                                {new Date(it.ts).toLocaleTimeString('ko-KR', {
-                                                    hour: '2-digit',
-                                                    minute: '2-digit',
-                                                })}
-                                            </span>
-                                        </div>
-                                        <p className="text-gray-700 leading-relaxed">{it.text}</p>
                                     </div>
                                 ))}
                             </div>

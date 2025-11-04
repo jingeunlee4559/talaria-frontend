@@ -78,15 +78,41 @@ const SubtitleOverlay = () => {
     if (currentSubtitle.isTranslation) {
         return (
             <div
-                className={`absolute bottom-4 md:bottom-20 left-1/2 -translate-x-1/2 w-11/12 md:w-3/4 max-w-4xl bg-black/70 text-white p-3 md:p-4 rounded-lg text-center backdrop-blur-sm transition-all duration-500 ${
-                    fadeOut ? 'opacity-0' : 'opacity-100'
+                className={`absolute bottom-6 md:bottom-24 left-1/2 -translate-x-1/2 w-11/12 md:w-3/4 max-w-5xl transition-all duration-700 ease-out ${
+                    fadeOut ? 'opacity-0 scale-95 translate-y-4' : 'opacity-100 scale-100 translate-y-0'
                 }`}
             >
-                <p className="font-bold text-sm md:text-base text-yellow-300">
-                    {currentSubtitle.username} ({currentSubtitle.langFrom} → {currentSubtitle.langTo})
-                </p>
-                <p className="text-base md:text-lg my-1">{currentSubtitle.originalText}</p>
-                <p className="text-base md:text-lg text-sky-300">{currentSubtitle.translatedText}</p>
+                <div className="relative bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95 backdrop-blur-3xl rounded-[2rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.6)] border border-white/10 overflow-hidden">
+                    {/* 배경 글로우 효과 (번역은 블루 톤) */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-cyan-500/10 to-blue-500/10"></div>
+                    
+                    {/* 컨텐츠 */}
+                    <div className="relative px-8 py-6 md:px-12 md:py-8">
+                        <p className="text-xs md:text-sm font-semibold text-blue-400/70 mb-4 tracking-[0.2em] uppercase">
+                            {currentSubtitle.username} <span className="text-slate-600 mx-2">•</span> {currentSubtitle.langFrom} → {currentSubtitle.langTo}
+                        </p>
+                        
+                        <p className="text-lg md:text-2xl font-extralight text-slate-300 mb-4 leading-relaxed opacity-80">
+                            {currentSubtitle.originalText}
+                        </p>
+                        
+                        <div className="relative my-5">
+                            <div className="absolute inset-0 flex items-center">
+                                <div className="w-full h-px bg-gradient-to-r from-transparent via-slate-600 to-transparent"></div>
+                            </div>
+                            <div className="relative flex justify-center">
+                                <span className="px-3 text-xs text-slate-500 bg-slate-800/50">번역</span>
+                            </div>
+                        </div>
+                        
+                        <p className="text-2xl md:text-4xl font-extralight text-white leading-tight tracking-tight">
+                            {currentSubtitle.translatedText}
+                        </p>
+                    </div>
+
+                    {/* 하단 그라데이션 라인 */}
+                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-blue-400/30 to-transparent"></div>
+                </div>
             </div>
         );
     }
@@ -94,12 +120,27 @@ const SubtitleOverlay = () => {
     // 일반 STT 자막인 경우
     return (
         <div
-            className={`absolute bottom-4 md:bottom-20 left-1/2 -translate-x-1/2 w-11/12 md:w-3/4 max-w-4xl bg-gradient-to-r from-blue-600/80 to-purple-600/80 text-white p-3 md:p-4 rounded-xl text-center backdrop-blur-md shadow-2xl transition-all duration-500 border border-white/20 ${
-                fadeOut ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+            className={`absolute bottom-6 md:bottom-24 left-1/2 -translate-x-1/2 w-11/12 md:w-3/4 max-w-5xl transition-all duration-700 ease-out ${
+                fadeOut ? 'opacity-0 scale-95 translate-y-4' : 'opacity-100 scale-100 translate-y-0'
             }`}
         >
-            <p className="font-bold text-sm md:text-base text-yellow-300 mb-1">🎤 {currentSubtitle.username}</p>
-            <p className="text-lg md:text-xl font-medium leading-relaxed">{currentSubtitle.text}</p>
+            <div className="relative bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95 backdrop-blur-3xl rounded-[2rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.6)] border border-white/10 overflow-hidden">
+                {/* 배경 글로우 효과 */}
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-pink-500/5"></div>
+                
+                {/* 컨텐츠 */}
+                <div className="relative px-8 py-6 md:px-12 md:py-8">
+                    <p className="text-xs md:text-sm font-semibold text-slate-400 mb-4 tracking-[0.2em] uppercase opacity-80">
+                        {currentSubtitle.username}
+                    </p>
+                    <p className="text-2xl md:text-4xl font-extralight text-white leading-tight tracking-tight">
+                        {currentSubtitle.text}
+                    </p>
+                </div>
+
+                {/* 하단 그라데이션 라인 */}
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+            </div>
         </div>
     );
 };

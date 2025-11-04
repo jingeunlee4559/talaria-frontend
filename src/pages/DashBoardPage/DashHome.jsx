@@ -142,12 +142,29 @@ const DashHome = () => {
         if (!user?.userId) return;
 
         try {
-            const res = await axios.get(`/api/users/${user.userId}/meetings`);
-            console.log(res.data.items, '나오니????');
+            const res = await axios.get(`/api/users/${user.userId}/meetings/all`);
+            console.log('회의 데이터:', res.data.items);
 
             if (Array.isArray(res.data.items)) {
                 const formatted = res.data.items.map((m) => {
-                    const initial = getInitial(user.name);
+                    // 호스트 정보
+                    const host = m.host || {};
+                    const hostInitial = getInitial(host.name || 'H');
+
+                    // 참가자 정보
+                    const participants = (m.participants || []).map((p) => {
+                        const initial = getInitial(p.user_name || p.name || 'U');
+                        return {
+                            userId: p.user_id,
+                            name: p.user_name || p.name || 'Unknown',
+                            email: p.user_email || p.email,
+                            role: p.role,
+                            avatar: p.user_profile_image_url || `https://ui-avatars.com/api/?name=${initial}&background=A5F3FC&color=0E7490&bold=true`,
+                            joinedAt: p.joined_at,
+                            leftAt: p.left_at,
+                        };
+                    });
+
                     return {
                         id: m.meetings_id,
                         title: m.title,
@@ -161,21 +178,29 @@ const DashHome = () => {
                             month: 'long',
                             day: 'numeric',
                         }),
-                        scheduled_at: m.scheduled_at, // 정렬을 위해 원본 날짜 보관
-                        lang: m.translation_languages ? `실시간 번역: ${m.translation_languages}` : '',
+                        scheduled_at: m.scheduled_at,
+                        lang: m.default_lang ? `기본 언어: ${m.default_lang}` : '',
                         invite_code: m.invite_code,
-                        participants: m.participants_data || [
-                            {
-                                name: user.name || 'User',
-                                avatar: `https://ui-avatars.com/api/?name=${initial}&background=A5F3FC&color=0E7490&bold=true`,
-                            },
-                        ],
+
+                        // 호스트 정보
+                        host: {
+                            userId: host.user_id,
+                            name: host.name || 'Unknown Host',
+                            email: host.email,
+                            avatar: host.profile_image_url || `https://ui-avatars.com/api/?name=${hostInitial}&background=FCA5A5&color=991B1B&bold=true`,
+                        },
+
+                        // 참가자 정보
+                        participants: participants,
+                        participantCount: m.participant_count || participants.length,
+                        userRole: m.user_role,
+                        hostId: m.host_id,
+
                         // 진행 중인 회의에만 gradient 적용
                         gradient: mapStatusToKorean(m.status) === '진행 중' ? 'bg-gradient-to-br from-indigo-600 to-violet-500' : '',
                     };
                 });
 
-                // 정렬 후 상태 업데이트
                 setMeetings(sortMeetings(formatted));
             } else {
                 setMeetings([]);

@@ -330,24 +330,48 @@ const DashVideoPage = () => {
             };
 
             let meetingId;
+            let response;
 
             if (isEditing) {
                 // 수정 모드
-                await axios.patch(`/api/users/${user.userId}/meetings/${meetingData.id}`, requestData);
+                response = await axios.patch(`/api/users/${user.userId}/meetings/${meetingData.id}`, requestData);
                 meetingId = meetingData.id;
 
                 Swal.fire({
                     icon: 'success',
                     title: '수정 완료!',
                     text: `'${meetingData.title}' 회의 정보가 수정되었습니다.`,
-                    timer: 2000,
+                    timer: 1500,
                     showConfirmButton: false,
                     timerProgressBar: true,
+                }).then(() => {
+                    // 🔥 페이지 전체 새로고침
+                    window.location.reload();
                 });
             } else {
                 // 새 회의 생성 모드
-                const response = await axios.post(`/api/users/${user.userId}/meetings`, requestData);
-                meetingId = response.data.meetings_id;
+                response = await axios.post(`/api/users/${user.userId}/meetings`, requestData);
+                meetingId = response.data.meetings_id || response.data.id;
+
+                // 🔥 초대된 사용자들을 참가자로 추가 (병렬 처리)
+                if (meetingData.invited_ids && meetingData.invited_ids.length > 0) {
+                    console.log('초대된 사용자 추가 중:', meetingData.invited_ids);
+
+                    // Promise.all로 병렬 처리
+                    await Promise.all(
+                        meetingData.invited_ids.map(async (userId) => {
+                            try {
+                                await axios.post(`/api/meetings/${meetingId}/participants/invite`, {
+                                    userId: userId,
+                                    role: 'GUEST',
+                                });
+                                console.log(`사용자 ${userId} 초대 완료`);
+                            } catch (inviteError) {
+                                console.error(`사용자 ${userId} 초대 실패:`, inviteError);
+                            }
+                        }),
+                    );
+                }
 
                 Swal.fire({
                     icon: 'success',
@@ -356,10 +380,13 @@ const DashVideoPage = () => {
                     timer: 2000,
                     showConfirmButton: false,
                     timerProgressBar: true,
+                }).then(() => {
+                    // 🔥 페이지 전체 새로고침
+                    window.location.reload();
                 });
             }
 
-            // 회의 목록 새로고침 (참가자 수 포함)
+            // 🔥 즉시 회의 목록 새로고침 (딜레이 제거)
             const res = await axios.get(`/api/users/${user.userId}/meetings/all`);
             if (Array.isArray(res.data.items)) {
                 const formatted = await Promise.all(
@@ -369,8 +396,13 @@ const DashVideoPage = () => {
                         try {
                             const countRes = await axios.get(`/api/meetings/${m.meetings_id}/participants/count`);
                             participantCount = countRes.data.totalCount || 1;
+                            console.log(`회의 ${m.meetings_id} 참가자 수:`, participantCount);
                         } catch (err) {
                             console.error(`참가자 수 조회 실패:`, err);
+                            // 🔥 실패 시 초대된 인원 + 호스트(1)로 계산
+                            if (m.meetings_id === meetingId && meetingData.invited_ids) {
+                                participantCount = meetingData.invited_ids.length + 1;
+                            }
                         }
 
                         return {
@@ -388,13 +420,14 @@ const DashVideoPage = () => {
                             }),
                             invite_code: m.invite_code,
                             participants: participantCount,
-                            invited_ids: [],
+                            invited_ids: m.meetings_id === meetingId ? meetingData.invited_ids || [] : [],
                             user_role: m.user_role,
                             host_id: m.host_id,
                         };
                     }),
                 );
                 setMeetings(formatted);
+                console.log('회의 목록 업데이트 완료:', formatted);
             }
 
             handleCloseModal();
@@ -406,6 +439,7 @@ const DashVideoPage = () => {
 
             if (error.response) {
                 errorMessage = error.response.data?.message || error.response.data?.error || errorMessage;
+                console.error('서버 응답 오류:', error.response.data);
             } else if (error.request) {
                 errorMessage = '서버와 통신할 수 없습니다. 네트워크 연결을 확인해주세요.';
             }

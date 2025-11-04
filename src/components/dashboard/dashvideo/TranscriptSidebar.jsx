@@ -47,16 +47,27 @@ const MutedIcon = () => (
     </svg>
 );
 
-// ✅ 닉네임 가져오기 함수
+// ✅ 닉네임 가져오기 함수 (개선 - metadata의 username 우선)
 const getParticipantNickname = (participant) => {
     if (!participant) return 'Unknown';
-    if (participant.name) return participant.name;
+
+    // 1순위: metadata에서 username 추출
     try {
-        const metadata = JSON.parse(participant.metadata);
-        return metadata?.username || participant.identity;
-    } catch {
-        return participant.identity;
+        const metadata = JSON.parse(participant.metadata || '{}');
+        if (metadata?.username) {
+            return metadata.username;
+        }
+    } catch (error) {
+        console.error('메타데이터 파싱 오류:', error);
     }
+
+    // 2순위: name 속성
+    if (participant.name) {
+        return participant.name;
+    }
+
+    // 3순위: identity
+    return participant.identity || 'Unknown';
 };
 
 // ✅ 메시지 버블 컴포넌트
@@ -150,17 +161,28 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose }) => {
 
     const chatEndRef = useRef(null);
 
-    // ✅ 채팅 메시지 수신
+    // ✅ 채팅 메시지 수신 (개선 - username 사용)
     const onMessage = (message) => {
         if (message.from) {
             try {
                 const textDecoder = new TextDecoder();
                 const msgData = JSON.parse(textDecoder.decode(message.payload));
+
+                // 🆕 백엔드에서 온 username 사용, 없으면 participant에서 추출
+                const senderName = msgData.username || getParticipantNickname(message.from);
+
                 const fullMessage = {
                     ...msgData,
-                    sender: getParticipantNickname(message.from),
+                    sender: senderName, // 🆕 username 우선 사용
                     isLocal: message.from.isLocal,
                 };
+
+                console.log('📩 Chat received:', {
+                    from: message.from.identity,
+                    username: senderName,
+                    text: msgData.text,
+                });
+
                 setMessages((prev) => [...prev, fullMessage]);
             } catch (error) {
                 console.error('메시지 파싱 실패:', error);
@@ -177,7 +199,7 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose }) => {
             const sttMessage = {
                 type: 'stt',
                 text: `🎤 ${latestSTT.text}`,
-                sender: latestSTT.identity,
+                sender: latestSTT.username || latestSTT.identity, // 🆕 username 사용
                 time: new Date(latestSTT.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 isLocal: false,
             };
@@ -192,13 +214,17 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose }) => {
         }
     }, [messages, activeTab]);
 
-    // ✅ 메시지 전송
+    // ✅ 메시지 전송 (개선 - username 포함)
     const handleSendMessage = () => {
         if (!chatInput.trim() || !sendChat || !localParticipant) return;
+
+        // 🆕 username 추출
+        const myUsername = getParticipantNickname(localParticipant);
 
         const messagePayload = {
             type: 'chat',
             text: chatInput,
+            username: myUsername, // 🆕 username 포함
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         };
 
@@ -207,9 +233,14 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose }) => {
 
         const newChatMessage = {
             ...messagePayload,
-            sender: getParticipantNickname(localParticipant),
+            sender: myUsername, // 🆕 username 사용
             isLocal: true,
         };
+
+        console.log('📤 Chat sent:', {
+            username: myUsername,
+            text: chatInput,
+        });
 
         setMessages((prev) => [...prev, newChatMessage]);
         setChatInput('');

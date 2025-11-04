@@ -1,12 +1,5 @@
 import { useEffect, useState } from 'react';
-import {
-    ControlBar,
-    RoomAudioRenderer,
-    LayoutContextProvider,
-    useParticipants,
-    useRoomContext,
-    useDataChannel, // ✅ STT 수신을 위해 추가
-} from '@livekit/components-react';
+import { ControlBar, RoomAudioRenderer, LayoutContextProvider, useParticipants, useRoomContext, useDataChannel } from '@livekit/components-react';
 import Swal from 'sweetalert2';
 import TranscriptSidebar from './TranscriptSidebar';
 import CustomVideoGrid from './CustomVideoGrid';
@@ -14,54 +7,80 @@ import SubtitleOverlay from './SubtitleOverlay';
 import { FiCopy } from 'react-icons/fi';
 
 const ConferenceUI = ({ meetingTitle, onLeave }) => {
-    // ✅ 컴포넌트 최상위에서 Hook 호출
     const room = useRoomContext();
     const participants = useParticipants();
     const participantCount = participants.length;
 
-    // 사이드바 표시 상태
     const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+    const [partials, setPartials] = useState({});
+    const [finals, setFinals] = useState([]);
 
-    // ✅ STT 수신 상태 (Partial & Final 분리)
-    const [partials, setPartials] = useState({}); // { identity: "텍스트" }
-    const [finals, setFinals] = useState([]); // [{ identity, text, ts }]
+    // Helper: participant의 username 가져오기
+    const getParticipantUsername = (identity) => {
+        if (room.localParticipant?.identity === identity) {
+            try {
+                const metadata = JSON.parse(room.localParticipant.metadata || '{}');
+                return metadata.username || room.localParticipant.name || identity;
+            } catch {
+                return room.localParticipant.name || identity;
+            }
+        }
 
-    // ✅ STT DataChannel 구독 (useDataChannel Hook 사용)
+        for (const p of participants) {
+            if (p.identity === identity) {
+                try {
+                    const metadata = JSON.parse(p.metadata || '{}');
+                    return metadata.username || p.name || identity;
+                } catch {
+                    return p.name || identity;
+                }
+            }
+        }
+
+        return identity;
+    };
+
+    // STT DataChannel 구독
     useDataChannel('stt', (msg) => {
         try {
             const text = new TextDecoder().decode(msg.payload);
             const data = JSON.parse(text);
 
-            console.log('📥 STT 데이터 수신:', data);
+            console.log('📥 STT received:', {
+                type: data.final ? 'FINAL' : 'PARTIAL',
+                username: data.username,
+                text: data.text?.substring(0, 30) + '...',
+            });
 
-            // 발화자 식별 키 (identity 우선, 없으면 track_sid)
-            const key = data.identity || data.track_sid || 'unknown';
+            const username = data.username || getParticipantUsername(data.identity) || data.identity || 'Unknown';
+            const key = data.identity || data.track_sid || (msg.from?.identity ?? 'unknown');
 
             if (data.final) {
-                // ✅ Final (확정된 텍스트)
-                console.log(`✅ [FINAL] ${key}: ${data.text}`);
-
+                // Final: 확정된 텍스트
                 setFinals((prev) => [
                     ...prev,
                     {
                         identity: key,
+                        username: username,
                         text: data.text || '',
                         ts: data.ts ?? Date.now(),
                     },
                 ]);
 
-                // Partial에서 제거
+                // Partial 제거
                 setPartials((prev) => {
                     const next = { ...prev };
                     delete next[key];
                     return next;
                 });
             } else {
-                // ✅ Partial (실시간 중간 결과)
-                console.log(`🔄 [PARTIAL] ${key}: ${data.text}`);
+                // Partial: 실시간 진행 중인 텍스트
                 setPartials((prev) => ({
                     ...prev,
-                    [key]: data.text || '',
+                    [key]: {
+                        text: data.text || '',
+                        username: username,
+                    },
                 }));
             }
         } catch (e) {
@@ -69,7 +88,7 @@ const ConferenceUI = ({ meetingTitle, onLeave }) => {
         }
     });
 
-    // ✅ 회의 링크 복사
+    // 회의 링크 복사
     const handleCopyLink = () => {
         const currentUrl = window.location.href;
         navigator.clipboard
@@ -111,29 +130,45 @@ const ConferenceUI = ({ meetingTitle, onLeave }) => {
                     <div className="flex-grow relative overflow-hidden">
                         <CustomVideoGrid />
 
-                        {/* 번역 자막 오버레이 (중앙 하단) */}
+                        {/* ✅ 자막 오버레이 (중앙 하단) - Final STT & 번역 표시 */}
                         <SubtitleOverlay />
 
-                        {/* ✅ STT Partial 오버레이 (실시간 음성인식 - 번역 자막 위쪽) */}
+                        {/* ✅ Partial STT 오버레이 (실시간 음성인식 - 자막 위쪽) */}
                         {Object.keys(partials).length > 0 && (
-                            <div className="absolute bottom-24 left-1/2 -translate-x-1/2 w-[90%] max-w-3xl bg-black/60 text-white rounded-xl px-4 py-2 z-20">
-                                {Object.entries(partials).map(([key, txt]) => (
-                                    <div key={key} className="text-center text-base leading-6">
-                                        <span className="opacity-70 mr-2">[{key}]</span>
-                                        {txt}
+                            <div className="absolute bottom-28 md:bottom-32 left-1/2 -translate-x-1/2 w-[90%] max-w-3xl z-30">
+                                {Object.entries(partials).map(([key, data]) => (
+                                    <div key={key} className="bg-yellow-500/20 backdrop-blur-md border-2 border-yellow-400/50 text-white rounded-xl px-4 py-2 mb-2 shadow-lg animate-pulse">
+                                        <div className="text-center">
+                                            <span className="text-xs font-bold text-yellow-300 mr-2">🎙️ {data.username} (입력 중...)</span>
+                                            <p className="text-base leading-6 mt-1">
+                                                {data.text}
+                                                <span className="inline-block w-2 h-4 bg-yellow-400 ml-1 animate-blink"></span>
+                                            </p>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
                         )}
 
-                        {/* ✅ STT Final 패널 (확정된 대화 내역 - 우측 하단) */}
+                        {/* ✅ Final STT 패널 (확정된 대화 내역 - 우측 하단) */}
                         {finals.length > 0 && (
-                            <div className="absolute bottom-2 right-2 w-[26rem] max-h-64 overflow-auto bg-white/85 backdrop-blur rounded-xl p-3 shadow z-20">
-                                <div className="text-xs font-bold text-gray-500 mb-2 pb-2 border-b border-gray-300">실시간 자막 기록</div>
+                            <div className="absolute bottom-2 right-2 w-[26rem] max-h-64 overflow-auto bg-white/90 backdrop-blur rounded-xl p-3 shadow-xl z-20 border border-gray-200">
+                                <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-300">
+                                    <span className="text-xs font-bold text-gray-600">💬 대화 기록</span>
+                                    <span className="text-xs text-blue-600 font-semibold">{finals.length}개</span>
+                                </div>
                                 {finals.slice(-20).map((it, i) => (
-                                    <div key={`${it.ts}-${i}`} className="text-sm text-gray-800 mb-2 pb-2 border-b border-gray-200 last:border-0">
-                                        <span className="font-bold text-blue-600 mr-2">{it.identity}</span>
-                                        <span className="text-gray-700">{it.text}</span>
+                                    <div key={`${it.ts}-${i}`} className="text-sm text-gray-800 mb-2 pb-2 border-b border-gray-100 last:border-0 animate-fadeIn">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <span className="font-bold text-blue-600">{it.username}</span>
+                                            <span className="text-xs text-gray-400">
+                                                {new Date(it.ts).toLocaleTimeString('ko-KR', {
+                                                    hour: '2-digit',
+                                                    minute: '2-digit',
+                                                })}
+                                            </span>
+                                        </div>
+                                        <p className="text-gray-700 leading-relaxed">{it.text}</p>
                                     </div>
                                 ))}
                             </div>
@@ -170,7 +205,7 @@ const ConferenceUI = ({ meetingTitle, onLeave }) => {
                     </div>
 
                     {/* 나가기 버튼 */}
-                    <button onClick={onLeave} className="absolute top-4 right-4 bg-red-600 text-white px-3 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors z-50 text-sm">
+                    <button onClick={onLeave} className="absolute top-4 right-4 bg-red-600 text-white px-3 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors z-50 text-sm shadow-lg">
                         나가기
                     </button>
                 </main>
@@ -184,6 +219,39 @@ const ConferenceUI = ({ meetingTitle, onLeave }) => {
 
                 <RoomAudioRenderer />
             </div>
+
+            {/* 애니메이션 스타일 */}
+            <style jsx>{`
+                @keyframes fadeIn {
+                    from {
+                        opacity: 0;
+                        transform: translateY(10px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+
+                @keyframes blink {
+                    0%,
+                    50% {
+                        opacity: 1;
+                    }
+                    51%,
+                    100% {
+                        opacity: 0;
+                    }
+                }
+
+                .animate-fadeIn {
+                    animation: fadeIn 0.3s ease-out;
+                }
+
+                .animate-blink {
+                    animation: blink 1s infinite;
+                }
+            `}</style>
         </LayoutContextProvider>
     );
 };

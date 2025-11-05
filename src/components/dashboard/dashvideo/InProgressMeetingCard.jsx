@@ -1,8 +1,55 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, Radio, UsersRound, Video } from 'lucide-react';
+import { Clock, Radio, UsersRound, Video, XCircle } from 'lucide-react';
+import Swal from 'sweetalert2';
+import axios from '../../../axios'; // ✅ axios 경로 확인 필요
+import { UserContext } from '../../../contexts/UserContext';
 
 const InProgressMeetingCard = ({ meeting, onJoinMeeting }) => {
+    const { user } = useContext(UserContext);
+
+    const handleEndMeeting = async () => {
+        Swal.fire({
+            title: '회의를 종료하시겠습니까?',
+            text: `'${meeting.title}' 회의가 종료됩니다.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#16a34a', // 초록색
+            cancelButtonColor: '#6b7280', // 회색
+            confirmButtonText: '예',
+            cancelButtonText: '아니오',
+            background: '#f9fafb',
+            customClass: {
+                popup: 'rounded-2xl shadow-lg',
+                title: 'text-lg font-semibold',
+            },
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                try {
+                    const res = await axios.patch(`/api/users/${user.userId}/meetings/${meeting.id}/end`);
+                    if (res.status === 200) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: '회의 종료 완료',
+                            text: `'${meeting.title}' 회의가 정상적으로 종료되었습니다.`,
+                            timer: 1500,
+                            showConfirmButton: false,
+                        }).then(() => {
+                            window.location.reload();
+                        });
+                    }
+                } catch (err) {
+                    console.error('회의 종료 오류:', err);
+                    Swal.fire({
+                        icon: 'error',
+                        title: '종료 실패',
+                        text: '회의 종료 중 문제가 발생했습니다.',
+                    });
+                }
+            }
+        });
+    };
+
     return (
         <motion.div
             initial={{ opacity: 0, y: -10 }}
@@ -28,14 +75,29 @@ const InProgressMeetingCard = ({ meeting, onJoinMeeting }) => {
                     </div>
                 </div>
             </div>
-            <button
-                onClick={() => onJoinMeeting(meeting.id, meeting.title, meeting.invite_code)}
-                className="flex-shrink-0 w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-green-600 text-white font-semibold rounded-lg text-base
-                           hover:bg-green-700 transition-colors shadow-md hover:shadow-lg"
-            >
-                <Video className="w-5 h-5" />
-                <span>즉시 참여</span>
-            </button>
+
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <button
+                    onClick={() => onJoinMeeting(meeting.id, meeting.title, meeting.invite_code)}
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 bg-green-600 text-white font-semibold rounded-lg text-base
+                               hover:bg-green-700 transition-colors shadow-md hover:shadow-lg w-full sm:w-auto"
+                >
+                    <Video className="w-5 h-5" />
+                    <span>즉시 참여</span>
+                </button>
+
+                {/* ✅ HOST일 때만 보이는 회의 종료 버튼 */}
+                {meeting.user_role === 'HOST' && (
+                    <button
+                        onClick={handleEndMeeting}
+                        className="flex items-center justify-center gap-2 px-5 py-2.5 bg-red-600 text-white font-semibold rounded-lg text-base
+                                   hover:bg-red-700 transition-colors shadow-md hover:shadow-lg w-full sm:w-auto"
+                    >
+                        <XCircle className="w-5 h-5" />
+                        <span>회의 종료</span>
+                    </button>
+                )}
+            </div>
         </motion.div>
     );
 };

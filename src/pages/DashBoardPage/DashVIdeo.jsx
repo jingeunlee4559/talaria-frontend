@@ -65,11 +65,26 @@ const DashVideoPage = () => {
                             let participantCount = 1; // 기본값
 
                             try {
-                                // 각 회의의 참가자 수 조회
-                                const countRes = await axios.get(`/api/meetings/${m.meetings_id}/participants/count`);
-                                participantCount = countRes.data.totalCount || 1;
+                                let countUrl;
+                                if (m.status === 'ONGOING') {
+                                    countUrl = `/livekit/meetings/${m.meetings_id}/participants/count`;
+                                } else {
+                                    countUrl = `/api/meetings/${m.meetings_id}/participants/count`;
+                                }
+
+                                const countRes = await axios.get(countUrl);
+
+                                // 🔥 수정된 부분
+                                // 1. countRes.data.totalCount가 있는지 확인
+                                // 2. 없다면 (null/undefined) countRes.data.count가 있는지 확인
+                                // 3. 둘 다 없다면 기본값 1을 사용
+                                participantCount = countRes.data.totalCount ?? countRes.data.count ?? 1;
+
+                                // (참고: 0은 유효한 값이므로 || 대신 ?? 연산자를 사용합니다.)
                             } catch (err) {
                                 console.error(`회의 ${m.meetings_id} 참가자 수 조회 실패:`, err);
+                                // try 밖에서 participantCount = 1로 설정되어 있으므로
+                                // 실패 시 1이 유지됩니다.
                             }
 
                             return {
@@ -527,7 +542,7 @@ const DashVideoPage = () => {
                 )}
 
                 <section>
-                    {activeFilter === '전체' && upcomingMeetings.length > 0 && <h2 className="text-2xl font-bold text-gray-800 mb-6">예약된 회의</h2>}
+                    {activeFilter === '전체' && upcomingMeetings.length > 0 && <h2 className="text-2xl font-bold text-gray-800 mb-6">회의 목록</h2>}
                     {activeFilter !== '전체' && activeFilter !== '진행중' && upcomingMeetings.length > 0 && <h2 className="text-2xl font-bold text-gray-800 mb-6">'{activeFilter}' 회의</h2>}
 
                     <AnimatePresence>

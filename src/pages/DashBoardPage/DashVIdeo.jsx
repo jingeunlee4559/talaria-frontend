@@ -518,10 +518,13 @@ const DashVideoPage = () => {
                     <FilterTabs filters={filters} activeFilter={activeFilter} setActiveFilter={setActiveFilter} />
                     <button
                         onClick={handleOpenNewMeetingModal}
-                        className="flex-shrink-0 flex items-center justify-center gap-2 w-full md:w-auto px-6 py-3 rounded-lg text-white font-semibold shadow-lg 
-                            bg-gradient-to-r from-violet-600 to-indigo-600 
-                            hover:from-violet-700 hover:to-indigo-700
-                            transform hover:-translate-y-0.5 transition-all duration-300 ease-in-out"
+                        className="flex flex-grow items-center justify-center gap-2 whitespace-nowrap 
+                        bg-gradient-to-r from-blue-500 to-indigo-600 
+                        text-white font-semibold text-base px-6 py-3 rounded-xl 
+                        shadow-lg shadow-blue-500/40 
+                        transition-all transform duration-300 ease-in-out
+                        hover:shadow-xl hover:shadow-blue-400/50 hover:-translate-y-1
+                        focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                     >
                         <Plus className="h-5 w-5" />
                         <span>새 회의 만들기</span>

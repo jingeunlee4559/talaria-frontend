@@ -1,13 +1,14 @@
-import { Fragment, useState, useEffect } from 'react';
-import { Dialog, Transition } from '@headlessui/react';
-import { X, Calendar, Clock, Users, Plus, Hash, AlertCircle, Pencil } from 'lucide-react';
+import { Fragment, useState, useEffect, useContext } from 'react';
+import { Dialog, Transition, Combobox } from '@headlessui/react';
+import { X, Calendar, Clock, Users, AlertCircle, Pencil } from 'lucide-react';
 import axios from '../../../axios';
 import Swal from 'sweetalert2';
+import { UserContext } from '../../../contexts/UserContext';
 
-// Helper Component
+// InputField Helper Component
 const InputField = ({ id, label, icon, error, children }) => (
     <div>
-        <label htmlFor={id} className="text-sm font-medium text-slate-700">
+        <label htmlFor={id} className="block text-sm font-medium text-gray-700">
             {label}
         </label>
         <div className="relative mt-1.5">
@@ -25,7 +26,9 @@ const InputField = ({ id, label, icon, error, children }) => (
 
 const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
     const isEditMode = Boolean(meetingToEdit);
+    const { user } = useContext(UserContext);
 
+    // --- State (기존과 동일) ---
     const [title, setTitle] = useState('');
     const [date, setDate] = useState('');
     const [time, setTime] = useState('');
@@ -34,10 +37,9 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
     const [errors, setErrors] = useState({});
     const [searchResults, setSearchResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
-    const [showSearchResults, setShowSearchResults] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
-    // 수정 모드일 때 기존 데이터 로드
+    // --- useEffects (기존과 동일) ---
     useEffect(() => {
         if (isEditMode && isOpen) {
             setTitle(meetingToEdit.title);
@@ -63,7 +65,6 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
         }
     }, [meetingToEdit, isEditMode, isOpen]);
 
-    // 모달 닫힐 때 초기화
     useEffect(() => {
         if (!isOpen) {
             setTimeout(() => {
@@ -74,19 +75,16 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
                 setParticipantInput('');
                 setErrors({});
                 setSearchResults([]);
-                setShowSearchResults(false);
                 setIsSaving(false);
             }, 300);
         }
     }, [isOpen]);
 
-    // 사용자 검색 API 호출 (디바운싱)
     useEffect(() => {
         const searchUsers = async () => {
             const trimmedInput = participantInput.trim();
             if (trimmedInput.length < 3) {
                 setSearchResults([]);
-                setShowSearchResults(false);
                 return;
             }
 
@@ -106,11 +104,9 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
                 }));
 
                 setSearchResults(mappedResults);
-                setShowSearchResults(true);
             } catch (error) {
                 console.error('사용자 검색 오류:', error);
                 setSearchResults([]);
-                setShowSearchResults(participantInput.trim().length > 0);
             } finally {
                 setIsSearching(false);
             }
@@ -120,25 +116,19 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
         return () => clearTimeout(timeoutId);
     }, [participantInput, participants]);
 
-    // 검색 결과에서 사용자 선택
-    const handleSelectUser = (user) => {
+    // --- Handlers (기존과 동일) ---
+    const handleSelectUser = (selectedUser) => {
+        if (!selectedUser || !selectedUser.user_id) return;
         const newParticipant = {
-            userId: user.user_id,
-            name: user.name || user.username,
-            email: user.email,
+            userId: selectedUser.user_id,
+            name: selectedUser.name || selectedUser.username,
+            email: selectedUser.email,
         };
-        if (!participants.some((p) => p.userId === user.user_id)) {
+        if (!participants.some((p) => p.userId === newParticipant.userId)) {
             setParticipants([...participants, newParticipant]);
-            setParticipantInput('');
-            setSearchResults([]);
-            setShowSearchResults(false);
         }
-    };
-
-    const handleAddParticipant = () => {
-        if (searchResults.length > 0) {
-            handleSelectUser(searchResults[0]);
-        }
+        setParticipantInput('');
+        setSearchResults([]);
     };
 
     const handleRemoveParticipant = (participantToRemove) => {
@@ -164,11 +154,11 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
                 day: 'numeric',
             }).format(new Date(`${date}T00:00:00`));
 
-            const [hour, minute] = time.split(':');
-            const hourNum = parseInt(hour, 10);
+            const [hourStr, minuteStr] = time.split(':');
+            const hourNum = parseInt(hourStr, 10);
             const period = hourNum >= 12 ? '오후' : '오전';
             const formattedHour = hourNum % 12 || 12;
-            const formattedTime = `${period} ${String(formattedHour).padStart(2, '0')}:${minute}`;
+            const formattedTime = `${period} ${String(formattedHour).padStart(2, '0')}:${minuteStr}`;
 
             const meetingData = {
                 id: isEditMode ? meetingToEdit.id : null,
@@ -183,37 +173,52 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
                 throw new Error('회의 ID를 받아오지 못했습니다.');
             }
 
-            // ⭐️ 참가자 초대 (백엔드 API 스펙에 맞게 수정)
             const invitedUserIds = participants.map((p) => p.userId);
-
             if (invitedUserIds.length > 0) {
-                console.log('초대할 사용자 IDs:', invitedUserIds);
-
                 try {
-                    // 각 사용자마다 개별 요청 (백엔드 API 스펙에 맞게)
                     const invitePromises = invitedUserIds.map((userId) =>
                         axios.post(`/api/meetings/${savedMeetingId}/participants/invite`, {
-                            userId: userId, // ⭐️ userId 키 사용
-                            role: 'GUEST', // ⭐️ role 포함
+                            userId: userId,
+                            role: 'GUEST',
                         }),
                     );
-
-                    const results = await Promise.all(invitePromises);
-
-                    console.log('모든 참가자 초대 완료:', results);
+                    await Promise.all(invitePromises);
                 } catch (inviteError) {
-                    console.error('========== 참가자 초대 실패 상세 정보 ==========');
-                    console.error('Status Code:', inviteError.response?.status);
-                    console.error('Response Data:', inviteError.response?.data);
-                    console.error('Error Message:', inviteError.response?.data?.message || inviteError.message);
-                    console.error('=============================================');
-
-                    // 초대 실패해도 회의는 생성되었으므로 경고만 표시
+                    console.error('참가자 초대 실패:', inviteError);
                     Swal.fire({
                         icon: 'warning',
                         title: '일부 작업 실패',
                         text: `회의는 생성되었지만 일부 참가자 초대에 실패했습니다.\n${inviteError.response?.data?.message || ''}`,
-                        confirmButtonColor: '#6366F1',
+                        confirmButtonColor: '#10B981', // emerald-500
+                    });
+                }
+            }
+
+            if (user?.userId) {
+                try {
+                    const [calHour, calMinute] = time.split(':').map(Number);
+                    const endHour = Math.min(calHour + 1, 23);
+
+                    const eventPayload = {
+                        title: title,
+                        type: 'meeting',
+                        startDate: date,
+                        endDate: date,
+                        startTime: `${time}:00`,
+                        endTime: `${String(endHour).padStart(2, '0')}:${String(calMinute).padStart(2, '0')}:00`,
+                        location: '',
+                        description: '',
+                        meetingId: savedMeetingId,
+                    };
+
+                    await axios.post(`/api/users/${user.userId}/calendar/events`, eventPayload);
+                } catch (calendarError) {
+                    console.error('캘린더 일정 추가 실패:', calendarError);
+                    Swal.fire({
+                        icon: 'warning',
+                        title: '회의는 생성되었습니다.',
+                        text: '하지만 캘린더에 일정을 등록하는 데 실패했습니다. 캘린더에서 직접 추가해주세요.',
+                        confirmButtonColor: '#10B981', // emerald-500
                     });
                 }
             }
@@ -233,7 +238,7 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
                 icon: 'error',
                 title: '저장 실패',
                 text: error.response?.data?.message || error.message || '처리 중 오류가 발생했습니다.',
-                confirmButtonColor: '#6366F1',
+                confirmButtonColor: '#10B981', // emerald-500
             });
         }
     };
@@ -255,144 +260,166 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
                             leaveFrom="opacity-100 scale-100"
                             leaveTo="opacity-0 scale-95"
                         >
-                            <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white text-left align-middle shadow-2xl transition-all border-t-4 border-violet-500">
-                                <div className="p-6 pb-4">
-                                    <div className="flex items-start justify-between">
-                                        <div>
-                                            <Dialog.Title as="h3" className="text-lg font-semibold leading-6 text-slate-900">
-                                                {isEditMode ? '회의 정보 수정' : '새 회의 예약'}
-                                            </Dialog.Title>
-                                            <p className="mt-1 text-sm text-slate-500">{isEditMode ? '회의 정보를 수정하고 변경사항을 저장하세요.' : '회의 정보를 입력하여 예약을 완료하세요.'}</p>
-                                        </div>
-                                        <button onClick={onClose} className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
-                                            <X className="h-5 w-5" />
-                                        </button>
+                            <Dialog.Panel className="w-full max-w-md transform rounded-2xl bg-white text-left align-middle shadow-2xl transition-all shadow-gray-500/20">
+                                {/* 🚀 --- 디자인 수정: 헤더에 아이콘 및 배경색 추가 --- 🚀 */}
+                                <div className="relative bg-emerald-50 p-6 rounded-t-2xl">
+                                    {/* 닫기 버튼 */}
+                                    <button onClick={onClose} className="absolute top-4 right-4 rounded-full p-2 text-emerald-700/60 hover:bg-emerald-100 hover:text-emerald-700/80 transition-colors">
+                                        <X className="h-5 w-5" />
+                                    </button>
+
+                                    {/* 헤더 아이콘 */}
+                                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100">
+                                        {isEditMode ? <Pencil className="h-6 w-6 text-emerald-600" /> : <Calendar className="h-6 w-6 text-emerald-600" />}
                                     </div>
+
+                                    {/* 텍스트 (중앙 정렬) */}
+                                    <Dialog.Title as="h3" className="mt-3 text-center text-lg font-semibold leading-6 text-gray-900">
+                                        {isEditMode ? '회의 정보 수정' : '새 회의 예약'}
+                                    </Dialog.Title>
+                                    <p className="mt-2 text-center text-sm text-gray-500">{isEditMode ? '회의 정보를 수정하고 변경사항을 저장하세요.' : '회의 정보를 입력하여 예약을 완료하세요.'}</p>
                                 </div>
 
+                                {/* --- 모달 폼 --- */}
                                 <form onSubmit={handleSubmit}>
-                                    <div className="space-y-5 bg-slate-50/50 p-6">
-                                        <InputField id="title" label="회의 제목" icon={<Pencil className="h-5 w-5 text-slate-400" />} error={errors.title}>
+                                    {/* 🚀 --- 디자인 수정: 폼 배경을 'bg-white'로 변경 --- 🚀 */}
+                                    <div className="space-y-6 bg-white p-6">
+                                        <InputField id="title" label="회의 제목" icon={<Pencil className="h-5 w-5 text-gray-400" />} error={errors.title}>
                                             <input
                                                 id="title"
                                                 type="text"
                                                 value={title}
                                                 onChange={(e) => setTitle(e.target.value)}
                                                 placeholder="예: 4분기 실적 보고 회의"
-                                                className="block w-full rounded-lg border-slate-300 pl-10 shadow-sm focus:border-violet-500 focus:ring-violet-500 sm:text-sm"
+                                                className="block w-full rounded-lg border-gray-300 pl-10 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 sm:text-sm transition-colors"
                                             />
                                         </InputField>
                                         <div className="grid grid-cols-2 gap-4">
-                                            <InputField id="date" label="날짜" icon={<Calendar className="h-5 w-5 text-slate-400" />} error={errors.date}>
+                                            <InputField id="date" label="날짜" icon={<Calendar className="h-5 w-5 text-gray-400" />} error={errors.date}>
                                                 <input
                                                     id="date"
                                                     type="date"
                                                     value={date}
                                                     onChange={(e) => setDate(e.target.value)}
-                                                    className="block w-full rounded-lg border-slate-300 pl-10 shadow-sm focus:border-violet-500 focus:ring-violet-500 sm:text-sm"
+                                                    className="block w-full rounded-lg border-gray-300 pl-10 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 sm:text-sm transition-colors"
                                                 />
                                             </InputField>
-                                            <InputField id="time" label="시간" icon={<Clock className="h-5 w-5 text-slate-400" />} error={errors.time}>
+                                            <InputField id="time" label="시간" icon={<Clock className="h-5 w-5 text-gray-400" />} error={errors.time}>
                                                 <input
                                                     id="time"
                                                     type="time"
                                                     value={time}
                                                     onChange={(e) => setTime(e.target.value)}
-                                                    className="block w-full rounded-lg border-slate-300 pl-10 shadow-sm focus:border-violet-500 focus:ring-violet-500 sm:text-sm"
+                                                    className="block w-full rounded-lg border-gray-300 pl-10 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 sm:text-sm transition-colors"
                                                 />
                                             </InputField>
                                         </div>
 
-                                        <InputField id="participants" label="참가자 초대 (이메일로 검색)" icon={<Users className="h-5 w-5 text-slate-400" />} error={errors.participants}>
-                                            <div className="relative">
-                                                <div className="flex gap-2">
-                                                    <input
-                                                        id="participants"
-                                                        type="text"
+                                        {/* --- 참가자 검색 (Combobox) --- */}
+                                        <div>
+                                            <label htmlFor="participants-input" className="block text-sm font-medium text-gray-700">
+                                                참가자 초대 (이메일로 검색)
+                                            </label>
+                                            <Combobox value={null} onChange={handleSelectUser}>
+                                                <div className="relative mt-1.5">
+                                                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                                        <Users className="h-5 w-5 text-gray-400" />
+                                                    </div>
+                                                    <Combobox.Input
+                                                        id="participants-input"
+                                                        className="block w-full rounded-lg border-gray-300 pl-10 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 sm:text-sm transition-colors"
+                                                        placeholder="사용자 이메일/이름 (3자 이상)"
+                                                        autoComplete="off"
                                                         value={participantInput}
                                                         onChange={(e) => setParticipantInput(e.target.value)}
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') {
-                                                                e.preventDefault();
-                                                                handleAddParticipant();
-                                                            }
-                                                        }}
-                                                        placeholder="사용자 이메일로 검색"
-                                                        className="block w-full rounded-lg border-slate-300 pl-10 shadow-sm focus:border-violet-500 focus:ring-violet-500 sm:text-sm"
-                                                        autoComplete="off"
                                                     />
-                                                    <button
-                                                        type="button"
-                                                        onClick={handleAddParticipant}
-                                                        className="flex-shrink-0 rounded-lg bg-violet-100 p-2 text-sm font-semibold text-violet-700 hover:bg-violet-200 transition-transform active:scale-95"
-                                                        title="첫 번째 검색 결과 추가"
-                                                    >
-                                                        <Plus className="h-5 w-5" />
-                                                    </button>
+
+                                                    <Transition as={Fragment} leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0">
+                                                        <Combobox.Options className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto focus:outline-none p-1.5">
+                                                            {isSearching ? (
+                                                                <div className="p-3 text-center text-sm text-gray-500">검색 중...</div>
+                                                            ) : searchResults.length === 0 && participantInput.trim().length > 2 ? (
+                                                                <div className="p-3 text-center text-sm text-gray-500">검색 결과가 없습니다.</div>
+                                                            ) : (
+                                                                searchResults.map((user) => (
+                                                                    <Combobox.Option
+                                                                        key={user.user_id}
+                                                                        value={user}
+                                                                        className={({ active }) =>
+                                                                            `relative w-full px-3 py-2 text-left cursor-pointer transition-colors flex items-center gap-3 rounded-md ${
+                                                                                active ? 'bg-emerald-50' : 'text-gray-800'
+                                                                            }`
+                                                                        }
+                                                                    >
+                                                                        {({ active }) => (
+                                                                            <>
+                                                                                <div
+                                                                                    className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
+                                                                                        active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-700'
+                                                                                    }`}
+                                                                                >
+                                                                                    {(user.name || 'U')[0].toUpperCase()}
+                                                                                </div>
+                                                                                <div className="flex-1 min-w-0">
+                                                                                    <p className={`text-sm font-medium truncate ${active ? 'text-emerald-900' : 'text-gray-900'}`}>{user.name}</p>
+                                                                                    <p className={`text-xs truncate ${active ? 'text-emerald-700' : 'text-gray-500'}`}>{user.email}</p>
+                                                                                </div>
+                                                                            </>
+                                                                        )}
+                                                                    </Combobox.Option>
+                                                                ))
+                                                            )}
+                                                        </Combobox.Options>
+                                                    </Transition>
                                                 </div>
+                                            </Combobox>
+                                            {errors.participants && (
+                                                <p className="mt-1.5 flex items-center gap-1 text-xs text-red-600">
+                                                    <AlertCircle className="h-3.5 w-3.5" />
+                                                    {errors.participants}
+                                                </p>
+                                            )}
+                                        </div>
 
-                                                {showSearchResults && (
-                                                    <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                                                        {isSearching ? (
-                                                            <div className="p-3 text-center text-sm text-slate-500">검색 중...</div>
-                                                        ) : searchResults.length === 0 ? (
-                                                            <div className="p-3 text-center text-sm text-slate-500">검색 결과가 없습니다.</div>
-                                                        ) : (
-                                                            searchResults.map((user) => (
-                                                                <button
-                                                                    key={user.user_id}
-                                                                    type="button"
-                                                                    onClick={() => handleSelectUser(user)}
-                                                                    className="w-full px-4 py-2 text-left hover:bg-violet-50 transition-colors flex items-center gap-3"
-                                                                >
-                                                                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 font-semibold text-sm">
-                                                                        {(user.name || 'U')[0].toUpperCase()}
-                                                                    </div>
-                                                                    <div className="flex-1 min-w-0">
-                                                                        <p className="text-sm font-medium text-slate-900 truncate">{user.name}</p>
-                                                                        <p className="text-xs text-slate-500 truncate">{user.email}</p>
-                                                                    </div>
-                                                                </button>
-                                                            ))
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </InputField>
-
+                                        {/* --- 초대된 참가자 목록 --- */}
                                         {participants.length > 0 && (
-                                            <div className="flex flex-wrap gap-2 pt-1">
-                                                {participants.map((p) => (
-                                                    <span
-                                                        key={p.userId}
-                                                        className="inline-flex items-center gap-1.5 rounded-full bg-violet-100 px-2.5 py-1 text-xs font-medium text-violet-800 animate-in fade-in-50"
-                                                    >
-                                                        <Hash className="h-3 w-3" /> {p.name || p.email}
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleRemoveParticipant(p)}
-                                                            className="rounded-full text-violet-500 hover:bg-violet-200/80 hover:text-violet-700"
+                                            <div className="pt-1">
+                                                <label className="mb-2 block text-xs font-medium text-gray-600">초대된 참가자</label>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {participants.map((p) => (
+                                                        <span
+                                                            key={p.userId}
+                                                            className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-sm font-medium text-emerald-700 border border-emerald-200 animate-in fade-in-50"
                                                         >
-                                                            <X className="h-4 w-4" />
-                                                        </button>
-                                                    </span>
-                                                ))}
+                                                            {p.name || p.email}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleRemoveParticipant(p)}
+                                                                className="rounded-full text-emerald-500 hover:bg-emerald-200/80 hover:text-emerald-700"
+                                                            >
+                                                                <X className="h-4 w-4" />
+                                                            </button>
+                                                        </span>
+                                                    ))}
+                                                </div>
                                             </div>
                                         )}
                                     </div>
 
-                                    <div className="flex justify-end gap-3 bg-white p-6 border-t">
+                                    {/* --- 모달 푸터 --- */}
+                                    {/* 🚀 --- 디자인 수정: 'bg-gray-50' 및 'rounded-b-2xl' 적용 --- 🚀 */}
+                                    <div className="flex justify-end gap-3 bg-gray-50 p-6 border-t border-gray-200 rounded-b-2xl">
                                         <button
                                             type="button"
                                             onClick={onClose}
-                                            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 transition-colors"
+                                            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-100 focus-visible:ring-2 focus-visible:ring-gray-300 focus-visible:ring-offset-2 transition-colors"
                                         >
                                             취소
                                         </button>
                                         <button
                                             type="submit"
                                             disabled={isSaving}
-                                            className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-violet-700 focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                                         >
                                             {isSaving ? '저장 중...' : isEditMode ? '변경사항 저장' : '회의 예약하기'}
                                         </button>

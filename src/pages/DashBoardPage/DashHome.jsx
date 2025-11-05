@@ -223,78 +223,69 @@ const DashHome = () => {
     // 모달 닫기
     const handleCloseModal = () => {
         setIsModalOpen(false);
+        fetchMeetings();
     };
 
     // 회의 생성 확인
     const handleConfirmMeeting = async (meetingData) => {
+        // 1. 날짜와 시간을 ISO 형식으로 변환
+        const [year, month, day] = meetingData.date
+            .replace(/년|월|일/g, '-')
+            .split('-')
+            .map((s) => s.trim());
+
+        const [period, timeStr] = meetingData.time.split(' ');
+        let [hour, minute] = timeStr.split(':').map((h) => parseInt(h, 10));
+
+        if (period === '오후' && hour !== 12) hour += 12;
+        else if (period === '오전' && hour === 12) hour = 0;
+
+        const scheduledAt = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
+
+        // 2. API 요청 데이터 구성
+        // ❗️ 모달의 로직을 따르기 위해 'invited_user_ids'를 여기서 보내지 않습니다.
+        const requestData = {
+            title: meetingData.title,
+            scheduled_at: scheduledAt,
+        };
+
+        console.log('회의 생성 요청 (ID 반환용):', requestData);
+
         try {
-            // 날짜와 시간을 ISO 형식으로 변환
-            const [year, month, day] = meetingData.date
-                .replace(/년|월|일/g, '-')
-                .split('-')
-                .map((s) => s.trim());
-
-            const [period, timeStr] = meetingData.time.split(' ');
-            let [hour, minute] = timeStr.split(':').map((h) => parseInt(h, 10));
-
-            // 오전/오후 변환
-            if (period === '오후' && hour !== 12) {
-                hour += 12;
-            } else if (period === '오전' && hour === 12) {
-                hour = 0;
-            }
-
-            // ISO 8601 형식으로 변환
-            const scheduledAt = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
-
-            // API 요청 데이터 구성
-            const requestData = {
-                title: meetingData.title,
-                scheduled_at: scheduledAt,
-                invited_user_ids: meetingData.invited_ids || [], // 초대된 사용자 ID 배열
-            };
-
-            console.log('회의 생성 요청:', requestData);
-
-            // API 호출
+            // 3. API 호출
+            // ❗️ user.userId가 이 함수 스코프에 있는지 확인하세요.
+            // (없다면 user 객체를 DashHome의 state에서 가져와야 합니다.)
             const response = await axios.post(`/api/users/${user.userId}/meetings`, requestData);
 
             console.log('회의 생성 응답:', response.data);
 
-            handleCloseModal();
+            const meetingId = response.data?.meetings_id;
 
-            // 성공 메시지
-            Swal.fire({
-                icon: 'success',
-                title: '예약 완료!',
-                text: `'${meetingData.title}' 회의가 생성되었습니다.`,
-                timer: 2000,
-                showConfirmButton: false,
-                timerProgressBar: true,
-            });
-
-            // 회의 목록 새로고침
-            await fetchMeetings();
-        } catch (error) {
-            console.error('회의 생성 오류:', error);
-
-            let errorMessage = '회의 생성 중 오류가 발생했습니다.';
-
-            if (error.response) {
-                // 서버에서 응답을 받은 경우
-                errorMessage = error.response.data?.message || error.response.data?.error || errorMessage;
-                console.error('서버 응답 오류:', error.response.data);
-            } else if (error.request) {
-                // 요청은 보냈지만 응답을 받지 못한 경우
-                errorMessage = '서버와 통신할 수 없습니다. 네트워크 연결을 확인해주세요.';
-                console.error('네트워크 오류:', error.request);
+            if (!meetingId) {
+                console.error('응답에서 meetings_id를 찾을 수 없습니다.', response.data);
+                throw new Error('서버 응답에서 회의 ID를 받지 못했습니다.');
             }
 
-            Swal.fire({
-                icon: 'error',
-                title: '생성 실패',
-                text: errorMessage,
-            });
+            // 4. ⭐️ 모달이 후속 처리를 할 수 있도록 생성된 ID를 반환합니다. ⭐️
+            return meetingId;
+
+            // ❗️ 모달이 자체적으로 성공/실패 처리를 하므로,
+            // ❗️ 아래 로직은 여기(DashHome)가 아닌 모달이 닫힌 후(onClose)에 처리해야 합니다.
+            // handleCloseModal(); // (X)
+            // Swal.fire(...); // (X)
+            // await fetchMeetings(); // (X)
+        } catch (error) {
+            // 5. ⭐️ 에러를 모달의 catch 블록으로 전파(throw)합니다.
+            console.error('회의 생성 오류:', error);
+            let errorMessage = '회의 생성 중 오류가 발생했습니다.';
+            if (error.response) {
+                errorMessage = error.response.data?.message || error.response.data?.error || errorMessage;
+            } else if (error.request) {
+                errorMessage = '서버와 통신할 수 없습니다.';
+            }
+
+            // 모달이 에러를 잡아서 Swal을 띄울 수 있도록 throw
+            throw new Error(errorMessage);
         }
     };
 

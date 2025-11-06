@@ -67,6 +67,7 @@ const DashBoardHeader = ({ setIsMobileSidebarOpen }) => {
                     createdAt: noti.created_at,
                     status: noti.status,
                 }));
+                console.log(processedNotifications, 'alertsdfsdfsdfdssdfsdf');
 
                 setNotifications(sortNotifications(processedNotifications));
             } catch (error) {

@@ -4,6 +4,7 @@ import Swal from 'sweetalert2';
 import TranscriptSidebar from './TranscriptSidebar';
 import CustomVideoGrid from './CustomVideoGrid';
 import SubtitleOverlay from './SubtitleOverlay';
+import MannerChecker from './MannerChecker';
 import { FiCopy } from 'react-icons/fi';
 
 const ConferenceUI = ({ meetingTitle, onLeave }) => {
@@ -120,10 +121,13 @@ const ConferenceUI = ({ meetingTitle, onLeave }) => {
         <LayoutContextProvider>
             <div data-lk-theme="default" className="w-full h-screen flex flex-col md:flex-row bg-slate-800">
                 <main className="w-full h-[60vh] md:h-full flex-grow relative flex flex-col">
-                    {/* 상단 정보 */}
-                    <div className="absolute top-4 left-4 z-10 bg-black/50 p-2 rounded text-white text-sm">
-                        <p className="font-bold">{meetingTitle || '회의'}</p>
-                        <p className="text-xs">{participantCount > 0 ? `인원수 ${participantCount}` : 'Connecting...'}</p>
+                    {/* ✨ 매너체커 오버레이 (좌측 상단) */}
+                    <MannerChecker />
+
+                    {/* 상단 정보 (좌측 상단 고정) */}
+                    <div className="absolute top-4 left-4 z-10 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-xl text-white shadow-lg border border-white/10">
+                        <p className="font-bold text-base">{meetingTitle || '회의'}</p>
+                        <p className="text-xs text-slate-300">{participantCount > 0 ? `👥 ${participantCount}명 참여 중` : '연결 중...'}</p>
                     </div>
 
                     {/* 비디오 영역 */}

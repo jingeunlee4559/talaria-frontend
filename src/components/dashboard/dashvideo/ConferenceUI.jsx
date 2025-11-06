@@ -201,7 +201,7 @@ const ConferenceUI = ({ meetingTitle, onLeave }) => {
             </div>
 
             {/* 애니메이션 스타일 */}
-            <style jsx>{`
+            <style>{`
                 @keyframes fadeIn {
                     from {
                         opacity: 0;

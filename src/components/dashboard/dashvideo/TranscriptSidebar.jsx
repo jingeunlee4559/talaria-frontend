@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useDataChannel, useLocalParticipant, useRemoteParticipants } from '@livekit/components-react';
+import { useDataChannel, useLocalParticipant, useRemoteParticipants, useRoomContext } from '@livekit/components-react';
 
 // --- Helper Icons ---
 const SendIcon = () => (
@@ -47,8 +47,8 @@ const MutedIcon = () => (
     </svg>
 );
 
-// ✅ 닉네임 가져오기 함수 (개선 - metadata의 username 우선)
-const getParticipantNickname = (participant) => {
+// ✅ 개선된 닉네임 가져오기 함수
+const getParticipantNickname = (participant, room = null) => {
     if (!participant) return 'Unknown';
 
     // 1순위: metadata에서 username 추출
@@ -62,12 +62,22 @@ const getParticipantNickname = (participant) => {
     }
 
     // 2순위: name 속성
-    if (participant.name) {
+    if (participant.name && participant.name !== participant.identity) {
         return participant.name;
     }
 
-    // 3순위: identity
-    return participant.identity || 'Unknown';
+    // 3순위: identity에서 추출 (user-xxx 형식인 경우 정리)
+    const identity = participant.identity || 'Unknown';
+
+    // user-timestamp-random 형식이면 Guest로 변환
+    if (identity.startsWith('user-')) {
+        const parts = identity.split('-');
+        if (parts.length >= 3) {
+            return `Guest-${parts[parts.length - 1].substring(0, 4)}`;
+        }
+    }
+
+    return identity;
 };
 
 // ✅ 메시지 버블 컴포넌트
@@ -84,9 +94,7 @@ const MessageBubble = ({ msg }) => {
                         <span className="text-xs text-gray-500 ml-2">{msg.time}</span>
                     </p>
                 )}
-                {isLocal && (
-                    <p className="text-xs text-gray-500 mb-1.5 px-2">{msg.time}</p>
-                )}
+                {isLocal && <p className="text-xs text-gray-500 mb-1.5 px-2">{msg.time}</p>}
                 <div className={`rounded-2xl px-4 py-3 shadow-md ${isLocal ? 'bg-blue-600 text-white rounded-br-none' : 'bg-[#3A425A] text-gray-200 rounded-bl-none'}`}>
                     <p className="text-sm break-words whitespace-pre-wrap">{msg.text}</p>
                 </div>
@@ -160,6 +168,7 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose }) => {
     const [chatInput, setChatInput] = useState('');
     const [activeTab, setActiveTab] = useState('chat');
 
+    const room = useRoomContext();
     const { localParticipant } = useLocalParticipant();
     const remoteParticipants = useRemoteParticipants();
     const { send: sendChat } = useDataChannel('chat_messages');
@@ -174,11 +183,11 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose }) => {
                 const msgData = JSON.parse(textDecoder.decode(message.payload));
 
                 // 🆕 백엔드에서 온 username 사용, 없으면 participant에서 추출
-                const senderName = msgData.username || getParticipantNickname(message.from);
+                const senderName = msgData.username || getParticipantNickname(message.from, room);
 
                 const fullMessage = {
                     ...msgData,
-                    sender: senderName, // 🆕 username 우선 사용
+                    sender: senderName,
                     isLocal: message.from.isLocal,
                 };
 
@@ -186,6 +195,7 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose }) => {
                     from: message.from.identity,
                     username: senderName,
                     text: msgData.text,
+                    isLocal: message.from.isLocal,
                 });
 
                 setMessages((prev) => [...prev, fullMessage]);
@@ -201,27 +211,37 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose }) => {
     useEffect(() => {
         if (sttFinals.length > 0 && localParticipant) {
             const latestSTT = sttFinals[sttFinals.length - 1];
-            const myUsername = getParticipantNickname(localParticipant);
+            const myUsername = getParticipantNickname(localParticipant, room);
             const sttUsername = latestSTT.username || latestSTT.identity;
-            
+
+            // 🆕 중복 방지: 동일한 텍스트가 이미 최근 메시지에 있으면 건너뛰기
+            const isDuplicate = messages.some(
+                (msg) => msg.type === 'stt' && msg.text === `🎤 ${latestSTT.text}` && msg.sender === sttUsername && Date.now() - new Date(msg.time).getTime() < 2000, // 2초 이내
+            );
+
+            if (isDuplicate) {
+                console.log('⏭️ Duplicate STT message, skipping');
+                return;
+            }
+
             const sttMessage = {
                 type: 'stt',
                 text: `🎤 ${latestSTT.text}`,
                 sender: sttUsername,
                 time: new Date(latestSTT.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                isLocal: sttUsername === myUsername, // 🆕 username 비교로 본인 여부 판단
+                isLocal: sttUsername === myUsername || latestSTT.identity === localParticipant.identity,
             };
-            
+
             console.log('🎤 STT message:', {
                 sttUsername,
                 myUsername,
                 isLocal: sttMessage.isLocal,
-                text: latestSTT.text
+                text: latestSTT.text,
             });
-            
+
             setMessages((prev) => [...prev, sttMessage]);
         }
-    }, [sttFinals, localParticipant]);
+    }, [sttFinals, localParticipant, room]);
 
     // ✅ 자동 스크롤
     useEffect(() => {
@@ -235,12 +255,12 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose }) => {
         if (!chatInput.trim() || !sendChat || !localParticipant) return;
 
         // 🆕 username 추출
-        const myUsername = getParticipantNickname(localParticipant);
+        const myUsername = getParticipantNickname(localParticipant, room);
 
         const messagePayload = {
             type: 'chat',
             text: chatInput,
-            username: myUsername, // 🆕 username 포함
+            username: myUsername,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         };
 
@@ -249,7 +269,7 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose }) => {
 
         const newChatMessage = {
             ...messagePayload,
-            sender: myUsername, // 🆕 username 사용
+            sender: myUsername,
             isLocal: true,
         };
 
@@ -285,7 +305,7 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose }) => {
                                     <p className="text-xs mt-1">대화를 시작해보세요!</p>
                                 </div>
                             ) : (
-                                messages.map((msg, i) => <MessageBubble key={i} msg={msg} />)
+                                messages.map((msg, i) => <MessageBubble key={`${msg.sender}-${msg.time}-${i}`} msg={msg} />)
                             )}
                             <div ref={chatEndRef} />
                         </div>
@@ -305,7 +325,7 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose }) => {
                                         <img src={`https://i.pravatar.cc/44?u=${p.identity}`} alt="avatar" className="w-11 h-11 rounded-full" />
                                         {p.isSpeaking && <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-[#2C3349] animate-pulse"></div>}
                                     </div>
-                                    <span className="font-semibold text-gray-200">{getParticipantNickname(p)}</span>
+                                    <span className="font-semibold text-gray-200">{getParticipantNickname(p, room)}</span>
                                 </div>
                                 <div className="flex items-center gap-4">
                                     {!p.isCameraEnabled && <MutedIcon />}

@@ -16,8 +16,11 @@ const ConferenceUI = ({ meetingTitle, onLeave }) => {
     const [partials, setPartials] = useState({});
     const [finals, setFinals] = useState([]);
 
-    // Helper: participant의 username 가져오기
+    // Helper: participant의 username 가져오기 (개선)
     const getParticipantUsername = (identity) => {
+        if (!identity) return 'Unknown';
+
+        // Local participant 확인
         if (room.localParticipant?.identity === identity) {
             try {
                 const metadata = JSON.parse(room.localParticipant.metadata || '{}');
@@ -27,7 +30,8 @@ const ConferenceUI = ({ meetingTitle, onLeave }) => {
             }
         }
 
-        for (const p of participants) {
+        // Remote participants 확인
+        for (const p of room.remoteParticipants.values()) {
             if (p.identity === identity) {
                 try {
                     const metadata = JSON.parse(p.metadata || '{}');
@@ -41,7 +45,7 @@ const ConferenceUI = ({ meetingTitle, onLeave }) => {
         return identity;
     };
 
-    // STT DataChannel 구독
+    // STT DataChannel 구독 (개선된 로직)
     useDataChannel('stt', (msg) => {
         try {
             const text = new TextDecoder().decode(msg.payload);
@@ -49,19 +53,26 @@ const ConferenceUI = ({ meetingTitle, onLeave }) => {
 
             console.log('📥 STT received:', {
                 type: data.final ? 'FINAL' : 'PARTIAL',
+                identity: data.identity,
                 username: data.username,
-                text: data.text?.substring(0, 30) + '...',
+                text: data.text?.substring(0, 50),
+                participant_sid: data.participant_sid,
             });
 
+            // Username 우선순위: 1) data.username, 2) getParticipantUsername, 3) identity
             const username = data.username || getParticipantUsername(data.identity) || data.identity || 'Unknown';
-            const key = data.identity || data.track_sid || (msg.from?.identity ?? 'unknown');
+
+            // 고유 키 생성 (identity 우선, 없으면 participant_sid)
+            const key = data.identity || data.participant_sid || 'unknown';
 
             if (data.final) {
-                // Final: 확정된 텍스트
+                // ✅ Final: 확정된 텍스트
+                console.log(`✅ FINAL STT from ${username}: ${data.text}`);
+
                 setFinals((prev) => [
                     ...prev,
                     {
-                        identity: key,
+                        identity: data.identity,
                         username: username,
                         text: data.text || '',
                         ts: data.ts ?? Date.now(),
@@ -75,12 +86,15 @@ const ConferenceUI = ({ meetingTitle, onLeave }) => {
                     return next;
                 });
             } else {
-                // Partial: 실시간 진행 중인 텍스트
+                // ⏳ Partial: 실시간 진행 중인 텍스트
+                console.log(`⏳ PARTIAL STT from ${username}: ${data.text}`);
+
                 setPartials((prev) => ({
                     ...prev,
                     [key]: {
                         text: data.text || '',
                         username: username,
+                        identity: data.identity,
                     },
                 }));
             }
@@ -88,6 +102,64 @@ const ConferenceUI = ({ meetingTitle, onLeave }) => {
             console.error('❌ STT 파싱 오류:', e);
         }
     });
+
+    // 🆕 디버깅: 모든 participants의 오디오 트랙 상태 로깅
+    useEffect(() => {
+        const logParticipantTracks = () => {
+            console.group('🎙️ Participant Audio Tracks Status');
+
+            // Local participant
+            if (room.localParticipant) {
+                console.log('Local Participant:', {
+                    identity: room.localParticipant.identity,
+                    name: room.localParticipant.name,
+                    audioTracks: Array.from(room.localParticipant.audioTrackPublications.values()).map((pub) => ({
+                        sid: pub.trackSid,
+                        enabled: pub.isEnabled,
+                        muted: pub.isMuted,
+                        subscribed: pub.isSubscribed,
+                    })),
+                });
+            }
+
+            // Remote participants
+            room.remoteParticipants.forEach((p) => {
+                console.log(`Remote Participant [${p.identity}]:`, {
+                    name: p.name,
+                    audioTracks: Array.from(p.audioTrackPublications.values()).map((pub) => ({
+                        sid: pub.trackSid,
+                        enabled: pub.isEnabled,
+                        muted: pub.isMuted,
+                        subscribed: pub.isSubscribed,
+                    })),
+                });
+            });
+
+            console.groupEnd();
+        };
+
+        // 초기 로깅
+        logParticipantTracks();
+
+        // 트랙 변경 시 로깅
+        const handleTrackPublished = () => {
+            console.log('🆕 Track published event');
+            logParticipantTracks();
+        };
+
+        const handleTrackUnpublished = () => {
+            console.log('❌ Track unpublished event');
+            logParticipantTracks();
+        };
+
+        room.on('trackPublished', handleTrackPublished);
+        room.on('trackUnpublished', handleTrackUnpublished);
+
+        return () => {
+            room.off('trackPublished', handleTrackPublished);
+            room.off('trackUnpublished', handleTrackUnpublished);
+        };
+    }, [room, participants]);
 
     // 회의 링크 복사
     const handleCopyLink = () => {

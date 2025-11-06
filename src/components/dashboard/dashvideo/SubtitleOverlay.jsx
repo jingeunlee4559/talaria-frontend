@@ -1,35 +1,59 @@
 import { useDataChannel } from '@livekit/components-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 const SubtitleOverlay = () => {
     const [currentSubtitle, setCurrentSubtitle] = useState(null);
     const [fadeOut, setFadeOut] = useState(false);
+    const timerRef = useRef(null);
+    const fadeTimerRef = useRef(null);
 
-    // ✅ STT 데이터 수신
+    // 타이머 정리 함수
+    const clearTimers = () => {
+        if (timerRef.current) {
+            clearTimeout(timerRef.current);
+            timerRef.current = null;
+        }
+        if (fadeTimerRef.current) {
+            clearTimeout(fadeTimerRef.current);
+            fadeTimerRef.current = null;
+        }
+    };
+
+    // ✅ STT 데이터 수신 (개선된 버전)
     useDataChannel('stt', (msg) => {
         try {
             const textDecoder = new TextDecoder();
             const data = JSON.parse(textDecoder.decode(msg.payload));
 
-            console.log('📺 Subtitle received:', data);
+            console.log('📺 Subtitle received:', {
+                final: data.final,
+                username: data.username,
+                identity: data.identity,
+                text: data.text?.substring(0, 30) + '...',
+            });
 
             // Final STT만 자막으로 표시 (Partial은 ConferenceUI에서 별도 표시)
-            if (data.final && data.text) {
+            if (data.final && data.text && data.text.trim()) {
+                // 기존 타이머 정리
+                clearTimers();
+
                 setFadeOut(false);
                 setCurrentSubtitle({
                     username: data.username || data.identity || 'Unknown',
+                    identity: data.identity,
                     text: data.text,
                     timestamp: Date.now(),
                 });
 
                 // 3초 후 페이드아웃 시작
-                setTimeout(() => {
+                fadeTimerRef.current = setTimeout(() => {
                     setFadeOut(true);
                 }, 3000);
 
                 // 4초 후 완전히 제거
-                setTimeout(() => {
+                timerRef.current = setTimeout(() => {
                     setCurrentSubtitle(null);
+                    setFadeOut(false);
                 }, 4000);
             }
         } catch (error) {
@@ -37,40 +61,57 @@ const SubtitleOverlay = () => {
         }
     });
 
-    // 번역 데이터도 수신 (있는 경우)
+    // ✅ 번역 데이터 수신 (개선된 버전)
     useDataChannel('translation_data', (msg) => {
         try {
             const textDecoder = new TextDecoder();
             const data = JSON.parse(textDecoder.decode(msg.payload));
 
-            if (data.type === 'translation') {
-                console.log('🌍 Translation received:', data);
+            if (data.type === 'translation' && data.translatedText && data.translatedText.trim()) {
+                console.log('🌍 Translation received:', {
+                    username: data.speakerName || data.username,
+                    langFrom: data.langFrom,
+                    langTo: data.langTo,
+                    originalText: data.originalText?.substring(0, 30) + '...',
+                    translatedText: data.translatedText?.substring(0, 30) + '...',
+                });
+
+                // 기존 타이머 정리
+                clearTimers();
 
                 setFadeOut(false);
                 setCurrentSubtitle({
                     username: data.speakerName || data.username || 'Unknown',
                     originalText: data.originalText,
                     translatedText: data.translatedText,
-                    langFrom: data.langFrom,
-                    langTo: data.langTo,
+                    langFrom: data.langFrom || 'KO',
+                    langTo: data.langTo || 'EN',
                     isTranslation: true,
                     timestamp: Date.now(),
                 });
 
                 // 5초 후 페이드아웃 (번역은 좀 더 길게)
-                setTimeout(() => {
+                fadeTimerRef.current = setTimeout(() => {
                     setFadeOut(true);
                 }, 5000);
 
                 // 6초 후 완전히 제거
-                setTimeout(() => {
+                timerRef.current = setTimeout(() => {
                     setCurrentSubtitle(null);
+                    setFadeOut(false);
                 }, 6000);
             }
         } catch (error) {
             console.error('❌ Translation 파싱 오류:', error);
         }
     });
+
+    // 컴포넌트 언마운트 시 타이머 정리
+    useEffect(() => {
+        return () => {
+            clearTimers();
+        };
+    }, []);
 
     if (!currentSubtitle) return null;
 
@@ -90,11 +131,11 @@ const SubtitleOverlay = () => {
                     <div className="relative flex items-center justify-between px-5 md:px-7 py-2.5 bg-gradient-to-r from-blue-500/[0.07] via-cyan-500/[0.06] to-blue-500/[0.07] border-b border-white/[0.06]">
                         <span className="text-xs md:text-sm font-semibold text-slate-300/90 tracking-wide">{currentSubtitle.username}</span>
                         <div className="flex items-center gap-2 text-xs md:text-sm font-medium text-blue-300/90">
-                            <span>{currentSubtitle.langFrom}</span>
+                            <span className="uppercase">{currentSubtitle.langFrom}</span>
                             <svg className="w-3.5 h-3.5 md:w-4 md:h-4 text-blue-400/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                             </svg>
-                            <span>{currentSubtitle.langTo}</span>
+                            <span className="uppercase">{currentSubtitle.langTo}</span>
                         </div>
                     </div>
 

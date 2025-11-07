@@ -159,7 +159,7 @@ const MannerChecker = () => {
     return (
         <div
             className={`
-        fixed top-5 left-5 right-5 sm:right-auto z-50
+        fixed top-20 left-5 right-5 sm:right-auto z-50
         w-auto sm:w-[360px]
         transition-all duration-300
         ${visible ? 'opacity-100 translate-y-0 sm:translate-x-0' : 'opacity-0 -translate-y-4 sm:-translate-x-4'}

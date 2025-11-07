@@ -118,11 +118,7 @@ const SubtitleOverlay = () => {
     // 번역 자막인 경우
     if (currentSubtitle.isTranslation) {
         return (
-            <div
-                className={`fixed bottom-10 md:bottom-16 left-1/2 -translate-x-1/2 w-[90%] md:w-[80%] max-w-3xl z-50 transition-all duration-500 ease-out ${
-                    fadeOut ? 'opacity-0 scale-[0.98] translate-y-2' : 'opacity-100 scale-100 translate-y-0'
-                }`}
-            >
+            <div className={`w-[90%] md:w-[80%] max-w-3xl transition-all duration-500 ease-out ${fadeOut ? 'opacity-0 scale-[0.98] translate-y-2' : 'opacity-100 scale-100 translate-y-0'} mx-auto`}>
                 <div className="relative bg-gradient-to-br from-slate-900/96 via-slate-800/96 to-slate-900/96 backdrop-blur-2xl rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.3)] border border-white/10 overflow-hidden">
                     {/* 미묘한 배경 그라데이션 */}
                     <div className="absolute inset-0 bg-gradient-to-br from-blue-500/[0.03] via-transparent to-cyan-500/[0.03]"></div>
@@ -164,11 +160,7 @@ const SubtitleOverlay = () => {
 
     // 일반 STT 자막인 경우
     return (
-        <div
-            className={`fixed bottom-10 md:bottom-16 left-1/2 -translate-x-1/2 w-[90%] md:w-[80%] max-w-3xl z-50 transition-all duration-500 ease-out ${
-                fadeOut ? 'opacity-0 scale-[0.98] translate-y-2' : 'opacity-100 scale-100 translate-y-0'
-            }`}
-        >
+        <div className={`w-[90%] md:w-[80%] max-w-3xl transition-all duration-500 ease-out ${fadeOut ? 'opacity-0 scale-[0.98] translate-y-2' : 'opacity-100 scale-100 translate-y-0'} mx-auto`}>
             <div className="relative bg-gradient-to-br from-slate-900/96 via-slate-800/96 to-slate-900/96 backdrop-blur-2xl rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.3)] border border-white/10 overflow-hidden">
                 {/* 미묘한 배경 그라데이션 */}
                 <div className="absolute inset-0 bg-gradient-to-br from-purple-500/[0.03] via-transparent to-pink-500/[0.03]"></div>

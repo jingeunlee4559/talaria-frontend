@@ -57,6 +57,7 @@ export default function CustomVideoConference({ roomName, identity, username, on
         // room 인스턴스는 생성 후 고정
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [roomName, identity, username]);
+
     if (!connected)
         return (
             <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-b from-white via-blue-50 to-blue-100 px-4">
@@ -71,9 +72,9 @@ export default function CustomVideoConference({ roomName, identity, username, on
 
                 {/* 점 애니메이션 - 부드러운 bounce */}
                 <div className="flex space-x-2 mt-6">
-                    <span className="w-3 h-3 bg-blue-500 rounded-full animate-bounce delay-0"></span>
-                    <span className="w-3 h-3 bg-blue-500 rounded-full animate-bounce delay-200"></span>
-                    <span className="w-3 h-3 bg-blue-500 rounded-full animate-bounce delay-400"></span>
+                    <span className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></span>
+                    <span className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                    <span className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
                 </div>
             </div>
         );
@@ -81,19 +82,19 @@ export default function CustomVideoConference({ roomName, identity, username, on
     return (
         <RoomContext.Provider value={room}>
             {needAudioUnlock && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50">
                     <button
                         onClick={async () => {
                             await room.startAudio();
                             setNeedAudioUnlock(false);
                         }}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                     >
                         🔊 오디오 활성화
                     </button>
                 </div>
             )}
-            <ConferenceUI room={room} onLeave={onLeave} meetingTitle={meetingTitle} />
+            <ConferenceUI onLeave={onLeave} meetingTitle={meetingTitle} />
         </RoomContext.Provider>
     );
 }

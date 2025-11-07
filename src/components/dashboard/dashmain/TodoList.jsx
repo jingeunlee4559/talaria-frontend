@@ -331,7 +331,7 @@ const TodoList = ({ className }) => {
         }
     };
 
-    // 메뉴 위치 계산
+    // 🔧 개선된 메뉴 위치 계산 - 뷰포트 기준으로 변경
     const handleMenuToggle = (taskId, event) => {
         event.stopPropagation();
 
@@ -342,18 +342,13 @@ const TodoList = ({ className }) => {
 
         const button = event.currentTarget;
         const buttonRect = button.getBoundingClientRect();
-        const listRect = listRef.current?.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
 
-        if (!listRect) {
-            setMenuPosition('bottom');
-            setOpenMenu(taskId);
-            return;
-        }
+        const menuHeight = 100; // 메뉴 높이 (여유있게 설정)
+        const spaceBelow = viewportHeight - buttonRect.bottom; // 뷰포트 기준 아래 공간
+        const spaceAbove = buttonRect.top; // 뷰포트 기준 위 공간
 
-        const menuHeight = 80;
-        const spaceBelow = listRect.bottom - buttonRect.bottom;
-        const spaceAbove = buttonRect.top - listRect.top;
-
+        // 아래 공간이 충분하지 않고, 위 공간이 더 크면 위로 표시
         if (spaceBelow < menuHeight && spaceAbove > spaceBelow) {
             setMenuPosition('top');
         } else {
@@ -436,9 +431,8 @@ const TodoList = ({ className }) => {
                                 <p className="text-sm mt-1">새로운 할 일을 추가해보세요!</p>
                             </div>
                         ) : (
-                            tasks.map((task, index) => {
+                            tasks.map((task) => {
                                 const colors = taskColorStyles[task.color] || taskColorStyles.default;
-                                const isLastItem = index === tasks.length - 1;
 
                                 return (
                                     <div key={task.id} className={`transition-all duration-300 group ${task.completed ? 'opacity-60' : ''}`}>
@@ -466,7 +460,7 @@ const TodoList = ({ className }) => {
                                                     <div
                                                         ref={menuRef}
                                                         className={`absolute right-0 w-32 bg-white rounded-lg shadow-xl z-50 py-1 border border-gray-200 ${
-                                                            menuPosition === 'top' || isLastItem ? 'bottom-full mb-1' : 'top-full mt-1'
+                                                            menuPosition === 'top' ? 'bottom-full mb-1' : 'top-full mt-1'
                                                         }`}
                                                     >
                                                         <button

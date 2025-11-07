@@ -36,7 +36,7 @@ const statusConfig = {
     },
 };
 
-const MeetingCard = ({ id, title, status, participants, date, time, onJoinMeeting, onEdit, onDelete, onOpenDocuments }) => {
+const MeetingCard = ({ id, title, status, participants, date, time, onJoinMeeting, onEdit, onDelete, onOpenDocuments, user_role }) => {
     const currentStatus = statusConfig[status] || statusConfig['종료'];
 
     const handleButtonClick = () => {
@@ -78,17 +78,21 @@ const MeetingCard = ({ id, title, status, participants, date, time, onJoinMeetin
                     <span>{currentStatus.text}</span>
                 </button>
 
-                {/* 문서 / 수정 / 삭제 */}
+                {/* 문서 / 수정 / 삭제 - HOST만 수정/삭제 가능 */}
                 <div className="flex items-center flex-shrink-0">
                     <button onClick={onOpenDocuments} className="p-2 text-gray-500 hover:text-violet-600 hover:bg-violet-50 rounded-full transition-colors" aria-label="문서 리스트">
                         <FileText className="w-4 h-4" />
                     </button>
-                    <button onClick={onEdit} className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors" aria-label="회의 수정">
-                        <Edit className="w-4 h-4" />
-                    </button>
-                    <button onClick={onDelete} className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors" aria-label="회의 삭제">
-                        <Trash2 className="w-4 h-4" />
-                    </button>
+                    {user_role === 'HOST' && (
+                        <>
+                            <button onClick={onEdit} className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors" aria-label="회의 수정">
+                                <Edit className="w-4 h-4" />
+                            </button>
+                            <button onClick={onDelete} className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors" aria-label="회의 삭제">
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
         </div>

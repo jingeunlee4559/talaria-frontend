@@ -28,7 +28,7 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
     const isEditMode = Boolean(meetingToEdit);
     const { user } = useContext(UserContext);
 
-    // --- State (기존과 동일) ---
+    // --- State ---
     const [title, setTitle] = useState('');
     const [date, setDate] = useState('');
     const [time, setTime] = useState('');
@@ -39,12 +39,14 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
     const [isSearching, setIsSearching] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
-    // --- useEffects (기존과 동일) ---
+    // 🔥 수정된 부분: 수정 모드일 때 초대된 참가자 정보 로드
     useEffect(() => {
-        if (isEditMode && isOpen) {
-            setTitle(meetingToEdit.title);
-            setParticipants(meetingToEdit.invited_ids || []);
+        if (isEditMode && isOpen && meetingToEdit) {
+            console.log('수정 모드 - meetingToEdit:', meetingToEdit);
 
+            setTitle(meetingToEdit.title);
+
+            // 날짜 처리
             const dateStr = meetingToEdit.date.replace(
                 /(\d{4}년)\s*(\d{1,2}월)\s*(\d{1,2}일)/,
                 (_, y, m, d) => `${y.slice(0, -1)}-${m.slice(0, -1).padStart(2, '0')}-${d.slice(0, -1).padStart(2, '0')}`,
@@ -52,6 +54,7 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
             const formattedDate = new Date(dateStr).toISOString().split('T')[0];
             setDate(formattedDate);
 
+            // 시간 처리
             const [period, timeStr] = meetingToEdit.time.split(' ');
             let [hour, minute] = timeStr.split(':');
             hour = parseInt(hour, 10);
@@ -62,6 +65,15 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
             }
             const formattedTime = `${String(hour).padStart(2, '0')}:${minute}`;
             setTime(formattedTime);
+
+            // 🔥 초대된 참가자 정보 설정
+            // meetingToEdit.invited_ids가 배열 형태로 들어옴
+            if (Array.isArray(meetingToEdit.invited_ids) && meetingToEdit.invited_ids.length > 0) {
+                console.log('초대된 참가자 로드:', meetingToEdit.invited_ids);
+                setParticipants(meetingToEdit.invited_ids);
+            } else {
+                setParticipants([]);
+            }
         }
     }, [meetingToEdit, isEditMode, isOpen]);
 
@@ -93,16 +105,20 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
                 const response = await axios.get(`/api/users/search`, {
                     params: { keyword: trimmedInput },
                 });
+                console.log('🔍 검색 API 응답:', response.data);
+
                 const foundUsers = response.data || [];
                 const filteredResults = foundUsers.filter((user) => !participants.some((p) => p.userId === user.userId));
 
+                // 🔥 API 응답 필드명에 맞게 매핑
                 const mappedResults = filteredResults.map((user) => ({
-                    user_id: user.userId,
+                    user_id: user.userId || user.user_id,
                     email: user.email,
-                    name: user.name,
-                    username: user.name,
+                    name: user.name || user.username,
+                    username: user.username || user.name,
                 }));
 
+                console.log('✅ 매핑된 검색 결과:', mappedResults);
                 setSearchResults(mappedResults);
             } catch (error) {
                 console.error('사용자 검색 오류:', error);
@@ -116,7 +132,7 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
         return () => clearTimeout(timeoutId);
     }, [participantInput, participants]);
 
-    // --- Handlers (기존과 동일) ---
+    // --- Handlers ---
     const handleSelectUser = (selectedUser) => {
         if (!selectedUser || !selectedUser.user_id) return;
         const newParticipant = {
@@ -160,40 +176,87 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
             const formattedHour = hourNum % 12 || 12;
             const formattedTime = `${period} ${String(formattedHour).padStart(2, '0')}:${minuteStr}`;
 
+            // 🔥 수정된 부분: participants 배열에서 userId만 추출
+            const invitedUserIds = participants.map((p) => p.userId);
+
             const meetingData = {
                 id: isEditMode ? meetingToEdit.id : null,
                 title,
                 date: formattedDate,
                 time: formattedTime,
+                invited_ids: invitedUserIds, // 숫자 배열로 전달
             };
 
+            console.log('저장할 회의 데이터:', meetingData);
+
+            // 🔥 onConfirm에서 회의 ID만 받아옴
             const savedMeetingId = await onConfirm(meetingData);
 
             if (!savedMeetingId) {
                 throw new Error('회의 ID를 받아오지 못했습니다.');
             }
 
-            const invitedUserIds = participants.map((p) => p.userId);
+            console.log('✅ 회의 저장 완료:', savedMeetingId);
+
+            // 🔥 참가자 초대 처리 (새 회의든 수정이든 모두 처리)
             if (invitedUserIds.length > 0) {
-                try {
-                    const invitePromises = invitedUserIds.map((userId) =>
-                        axios.post(`/api/meetings/${savedMeetingId}/participants/invite`, {
-                            userId: userId,
-                            role: 'GUEST',
-                        }),
-                    );
-                    await Promise.all(invitePromises);
-                } catch (inviteError) {
-                    console.error('참가자 초대 실패:', inviteError);
+                console.log('🔔 참가자 초대 시작:', invitedUserIds);
+
+                // 각 초대를 개별적으로 처리하여 성공/실패 추적
+                const inviteResults = await Promise.allSettled(
+                    invitedUserIds.map((userId) => {
+                        console.log(`📤 초대 요청: 회의 ${savedMeetingId}, 사용자 ${userId}`);
+                        return axios
+                            .post(`/api/meetings/${savedMeetingId}/participants/invite`, {
+                                userId: userId,
+                                role: 'GUEST',
+                            })
+                            .then((response) => {
+                                console.log(`✅ 사용자 ${userId} 초대 성공:`, response.data);
+                                return response;
+                            })
+                            .catch((error) => {
+                                console.error(`❌ 사용자 ${userId} 초대 실패:`, {
+                                    status: error.response?.status,
+                                    statusText: error.response?.statusText,
+                                    data: error.response?.data,
+                                    message: error.message,
+                                });
+                                throw error;
+                            });
+                    }),
+                );
+
+                // 성공/실패 카운트
+                const successCount = inviteResults.filter((r) => r.status === 'fulfilled').length;
+                const failedCount = inviteResults.filter((r) => r.status === 'rejected').length;
+
+                console.log(`📊 초대 결과: ${successCount}명 성공, ${failedCount}명 실패`);
+
+                // 실패한 경우가 있으면 경고 표시
+                if (failedCount > 0) {
+                    const failedDetails = inviteResults
+                        .filter((r) => r.status === 'rejected')
+                        .map((r) => {
+                            const errorData = r.reason?.response?.data;
+                            return errorData?.message || errorData?.error || '알 수 없는 오류';
+                        });
+
+                    console.error('❌ 초대 실패 상세:', failedDetails);
+
                     Swal.fire({
                         icon: 'warning',
-                        title: '일부 작업 실패',
-                        text: `회의는 생성되었지만 일부 참가자 초대에 실패했습니다.\n${inviteError.response?.data?.message || ''}`,
-                        confirmButtonColor: '#10B981', // emerald-500
+                        title: '일부 참가자 초대 실패',
+                        html: `
+                            <p>${successCount}명은 초대되었지만, ${failedCount}명의 초대에 실패했습니다.</p>
+                            <p class="text-sm text-gray-600 mt-2">오류: ${failedDetails.join(', ')}</p>
+                        `,
+                        confirmButtonColor: '#10B981',
                     });
                 }
             }
 
+            // 캘린더 일정 추가
             if (user?.userId) {
                 try {
                     const [calHour, calMinute] = time.split(':').map(Number);
@@ -218,7 +281,7 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
                         icon: 'warning',
                         title: '회의는 생성되었습니다.',
                         text: '하지만 캘린더에 일정을 등록하는 데 실패했습니다. 캘린더에서 직접 추가해주세요.',
-                        confirmButtonColor: '#10B981', // emerald-500
+                        confirmButtonColor: '#10B981',
                     });
                 }
             }
@@ -238,7 +301,7 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
                 icon: 'error',
                 title: '저장 실패',
                 text: error.response?.data?.message || error.message || '처리 중 오류가 발생했습니다.',
-                confirmButtonColor: '#10B981', // emerald-500
+                confirmButtonColor: '#10B981',
             });
         }
     };
@@ -261,28 +324,22 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
                             leaveTo="opacity-0 scale-95"
                         >
                             <Dialog.Panel className="w-full max-w-md transform rounded-2xl bg-white text-left align-middle shadow-2xl transition-all shadow-gray-500/20">
-                                {/* 🚀 --- 디자인 수정: 헤더에 아이콘 및 배경색 추가 --- 🚀 */}
                                 <div className="relative bg-emerald-50 p-6 rounded-t-2xl">
-                                    {/* 닫기 버튼 */}
                                     <button onClick={onClose} className="absolute top-4 right-4 rounded-full p-2 text-emerald-700/60 hover:bg-emerald-100 hover:text-emerald-700/80 transition-colors">
                                         <X className="h-5 w-5" />
                                     </button>
 
-                                    {/* 헤더 아이콘 */}
                                     <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100">
                                         {isEditMode ? <Pencil className="h-6 w-6 text-emerald-600" /> : <Calendar className="h-6 w-6 text-emerald-600" />}
                                     </div>
 
-                                    {/* 텍스트 (중앙 정렬) */}
                                     <Dialog.Title as="h3" className="mt-3 text-center text-lg font-semibold leading-6 text-gray-900">
                                         {isEditMode ? '회의 정보 수정' : '새 회의 예약'}
                                     </Dialog.Title>
                                     <p className="mt-2 text-center text-sm text-gray-500">{isEditMode ? '회의 정보를 수정하고 변경사항을 저장하세요.' : '회의 정보를 입력하여 예약을 완료하세요.'}</p>
                                 </div>
 
-                                {/* --- 모달 폼 --- */}
                                 <form onSubmit={handleSubmit}>
-                                    {/* 🚀 --- 디자인 수정: 폼 배경을 'bg-white'로 변경 --- 🚀 */}
                                     <div className="space-y-6 bg-white p-6">
                                         <InputField id="title" label="회의 제목" icon={<Pencil className="h-5 w-5 text-gray-400" />} error={errors.title}>
                                             <input
@@ -406,8 +463,6 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
                                         )}
                                     </div>
 
-                                    {/* --- 모달 푸터 --- */}
-                                    {/* 🚀 --- 디자인 수정: 'bg-gray-50' 및 'rounded-b-2xl' 적용 --- 🚀 */}
                                     <div className="flex justify-end gap-3 bg-gray-50 p-6 border-t border-gray-200 rounded-b-2xl">
                                         <button
                                             type="button"

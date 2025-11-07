@@ -73,19 +73,19 @@ const DashVideoPage = () => {
                                 }
 
                                 const countRes = await axios.get(countUrl);
-
-                                // 🔥 수정된 부분
-                                // 1. countRes.data.totalCount가 있는지 확인
-                                // 2. 없다면 (null/undefined) countRes.data.count가 있는지 확인
-                                // 3. 둘 다 없다면 기본값 1을 사용
                                 participantCount = countRes.data.totalCount ?? countRes.data.count ?? 1;
-
-                                // (참고: 0은 유효한 값이므로 || 대신 ?? 연산자를 사용합니다.)
                             } catch (err) {
                                 console.error(`회의 ${m.meetings_id} 참가자 수 조회 실패:`, err);
-                                // try 밖에서 participantCount = 1로 설정되어 있으므로
-                                // 실패 시 1이 유지됩니다.
                             }
+
+                            // 🔥 participants 배열에서 GUEST만 추출
+                            const guestParticipants = (m.participants || [])
+                                .filter((p) => p.role === 'GUEST')
+                                .map((p) => ({
+                                    userId: p.user_id,
+                                    name: p.user_name,
+                                    email: p.user_email,
+                                }));
 
                             return {
                                 id: m.meetings_id,
@@ -101,10 +101,10 @@ const DashVideoPage = () => {
                                     minute: '2-digit',
                                 }),
                                 invite_code: m.invite_code,
-                                participants: participantCount, // API에서 가져온 실제 참가자 수
-                                invited_ids: [],
-                                user_role: m.user_role, // 'HOST', 'GUEST', 'VIEWER'
-                                host_id: m.host_id, // 호스트 ID
+                                participants: participantCount,
+                                invited_ids: guestParticipants,
+                                user_role: m.user_role,
+                                host_id: m.host_id,
                             };
                         }),
                     );
@@ -192,10 +192,8 @@ const DashVideoPage = () => {
 
     const handleJoinMeeting = async (meetingId, meetingTitle, inviteCode) => {
         try {
-            // 회의 상태 업데이트 (SCHEDULED → ONGOING)
             const currentMeeting = meetings.find((m) => m.id === meetingId);
 
-            // GUEST는 진행중인 회의만 참여 가능
             if (currentMeeting && currentMeeting.user_role === 'GUEST' && currentMeeting.status !== '진행중') {
                 Swal.fire({
                     icon: 'warning',
@@ -217,18 +215,13 @@ const DashVideoPage = () => {
                     scheduledAt: currentMeeting.scheduled_at || new Date().toISOString(),
                 };
 
-                console.log('상태 업데이트 요청:', updateData);
-
-                // 호스트인 경우에만 상태 업데이트
                 if (currentMeeting.user_role === 'HOST') {
                     await axios.patch(`/api/users/${user.userId}/meetings/${meetingId}`, updateData);
                     console.log('회의 상태가 ONGOING으로 변경되었습니다.');
                 }
 
-                // 회의 목록 새로고침
                 const res = await axios.get(`/api/users/${user.userId}/meetings/all`);
                 if (Array.isArray(res.data.items)) {
-                    // 참가자 수도 함께 업데이트
                     const formatted = await Promise.all(
                         res.data.items.map(async (m) => {
                             let participantCount = 1;
@@ -265,7 +258,6 @@ const DashVideoPage = () => {
                 }
             }
 
-            // 회의방으로 이동
             const url = new URL('/meeting', window.location.origin);
             url.searchParams.set('id', meetingId);
             url.searchParams.set('title', meetingTitle);
@@ -274,7 +266,6 @@ const DashVideoPage = () => {
         } catch (error) {
             console.error('회의 참여 중 오류:', error);
 
-            // 에러가 발생해도 회의방은 열어줌
             const url = new URL('/meeting', window.location.origin);
             url.searchParams.set('id', meetingId);
             url.searchParams.set('title', meetingTitle);
@@ -296,8 +287,7 @@ const DashVideoPage = () => {
         setIsModalOpen(true);
     };
 
-    const handleOpenEditMeetingModal = (meeting) => {
-        // 호스트만 수정 가능
+    const handleOpenEditMeetingModal = async (meeting) => {
         if (meeting.user_role !== 'HOST') {
             Swal.fire({
                 icon: 'warning',
@@ -308,6 +298,10 @@ const DashVideoPage = () => {
             });
             return;
         }
+
+        console.log('📝 수정할 회의 정보:', meeting);
+        console.log('📝 초대된 참가자:', meeting.invited_ids);
+
         setEditingMeeting(meeting);
         setIsModalOpen(true);
     };
@@ -317,11 +311,11 @@ const DashVideoPage = () => {
         setTimeout(() => setEditingMeeting(null), 300);
     };
 
+    // 🔥 초대 로직 제거 - NewMeetingModal에서 처리
     const handleConfirmMeeting = async (meetingData) => {
         const isEditing = editingMeeting !== null;
 
         try {
-            // 날짜/시간 변환 로직
             const [year, month, day] = meetingData.date
                 .replace(/년|월|일/g, '-')
                 .split('-')
@@ -348,60 +342,14 @@ const DashVideoPage = () => {
             let response;
 
             if (isEditing) {
-                // 수정 모드
                 response = await axios.patch(`/api/users/${user.userId}/meetings/${meetingData.id}`, requestData);
                 meetingId = meetingData.id;
-
-                Swal.fire({
-                    icon: 'success',
-                    title: '수정 완료!',
-                    text: `'${meetingData.title}' 회의 정보가 수정되었습니다.`,
-                    timer: 1500,
-                    showConfirmButton: false,
-                    timerProgressBar: true,
-                }).then(() => {
-                    // 🔥 페이지 전체 새로고침
-                    window.location.reload();
-                });
             } else {
-                // 새 회의 생성 모드
                 response = await axios.post(`/api/users/${user.userId}/meetings`, requestData);
                 meetingId = response.data.meetings_id || response.data.id;
-
-                // 🔥 초대된 사용자들을 참가자로 추가 (병렬 처리)
-                if (meetingData.invited_ids && meetingData.invited_ids.length > 0) {
-                    console.log('초대된 사용자 추가 중:', meetingData.invited_ids);
-
-                    // Promise.all로 병렬 처리
-                    await Promise.all(
-                        meetingData.invited_ids.map(async (userId) => {
-                            try {
-                                await axios.post(`/api/meetings/${meetingId}/participants/invite`, {
-                                    userId: userId,
-                                    role: 'GUEST',
-                                });
-                                console.log(`사용자 ${userId} 초대 완료`);
-                            } catch (inviteError) {
-                                console.error(`사용자 ${userId} 초대 실패:`, inviteError);
-                            }
-                        }),
-                    );
-                }
-
-                Swal.fire({
-                    icon: 'success',
-                    title: '예약 완료!',
-                    text: `'${meetingData.title}' 회의가 생성되었습니다.`,
-                    timer: 2000,
-                    showConfirmButton: false,
-                    timerProgressBar: true,
-                }).then(() => {
-                    // 🔥 페이지 전체 새로고침
-                    window.location.reload();
-                });
             }
 
-            // 🔥 즉시 회의 목록 새로고침 (딜레이 제거)
+            // 🔥 회의 목록 새로고침
             const res = await axios.get(`/api/users/${user.userId}/meetings/all`);
             if (Array.isArray(res.data.items)) {
                 const formatted = await Promise.all(
@@ -411,14 +359,21 @@ const DashVideoPage = () => {
                         try {
                             const countRes = await axios.get(`/api/meetings/${m.meetings_id}/participants/count`);
                             participantCount = countRes.data.totalCount || 1;
-                            console.log(`회의 ${m.meetings_id} 참가자 수:`, participantCount);
                         } catch (err) {
                             console.error(`참가자 수 조회 실패:`, err);
-                            // 🔥 실패 시 초대된 인원 + 호스트(1)로 계산
                             if (m.meetings_id === meetingId && meetingData.invited_ids) {
                                 participantCount = meetingData.invited_ids.length + 1;
                             }
                         }
+
+                        // 🔥 participants 배열에서 GUEST만 추출
+                        const guestParticipants = (m.participants || [])
+                            .filter((p) => p.role === 'GUEST')
+                            .map((p) => ({
+                                userId: p.user_id,
+                                name: p.user_name,
+                                email: p.user_email,
+                            }));
 
                         return {
                             id: m.meetings_id,
@@ -435,14 +390,13 @@ const DashVideoPage = () => {
                             }),
                             invite_code: m.invite_code,
                             participants: participantCount,
-                            invited_ids: m.meetings_id === meetingId ? meetingData.invited_ids || [] : [],
+                            invited_ids: guestParticipants,
                             user_role: m.user_role,
                             host_id: m.host_id,
                         };
                     }),
                 );
                 setMeetings(formatted);
-                console.log('회의 목록 업데이트 완료:', formatted);
             }
 
             handleCloseModal();
@@ -470,7 +424,6 @@ const DashVideoPage = () => {
     };
 
     const handleDeleteMeeting = (meetingId, meetingTitle, meeting) => {
-        // 호스트만 삭제 가능
         if (meeting.user_role !== 'HOST') {
             Swal.fire({
                 icon: 'warning',
@@ -505,7 +458,6 @@ const DashVideoPage = () => {
         setIsDocModalOpen(true);
     };
 
-    // --- 렌더 ---
     return (
         <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-10">
             <div className="max-w-8xl mx-auto">
@@ -571,6 +523,7 @@ const DashVideoPage = () => {
                                     >
                                         <MeetingCard
                                             {...meeting}
+                                            user_role={meeting.user_role}
                                             onJoinMeeting={() => handleJoinMeeting(meeting.id, meeting.title, meeting.invite_code)}
                                             onEdit={() => handleOpenEditMeetingModal(meeting)}
                                             onDelete={() => handleDeleteMeeting(meeting.id, meeting.title, meeting)}

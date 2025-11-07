@@ -50,7 +50,7 @@ const NextMeetingHero = ({ meeting, onJoinMeeting }) => {
             <div className="absolute -left-24 -bottom-24 w-72 h-72 bg-white/10 rounded-full opacity-50"></div>
 
             {/* 왼쪽: 회의 정보 */}
-            <div className="relative z-10 mb-6 md:mb-0">
+            <div className="relative mb-6 md:mb-0">
                 <p className="font-semibold text-lg opacity-80 flex items-center space-x-2">
                     <ClockIcon className="w-5 h-5" />
                     <span>진행 중인 회의</span>
@@ -95,7 +95,7 @@ const NextMeetingHero = ({ meeting, onJoinMeeting }) => {
             </div>
 
             {/* 오른쪽: 타이머 + 버튼 */}
-            <div className="relative z-10 flex flex-col items-start md:items-end">
+            <div className="relative flex flex-col items-start md:items-end">
                 <div className="flex flex-col items-center md:items-end mb-2">
                     <p className="text-sm opacity-80 mb-2">진행 시간</p>
                     <div className="flex space-x-4">

@@ -55,7 +55,7 @@ const NotificationDropdown = ({ isOpen, onClose, notifications, onNotificationCl
         ));
 
     return (
-        <div className="absolute top-full right-0 mt-3 w-80 md:w-96 bg-white rounded-xl shadow-2xl border border-gray-100 z-20 overflow-hidden animate-fade-in-down">
+        <div className="absolute top-full right-0 mt-3 w-80 md:w-96 bg-white rounded-xl shadow-2xl border border-gray-100 z-[80] overflow-hidden animate-fade-in-down">
             {/* 헤더 */}
             <div className="flex justify-between items-center p-4 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-indigo-50">
                 <h3 className="font-bold text-lg text-gray-800">알림</h3>

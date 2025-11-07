@@ -186,11 +186,13 @@ const DashSchedule = () => {
                         <div className="flex items-center gap-3">
                             <button
                                 onClick={() => handleOpenModal({ date: new Date() })}
-                                className="flex items-center gap-3 bg-gradient-to-r from-indigo-500 to-violet-600
-                                text-white font-semibold text-base sm:text-lg px-6 py-3
-                                rounded-xl shadow-lg hover:from-indigo-600 hover:to-violet-700
-                                hover:shadow-2xl transition-all transform hover:-translate-y-1
-                                focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                className="flex flex-grow items-center justify-center gap-2 whitespace-nowrap 
+                        bg-gradient-to-r from-blue-500 to-indigo-600 
+                        text-white font-semibold text-base px-6 py-3 rounded-xl 
+                        shadow-lg shadow-blue-500/40 
+                        transition-all transform duration-300 ease-in-out
+                        hover:shadow-xl hover:shadow-blue-400/50 hover:-translate-y-1
+                        focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                             >
                                 <Plus size={20} />
                                 <span>새 일정</span>

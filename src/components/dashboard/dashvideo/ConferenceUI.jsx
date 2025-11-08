@@ -1,5 +1,13 @@
 import { useEffect, useState, useRef } from 'react';
-import { ControlBar, RoomAudioRenderer, LayoutContextProvider, useParticipants, useRoomContext, useDataChannel, useTracks } from '@livekit/components-react';
+import {
+  ControlBar,
+  RoomAudioRenderer,
+  LayoutContextProvider,
+  useParticipants,
+  useRoomContext,
+  useDataChannel,
+  useTracks,
+} from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import Swal from 'sweetalert2';
 import TranscriptSidebar from './TranscriptSidebar';
@@ -9,518 +17,429 @@ import MannerChecker from './MannerChecker';
 import { FiCopy, FiMaximize, FiMinimize } from 'react-icons/fi';
 
 const ConferenceUI = ({ meetingTitle, onLeave }) => {
-    const room = useRoomContext();
-    const participants = useParticipants();
-    const participantCount = participants.length;
+  const room = useRoomContext();
+  const participants = useParticipants();
+  const participantCount = participants.length;
 
-    const [isSidebarVisible, setIsSidebarVisible] = useState(true);
-    const [partials, setPartials] = useState({});
-    const [finals, setFinals] = useState([]);
-    const [isFullscreen, setIsFullscreen] = useState(false);
-    const [showControls, setShowControls] = useState(true);
-    const mainContainerRef = useRef(null);
-    const controlsTimeoutRef = useRef(null);
+  const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+  const [partials, setPartials] = useState({});
+  const [finals, setFinals] = useState([]);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const mainContainerRef = useRef(null);
+  const controlsTimeoutRef = useRef(null);
 
-    // 화면 공유 상태 확인
-    const tracks = useTracks([{ source: Track.Source.ScreenShare, withPlaceholder: false }], { onlySubscribed: false });
-    const hasScreenShare = tracks.length > 0;
+  // 화면 공유 상태 확인
+  const tracks = useTracks([{ source: Track.Source.ScreenShare, withPlaceholder: false }], { onlySubscribed: false });
+  const hasScreenShare = tracks.length > 0;
 
-    // 전체화면에서 마우스 움직임 감지
-    useEffect(() => {
-        if (!isFullscreen) {
-            setShowControls(true);
-            return;
-        }
+  // 전체화면에서 마우스 움직임 감지
+  useEffect(() => {
+    if (!isFullscreen) {
+      setShowControls(true);
+      return;
+    }
 
-        // 전체화면에서는 기본적으로 숨김
+    setShowControls(false);
+
+    const handleMouseMove = () => {
+      setShowControls(true);
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+      controlsTimeoutRef.current = setTimeout(() => {
         setShowControls(false);
+      }, 3000);
+    };
 
-        const handleMouseMove = () => {
-            setShowControls(true);
+    const container = mainContainerRef.current;
+    if (container) {
+      container.addEventListener('mousemove', handleMouseMove);
+    }
 
-            // 기존 타이머 클리어
-            if (controlsTimeoutRef.current) {
-                clearTimeout(controlsTimeoutRef.current);
-            }
+    return () => {
+      if (container) {
+        container.removeEventListener('mousemove', handleMouseMove);
+      }
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+    };
+  }, [isFullscreen]);
 
-            // 3초 후 컨트롤 숨김
-            controlsTimeoutRef.current = setTimeout(() => {
-                setShowControls(false);
-            }, 3000);
-        };
+  // 전체화면 토글
+  const toggleFullscreen = async () => {
+    const element = mainContainerRef.current;
+    if (!element) {
+      console.error('❌ Main container not found');
+      return;
+    }
+    try {
+      if (!document.fullscreenElement) {
+        if (element.requestFullscreen) await element.requestFullscreen();
+        else if (element.webkitRequestFullscreen) await element.webkitRequestFullscreen();
+        else if (element.mozRequestFullScreen) await element.mozRequestFullScreen();
+        else if (element.msRequestFullscreen) await element.msRequestFullscreen();
+      } else {
+        if (document.exitFullscreen) await document.exitFullscreen();
+        else if (document.webkitExitFullscreen) await document.webkitExitFullscreen();
+        else if (document.mozCancelFullScreen) await document.mozCancelFullScreen();
+        else if (document.msExitFullscreen) await document.msExitFullscreen();
+      }
+    } catch (err) {
+      console.error('❌ Fullscreen error:', err);
+    }
+  };
 
-        const container = mainContainerRef.current;
-        if (container) {
-            container.addEventListener('mousemove', handleMouseMove);
-        }
+  // 전체화면 상태 감지
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isFull = !!(
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement
+      );
+      setIsFullscreen(isFull);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('msfullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('msfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
 
-        return () => {
-            if (container) {
-                container.removeEventListener('mousemove', handleMouseMove);
-            }
-            if (controlsTimeoutRef.current) {
-                clearTimeout(controlsTimeoutRef.current);
-            }
-        };
-    }, [isFullscreen]);
-
-    // 전체화면 토글 함수
-    const toggleFullscreen = async () => {
-        const element = mainContainerRef.current;
-
-        if (!element) {
-            console.error('❌ Main container not found');
-            return;
-        }
-
+  // username 가져오기
+  const getParticipantUsername = (identity) => {
+    if (!identity) return 'Unknown';
+    if (room.localParticipant?.identity === identity) {
+      try {
+        const metadata = JSON.parse(room.localParticipant.metadata || '{}');
+        return metadata.username || room.localParticipant.name || identity;
+      } catch {
+        return room.localParticipant.name || identity;
+      }
+    }
+    for (const p of room.remoteParticipants.values()) {
+      if (p.identity === identity) {
         try {
-            if (!document.fullscreenElement) {
-                console.log('📺 Entering fullscreen...');
-                if (element.requestFullscreen) {
-                    await element.requestFullscreen();
-                } else if (element.webkitRequestFullscreen) {
-                    await element.webkitRequestFullscreen();
-                } else if (element.mozRequestFullScreen) {
-                    await element.mozRequestFullScreen();
-                } else if (element.msRequestFullscreen) {
-                    await element.msRequestFullscreen();
-                }
-            } else {
-                console.log('📺 Exiting fullscreen...');
-                if (document.exitFullscreen) {
-                    await document.exitFullscreen();
-                } else if (document.webkitExitFullscreen) {
-                    await document.webkitExitFullscreen();
-                } else if (document.mozCancelFullScreen) {
-                    await document.mozCancelFullScreen();
-                } else if (document.msExitFullscreen) {
-                    await document.msExitFullscreen();
-                }
-            }
-        } catch (err) {
-            console.error('❌ Fullscreen error:', err);
+          const metadata = JSON.parse(p.metadata || '{}');
+          return metadata.username || p.name || identity;
+        } catch {
+          return p.name || identity;
         }
-    };
+      }
+    }
+    return identity;
+  };
 
-    // 전체화면 상태 변경 감지
-    useEffect(() => {
-        const handleFullscreenChange = () => {
-            const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
-            console.log('🔄 Fullscreen state changed:', isFull);
-            setIsFullscreen(isFull);
-        };
+  // STT DataChannel 구독
+  useDataChannel('stt', (msg) => {
+    try {
+      const text = new TextDecoder().decode(msg.payload);
+      const data = JSON.parse(text);
 
-        document.addEventListener('fullscreenchange', handleFullscreenChange);
-        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-        document.addEventListener('mozfullscreenchange', handleFullscreenChange);
-        document.addEventListener('msfullscreenchange', handleFullscreenChange);
+      // Username 우선순위
+      const username = data.username || getParticipantUsername(data.identity) || data.identity || 'Unknown';
+      const key = data.identity || data.participant_sid || 'unknown';
 
-        return () => {
-            document.removeEventListener('fullscreenchange', handleFullscreenChange);
-            document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-            document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
-            document.removeEventListener('msfullscreenchange', handleFullscreenChange);
-        };
-    }, []);
+      if (data.final) {
+        setFinals((prev) => [
+          ...prev,
+          {
+            identity: data.identity,
+            username,
+            text: data.text || '',
+            translated: data.translated || null,
+            ts: data.ts ?? Date.now(),
+          },
+        ]);
+        setPartials((prev) => {
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
+      } else {
+        setPartials((prev) => ({
+          ...prev,
+          [key]: {
+            text: data.text || '',
+            username,
+            identity: data.identity,
+          },
+        }));
+      }
+    } catch (e) {
+      console.error('❌ STT 파싱 오류:', e);
+    }
+  });
 
-    // Helper: participant의 username 가져오기 (개선)
-    const getParticipantUsername = (identity) => {
-        if (!identity) return 'Unknown';
-
-        // Local participant 확인
-        if (room.localParticipant?.identity === identity) {
-            try {
-                const metadata = JSON.parse(room.localParticipant.metadata || '{}');
-                return metadata.username || room.localParticipant.name || identity;
-            } catch {
-                return room.localParticipant.name || identity;
-            }
-        }
-
-        // Remote participants 확인
-        for (const p of room.remoteParticipants.values()) {
-            if (p.identity === identity) {
-                try {
-                    const metadata = JSON.parse(p.metadata || '{}');
-                    return metadata.username || p.name || identity;
-                } catch {
-                    return p.name || identity;
-                }
-            }
-        }
-
-        return identity;
-    };
-
-    // STT DataChannel 구독 (개선된 로직 - ✅ translated 필드 포함)
-    useDataChannel('stt', (msg) => {
+  // Disconnect 버튼 확인
+  useEffect(() => {
+    const handleDisconnectClick = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const result = await Swal.fire({
+        title: '회의에서 나가시겠습니까?',
+        text: '나가시면 회의 연결이 종료됩니다.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: '예, 나가기',
+        cancelButtonText: '취소',
+        reverseButtons: true,
+        customClass: {
+          popup: 'rounded-2xl',
+          confirmButton: 'rounded-lg px-6 py-2.5 font-semibold',
+          cancelButton: 'rounded-lg px-6 py-2.5 font-semibold',
+        },
+        backdrop: 'rgba(0, 0, 0, 0.7)',
+      });
+      if (result.isConfirmed) {
         try {
-            const text = new TextDecoder().decode(msg.payload);
-            const data = JSON.parse(text);
-
-            console.log('📥 STT received:', {
-                type: data.final ? 'FINAL' : 'PARTIAL',
-                identity: data.identity,
-                username: data.username,
-                text: data.text?.substring(0, 50),
-                translated: data.translated?.substring(0, 50), // ✅ 번역 필드 로그 추가
-                participant_sid: data.participant_sid,
-            });
-
-            // Username 우선순위: 1) data.username, 2) getParticipantUsername, 3) identity
-            const username = data.username || getParticipantUsername(data.identity) || data.identity || 'Unknown';
-
-            // 고유 키 생성 (identity 우선, 없으면 participant_sid)
-            const key = data.identity || data.participant_sid || 'unknown';
-
-            if (data.final) {
-                // ✅ Final: 확정된 텍스트
-                console.log(`✅ FINAL STT from ${username}: ${data.text}`, data.translated ? `(번역: ${data.translated})` : '');
-
-                setFinals((prev) => [
-                    ...prev,
-                    {
-                        identity: data.identity,
-                        username: username,
-                        text: data.text || '',
-                        translated: data.translated || null, // ✅✅✅ 핵심 수정: 번역 필드 추가!
-                        ts: data.ts ?? Date.now(),
-                    },
-                ]);
-
-                // Partial 제거
-                setPartials((prev) => {
-                    const next = { ...prev };
-                    delete next[key];
-                    return next;
-                });
-            } else {
-                // ⏳ Partial: 실시간 진행 중인 텍스트
-                console.log(`⏳ PARTIAL STT from ${username}: ${data.text}`);
-
-                setPartials((prev) => ({
-                    ...prev,
-                    [key]: {
-                        text: data.text || '',
-                        username: username,
-                        identity: data.identity,
-                    },
-                }));
-            }
-        } catch (e) {
-            console.error('❌ STT 파싱 오류:', e);
+          await room.disconnect();
+        } catch (error) {
+          console.error('❌ Error disconnecting from room:', error);
         }
-    });
-
-    // ✅ LiveKit disconnect 버튼에 확인 창 기능 추가
-    useEffect(() => {
-        const handleDisconnectClick = async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-
-            const result = await Swal.fire({
-                title: '회의에서 나가시겠습니까?',
-                text: '나가시면 회의 연결이 종료됩니다.',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#ef4444',
-                cancelButtonColor: '#6b7280',
-                confirmButtonText: '예, 나가기',
-                cancelButtonText: '취소',
-                reverseButtons: true,
-                customClass: {
-                    popup: 'rounded-2xl',
-                    confirmButton: 'rounded-lg px-6 py-2.5 font-semibold',
-                    cancelButton: 'rounded-lg px-6 py-2.5 font-semibold',
-                },
-                backdrop: 'rgba(0, 0, 0, 0.7)',
-            });
-
-            if (result.isConfirmed) {
-                console.log('✅ User confirmed leaving the meeting');
-
-                // 1. LiveKit room disconnect 실행
-                try {
-                    await room.disconnect();
-                    console.log('🚪 Room disconnected successfully');
-                } catch (error) {
-                    console.error('❌ Error disconnecting from room:', error);
-                }
-
-                // 2. onLeave 콜백 실행 (페이지 이동 등)
-                if (onLeave) {
-                    onLeave();
-                }
-            } else {
-                console.log('❌ User cancelled leaving the meeting');
-            }
-        };
-
-        // lk-disconnect-button 찾기 및 이벤트 리스너 추가
-        const findAndAttachListener = () => {
-            const disconnectButton = document.querySelector('.lk-disconnect-button');
-            if (disconnectButton) {
-                console.log('✅ Found disconnect button, attaching custom handler');
-                disconnectButton.addEventListener('click', handleDisconnectClick, true);
-                return disconnectButton;
-            }
-            return null;
-        };
-
-        // 버튼이 렌더링될 때까지 기다리기
-        const button = findAndAttachListener();
-
-        // 버튼이 없으면 약간 지연 후 다시 시도
-        let timeoutId;
-        if (!button) {
-            timeoutId = setTimeout(findAndAttachListener, 500);
-        }
-
-        return () => {
-            const disconnectButton = document.querySelector('.lk-disconnect-button');
-            if (disconnectButton) {
-                disconnectButton.removeEventListener('click', handleDisconnectClick, true);
-            }
-            if (timeoutId) {
-                clearTimeout(timeoutId);
-            }
-        };
-    }, [room, onLeave]);
-
-    // 🆕 디버깅: 모든 participants의 오디오 트랙 상태 로깅
-    useEffect(() => {
-        const logParticipantTracks = () => {
-            console.group('🎙️ Participant Audio Tracks Status');
-
-            // Local participant
-            if (room.localParticipant) {
-                console.log('Local Participant:', {
-                    identity: room.localParticipant.identity,
-                    name: room.localParticipant.name,
-                    audioTracks: Array.from(room.localParticipant.audioTrackPublications.values()).map((pub) => ({
-                        sid: pub.trackSid,
-                        enabled: pub.isEnabled,
-                        muted: pub.isMuted,
-                        subscribed: pub.isSubscribed,
-                    })),
-                });
-            }
-
-            // Remote participants
-            room.remoteParticipants.forEach((p) => {
-                console.log(`Remote Participant [${p.identity}]:`, {
-                    name: p.name,
-                    audioTracks: Array.from(p.audioTrackPublications.values()).map((pub) => ({
-                        sid: pub.trackSid,
-                        enabled: pub.isEnabled,
-                        muted: pub.isMuted,
-                        subscribed: pub.isSubscribed,
-                    })),
-                });
-            });
-
-            console.groupEnd();
-        };
-
-        // 초기 로깅
-        logParticipantTracks();
-
-        // 트랙 변경 시 로깅
-        const handleTrackPublished = () => {
-            console.log('🆕 Track published event');
-            logParticipantTracks();
-        };
-
-        const handleTrackUnpublished = () => {
-            console.log('❌ Track unpublished event');
-            logParticipantTracks();
-        };
-
-        room.on('trackPublished', handleTrackPublished);
-        room.on('trackUnpublished', handleTrackUnpublished);
-
-        return () => {
-            room.off('trackPublished', handleTrackPublished);
-            room.off('trackUnpublished', handleTrackUnpublished);
-        };
-    }, [room, participants]);
-
-    // 회의 링크 복사
-    const handleCopyLink = () => {
-        const currentUrl = window.location.href;
-        navigator.clipboard
-            .writeText(currentUrl)
-            .then(() => {
-                Swal.fire({
-                    icon: 'success',
-                    title: '복사 완료!',
-                    text: '회의 주소가 클립보드에 복사되었습니다.',
-                    timer: 1500,
-                    showConfirmButton: false,
-                    width: '350px',
-                    toast: true,
-                    position: 'top-end',
-                });
-            })
-            .catch((err) => {
-                console.error('주소 복사에 실패했습니다:', err);
-                Swal.fire({
-                    icon: 'error',
-                    title: '복사 실패',
-                    text: '주소를 복사하는 데 실패했습니다. 다시 시도해주세요.',
-                    confirmButtonColor: '#d33',
-                });
-            });
+        onLeave && onLeave();
+      }
     };
 
-    return (
-        <LayoutContextProvider>
-            <div
-                ref={mainContainerRef}
-                data-lk-theme="default"
-                className="w-full h-screen flex flex-col md:flex-row bg-black overflow-hidden"
-                style={{ cursor: isFullscreen && !showControls ? 'none' : 'default' }}
-            >
-                {/* 비디오 + 컨트롤 영역 */}
-                <div className="flex-1 flex flex-col min-w-0 relative h-full">
-                    {/* 상단 정보 오버레이 */}
-                    {(!isFullscreen || showControls) && (
-                        <>
-                            <div className="absolute top-40 left-4 z-50">
-                                <MannerChecker />
-                            </div>
+    const findAndAttachListener = () => {
+      const disconnectButton = document.querySelector('.lk-disconnect-button');
+      if (disconnectButton) {
+        disconnectButton.addEventListener('click', handleDisconnectClick, true);
+        return disconnectButton;
+      }
+      return null;
+    };
 
-                            {/* 회의 정보 */}
-                            <div className="absolute top-4 left-4 z-50 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-xl text-white shadow-lg border border-white/10">
-                                <p className="font-bold text-base">{meetingTitle || '회의'}</p>
-                                <p className="text-xs text-slate-300">{participantCount > 0 ? `👥 ${participantCount}명 참여 중` : '연결 중...'}</p>
-                            </div>
-                        </>
-                    )}
+    const button = findAndAttachListener();
+    let timeoutId;
+    if (!button) timeoutId = setTimeout(findAndAttachListener, 500);
 
-                    {/* 비디오 그리드 영역 - 완전히 채우기 */}
-                    <div className="flex-1 w-full relative overflow-hidden">
-                        <CustomVideoGrid />
+    return () => {
+      const disconnectButton = document.querySelector('.lk-disconnect-button');
+      if (disconnectButton) {
+        disconnectButton.removeEventListener('click', handleDisconnectClick, true);
+      }
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [room, onLeave]);
 
-                        {/* 자막 오버레이 - 화면 공유 시에도 표시 */}
-                        {(!isFullscreen || showControls) && (
-                            <div className="absolute bottom-23 left-0 right-0 z-[80] pointer-events-none">
-                                <div className="flex justify-center">
-                                    <SubtitleOverlay />
-                                </div>
-                            </div>
-                        )}
+  // 트랙 상태 로깅 (디버깅)
+  useEffect(() => {
+    const logParticipantTracks = () => {
+      console.group('🎙️ Participant Audio Tracks Status');
+      if (room.localParticipant) {
+        console.log('Local Participant:', {
+          identity: room.localParticipant.identity,
+          name: room.localParticipant.name,
+          audioTracks: Array.from(room.localParticipant.audioTrackPublications.values()).map((pub) => ({
+            sid: pub.trackSid,
+            enabled: pub.isEnabled,
+            muted: pub.isMuted,
+            subscribed: pub.isSubscribed,
+          })),
+        });
+      }
+      room.remoteParticipants.forEach((p) => {
+        console.log(`Remote Participant [${p.identity}]:`, {
+          name: p.name,
+          audioTracks: Array.from(p.audioTrackPublications.values()).map((pub) => ({
+            sid: pub.trackSid,
+            enabled: pub.isEnabled,
+            muted: pub.isMuted,
+            subscribed: pub.isSubscribed,
+          })),
+        });
+      });
+      console.groupEnd();
+    };
 
-                        {/* Partial STT */}
-                        {Object.keys(partials).length > 0 && (!isFullscreen || showControls) && (
-                            <div className="absolute bottom-32 left-1/2 -translate-x-1/2 w-[90%] max-w-3xl z-35">
-                                {Object.entries(partials).map(([key, data]) => (
-                                    <div key={key} className="bg-yellow-500/20 backdrop-blur-md border-2 border-yellow-400/50 text-white rounded-xl px-4 py-2 mb-2 shadow-lg animate-pulse">
-                                        <div className="text-center">
-                                            <span className="text-xs font-bold text-yellow-300 mr-2">🎙️ {data.username} (입력 중...)</span>
-                                            <p className="text-base leading-6 mt-1">
-                                                {data.text}
-                                                <span className="inline-block w-2 h-4 bg-yellow-400 ml-1 animate-blink"></span>
-                                            </p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+    logParticipantTracks();
+    const handleTrackPublished = () => {
+      logParticipantTracks();
+    };
+    const handleTrackUnpublished = () => {
+      logParticipantTracks();
+    };
+    room.on('trackPublished', handleTrackPublished);
+    room.on('trackUnpublished', handleTrackUnpublished);
+    return () => {
+      room.off('trackPublished', handleTrackPublished);
+      room.off('trackUnpublished', handleTrackUnpublished);
+    };
+  }, [room, participants]);
 
-                    {/* 컨트롤 바 */}
-                    <div
-                        className={`
-                            ${isFullscreen ? 'absolute bottom-0 left-0 right-0' : 'flex-shrink-0'} 
-                            flex flex-wrap items-center justify-center bg-black/95 backdrop-blur-sm px-4 py-3 shadow-lg gap-2 border-t border-slate-800 transition-all duration-300
-                            ${isFullscreen && !showControls ? 'opacity-0 translate-y-full pointer-events-none' : 'opacity-100 translate-y-0'}
-                        `}
-                        style={{ zIndex: 70 }}
-                    >
-                        <ControlBar variation="minimal" />
+  // 회의 링크 복사
+  const handleCopyLink = () => {
+    const currentUrl = window.location.href;
+    navigator.clipboard
+      .writeText(currentUrl)
+      .then(() => {
+        Swal.fire({
+          icon: 'success',
+          title: '복사 완료!',
+          text: '회의 주소가 클립보드에 복사되었습니다.',
+          timer: 1500,
+          showConfirmButton: false,
+          width: '350px',
+          toast: true,
+          position: 'top-end',
+        });
+      })
+      .catch((err) => {
+        console.error('주소 복사에 실패했습니다:', err);
+        Swal.fire({
+          icon: 'error',
+          title: '복사 실패',
+          text: '주소를 복사하는 데 실패했습니다. 다시 시도해주세요.',
+          confirmButtonColor: '#d33',
+        });
+      });
+  };
 
-                        <button onClick={toggleFullscreen} title={isFullscreen ? '전체화면 종료' : '전체화면'} className="lk-button lk-button-icon">
-                            {isFullscreen ? <FiMinimize size={20} /> : <FiMaximize size={20} />}
-                        </button>
+  return (
+    <LayoutContextProvider>
+      <div
+        ref={mainContainerRef}
+        data-lk-theme="default"
+        className="w-full h-screen flex flex-col md:flex-row bg-black overflow-hidden"
+        style={{ cursor: isFullscreen && !showControls ? 'none' : 'default' }}
+      >
+        {/* 비디오 + 컨트롤 영역 */}
+        <div className="flex-1 flex flex-col min-w-0 relative h-full">
+          {/* 오버레이 (전체화면에서 마우스 움직임 있을 때만 노출) */}
+          {(!isFullscreen || showControls) && (
+            <>
+              {/* ✅ 매너체커: 별도 래퍼 없이 그대로 배치 (컴포넌트 내부 fixed 포지션) */}
+              <MannerChecker room={room} debug={false} />
 
-                        <button onClick={handleCopyLink} title="회의 주소 복사" className="lk-button lk-button-icon">
-                            <FiCopy size={20} />
-                        </button>
+              {/* 회의 정보 */}
+              <div className="absolute top-4 left-4 z-50 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-xl text-white shadow-lg border border-white/10">
+                <p className="font-bold text-base">{meetingTitle || '회의'}</p>
+                <p className="text-xs text-slate-300">
+                  {participantCount > 0 ? `👥 ${participantCount}명 참여 중` : '연결 중...'}
+                </p>
+              </div>
+            </>
+          )}
 
-                        <button
-                            onClick={() => setIsSidebarVisible(!isSidebarVisible)}
-                            aria-pressed={isSidebarVisible}
-                            data-lk-active={isSidebarVisible}
-                            className="lk-button lk-button-icon"
-                            title="채팅 및 정보"
-                        >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="20"
-                                height="20"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                            >
-                                <path d="M4 6h16M4 12h16M4 18h12" />
-                            </svg>
-                        </button>
-                    </div>
+          {/* 비디오 그리드 */}
+          <div className="flex-1 w-full relative overflow-hidden">
+            <CustomVideoGrid />
+
+            {/* 자막 오버레이 */}
+            {(!isFullscreen || showControls) && (
+              <div className="absolute bottom-23 left-0 right-0 z-[80] pointer-events-none">
+                <div className="flex justify-center">
+                  <SubtitleOverlay />
                 </div>
+              </div>
+            )}
 
-                {/* 사이드바 - 전체화면/일반화면 상관없이 동일한 크기 유지 */}
-                {isSidebarVisible && (
-                    <aside className="flex-shrink-0 bg-slate-800 border-l border-slate-700 overflow-hidden w-full h-[40vh] md:h-full md:w-[360px]">
-                        <TranscriptSidebar sttFinals={finals} />
-                    </aside>
-                )}
+            {/* Partial STT */}
+            {Object.keys(partials).length > 0 && (!isFullscreen || showControls) && (
+              <div className="absolute bottom-32 left-1/2 -translate-x-1/2 w-[90%] max-w-3xl z-35">
+                {Object.entries(partials).map(([key, data]) => (
+                  <div
+                    key={key}
+                    className="bg-yellow-500/20 backdrop-blur-md border-2 border-yellow-400/50 text-white rounded-xl px-4 py-2 mb-2 shadow-lg animate-pulse"
+                  >
+                    <div className="text-center">
+                      <span className="text-xs font-bold text-yellow-300 mr-2">🎙️ {data.username} (입력 중...)</span>
+                      <p className="text-base leading-6 mt-1">
+                        {data.text}
+                        <span className="inline-block w-2 h-4 bg-yellow-400 ml-1 animate-blink"></span>
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
-                <RoomAudioRenderer />
-            </div>
+          {/* 컨트롤 바 */}
+          <div
+            className={`${
+              isFullscreen ? 'absolute bottom-0 left-0 right-0' : 'flex-shrink-0'
+            } flex flex-wrap items-center justify-center bg-black/95 backdrop-blur-sm px-4 py-3 shadow-lg gap-2 border-t border-slate-800 transition-all duration-300 ${
+              isFullscreen && !showControls ? 'opacity-0 translate-y-full pointer-events-none' : 'opacity-100 translate-y-0'
+            }`}
+            style={{ zIndex: 70 }}
+          >
+            <ControlBar variation="minimal" />
 
-            <style>{`
-                @keyframes fadeIn {
-                    from {
-                        opacity: 0;
-                        transform: translateY(10px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
-                }
+            <button onClick={toggleFullscreen} title={isFullscreen ? '전체화면 종료' : '전체화면'} className="lk-button lk-button-icon">
+              {isFullscreen ? <FiMinimize size={20} /> : <FiMaximize size={20} />}
+            </button>
 
-                @keyframes blink {
-                    0%, 50% {
-                        opacity: 1;
-                    }
-                    51%, 100% {
-                        opacity: 0;
-                    }
-                }
+            <button onClick={handleCopyLink} title="회의 주소 복사" className="lk-button lk-button-icon">
+              <FiCopy size={20} />
+            </button>
 
-                .animate-fadeIn {
-                    animation: fadeIn 0.3s ease-out;
-                }
+            <button
+              onClick={() => setIsSidebarVisible(!isSidebarVisible)}
+              aria-pressed={isSidebarVisible}
+              data-lk-active={isSidebarVisible}
+              className="lk-button lk-button-icon"
+              title="채팅 및 정보"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M4 6h16M4 12h16M4 18h12" />
+              </svg>
+            </button>
+          </div>
+        </div>
 
-                .animate-blink {
-                    animation: blink 1s infinite;
-                }
+        {/* 사이드바 */}
+        {isSidebarVisible && (
+          <aside className="flex-shrink-0 bg-slate-800 border-l border-slate-700 overflow-hidden w-full h-[40vh] md:h-full md:w-[360px]">
+            <TranscriptSidebar sttFinals={finals} />
+          </aside>
+        )}
 
-                /* 전체화면에서 LiveKit 기본 스타일 오버라이드 */
-                [data-lk-theme="default"] .lk-focus-layout,
-                [data-lk-theme="default"] .lk-grid-layout {
-                    width: 100% !important;
-                    height: 100% !important;
-                }
+        <RoomAudioRenderer />
+      </div>
 
-            `}</style>
-        </LayoutContextProvider>
-    );
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes blink {
+          0%, 50% { opacity: 1; }
+          51%, 100% { opacity: 0; }
+        }
+        .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+        .animate-blink { animation: blink 1s infinite; }
+
+        /* 전체화면에서 LiveKit 기본 스타일 오버라이드 */
+        [data-lk-theme="default"] .lk-focus-layout,
+        [data-lk-theme="default"] .lk-grid-layout {
+          width: 100% !important;
+          height: 100% !important;
+        }
+      `}</style>
+    </LayoutContextProvider>
+  );
 };
 
 export default ConferenceUI;

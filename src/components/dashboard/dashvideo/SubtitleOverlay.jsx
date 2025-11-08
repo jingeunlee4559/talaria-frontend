@@ -30,6 +30,7 @@ const SubtitleOverlay = () => {
                 username: data.username,
                 identity: data.identity,
                 text: data.text?.substring(0, 30) + '...',
+                translated: data.translated?.substring(0, 30) + '...',
             });
 
             // Final STT만 자막으로 표시 (Partial은 ConferenceUI에서 별도 표시)
@@ -42,19 +43,22 @@ const SubtitleOverlay = () => {
                     username: data.username || data.identity || 'Unknown',
                     identity: data.identity,
                     text: data.text,
+                    translated: data.translated || null,
                     timestamp: Date.now(),
                 });
 
-                // 3초 후 페이드아웃 시작
+                // 번역문이 있으면 5초, 없으면 3초 후 페이드아웃
+                const fadeDelay = data.translated ? 5000 : 3000;
+                const removeDelay = data.translated ? 6000 : 4000;
+
                 fadeTimerRef.current = setTimeout(() => {
                     setFadeOut(true);
-                }, 3000);
+                }, fadeDelay);
 
-                // 4초 후 완전히 제거
                 timerRef.current = setTimeout(() => {
                     setCurrentSubtitle(null);
                     setFadeOut(false);
-                }, 4000);
+                }, removeDelay);
             }
         } catch (error) {
             console.error('❌ Subtitle 파싱 오류:', error);
@@ -158,7 +162,43 @@ const SubtitleOverlay = () => {
         );
     }
 
-    // 일반 STT 자막인 경우
+    // 일반 STT 자막인 경우 (번역문이 있으면 함께 표시)
+    if (currentSubtitle.translated && currentSubtitle.translated.trim()) {
+        return (
+            <div className={`w-[90%] md:w-[80%] max-w-3xl transition-all duration-500 ease-out ${fadeOut ? 'opacity-0 scale-[0.98] translate-y-2' : 'opacity-100 scale-100 translate-y-0'} mx-auto`}>
+                <div className="relative bg-gradient-to-br from-slate-900/96 via-slate-800/96 to-slate-900/96 backdrop-blur-2xl rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.3)] border border-white/10 overflow-hidden">
+                    {/* 미묘한 배경 그라데이션 */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/[0.03] via-transparent to-pink-500/[0.03]"></div>
+
+                    {/* 상단 사용자 바 */}
+                    <div className="relative px-5 md:px-7 py-2.5 bg-gradient-to-r from-slate-800/35 via-slate-800/25 to-slate-800/35 border-b border-white/[0.06]">
+                        <span className="text-xs md:text-sm font-semibold text-slate-300/90 tracking-wide">{currentSubtitle.username}</span>
+                    </div>
+
+                    {/* 컨텐츠 영역 */}
+                    <div className="relative px-5 md:px-7 py-3.5 md:py-4 space-y-2">
+                        {/* 원문 */}
+                        <p className="text-sm md:text-base text-slate-300/90 leading-relaxed font-light">{currentSubtitle.text}</p>
+
+                        {/* 구분선 */}
+                        <div className="flex items-center gap-2.5 py-0.5">
+                            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-600/60 to-slate-600/60"></div>
+                            <span className="text-[10px] md:text-xs text-slate-500/80 font-medium px-2">번역</span>
+                            <div className="flex-1 h-px bg-gradient-to-l from-transparent via-slate-600/60 to-slate-600/60"></div>
+                        </div>
+
+                        {/* 번역문 */}
+                        <p className="text-base md:text-lg text-white leading-relaxed font-medium">{currentSubtitle.translated}</p>
+                    </div>
+
+                    {/* 하단 글로우 라인 */}
+                    <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-white/25 to-transparent"></div>
+                </div>
+            </div>
+        );
+    }
+
+    // 번역문이 없는 일반 STT 자막
     return (
         <div className={`w-[90%] md:w-[80%] max-w-3xl transition-all duration-500 ease-out ${fadeOut ? 'opacity-0 scale-[0.98] translate-y-2' : 'opacity-100 scale-100 translate-y-0'} mx-auto`}>
             <div className="relative bg-gradient-to-br from-slate-900/96 via-slate-800/96 to-slate-900/96 backdrop-blur-2xl rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.3)] border border-white/10 overflow-hidden">

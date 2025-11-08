@@ -47,6 +47,18 @@ const MutedIcon = () => (
     </svg>
 );
 
+// 번역 아이콘 추가
+const TranslateIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m5 8 6 6" />
+        <path d="m4 14 6-6 2-3" />
+        <path d="M2 5h12" />
+        <path d="M7 2h1" />
+        <path d="m22 22-5-10-5 10" />
+        <path d="M14 18h6" />
+    </svg>
+);
+
 // ✅ 개선된 닉네임 가져오기 함수
 const getParticipantNickname = (participant, room = null) => {
     if (!participant) return 'Unknown';
@@ -80,22 +92,42 @@ const getParticipantNickname = (participant, room = null) => {
     return identity;
 };
 
-// ✅ 메시지 버블 컴포넌트
+// ✅ 메시지 버블 컴포넌트 (번역 표시 개선)
 const MessageBubble = ({ msg }) => {
     const isLocal = msg.isLocal;
+    const isTranslated = msg.isTranslated || false;
 
     return (
         <div className={`flex items-end gap-3 ${isLocal ? 'justify-end' : 'justify-start'}`}>
             {!isLocal && <img src={`https://i.pravatar.cc/40?u=${msg.sender}`} alt="avatar" className="w-9 h-9 rounded-full flex-shrink-0 self-start" />}
             <div className={`flex flex-col max-w-xs lg:max-w-sm ${isLocal ? 'items-end' : 'items-start'}`}>
-                {!isLocal && (
+                {!isLocal && !isTranslated && (
                     <p className="text-sm font-medium text-gray-400 mb-1.5 px-2">
                         {msg.sender}
                         <span className="text-xs text-gray-500 ml-2">{msg.time}</span>
                     </p>
                 )}
-                {isLocal && <p className="text-xs text-gray-500 mb-1.5 px-2">{msg.time}</p>}
-                <div className={`rounded-2xl px-4 py-3 shadow-md ${isLocal ? 'bg-blue-600 text-white rounded-br-none' : 'bg-[#3A425A] text-gray-200 rounded-bl-none'}`}>
+                {isLocal && !isTranslated && <p className="text-xs text-gray-500 mb-1.5 px-2">{msg.time}</p>}
+
+                {/* 번역 메시지인 경우 번역 배지 표시 */}
+                {isTranslated && (
+                    <div className={`flex items-center gap-1.5 mb-1.5 px-2 ${isLocal ? 'flex-row-reverse' : 'flex-row'}`}>
+                        <TranslateIcon />
+                        <span className="text-xs text-blue-400 font-medium">번역</span>
+                    </div>
+                )}
+
+                <div
+                    className={`rounded-2xl px-4 py-3 shadow-md ${
+                        isTranslated
+                            ? isLocal
+                                ? 'bg-blue-500/80 text-white rounded-br-none border border-blue-400/30'
+                                : 'bg-[#424A63] text-gray-100 rounded-bl-none border border-blue-400/20'
+                            : isLocal
+                            ? 'bg-blue-600 text-white rounded-br-none'
+                            : 'bg-[#3A425A] text-gray-200 rounded-bl-none'
+                    }`}
+                >
                     <p className="text-sm break-words whitespace-pre-wrap">{msg.text}</p>
                 </div>
             </div>
@@ -175,7 +207,7 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose }) => {
 
     const chatEndRef = useRef(null);
 
-    // ✅ 채팅 메시지 수신 (개선 - username 사용)
+    // ✅ 채팅 메시지 수신 (번역 지원 개선)
     const onMessage = (message) => {
         if (message.from) {
             try {
@@ -184,21 +216,43 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose }) => {
 
                 // 🆕 백엔드에서 온 username 사용, 없으면 participant에서 추출
                 const senderName = msgData.username || getParticipantNickname(message.from, room);
+                const isLocal = message.from.isLocal;
 
-                const fullMessage = {
-                    ...msgData,
+                // 원문 메시지
+                const originalMessage = {
+                    type: 'chat',
+                    text: msgData.text,
                     sender: senderName,
-                    isLocal: message.from.isLocal,
+                    time: msgData.time,
+                    isLocal: isLocal,
+                    isTranslated: false,
                 };
 
                 console.log('📩 Chat received:', {
                     from: message.from.identity,
                     username: senderName,
                     text: msgData.text,
-                    isLocal: message.from.isLocal,
+                    translated: msgData.translated,
+                    isLocal: isLocal,
                 });
 
-                setMessages((prev) => [...prev, fullMessage]);
+                setMessages((prev) => [...prev, originalMessage]);
+
+                // 번역문이 있으면 별도 메시지로 추가
+                if (msgData.translated && msgData.translated.trim()) {
+                    const translatedMessage = {
+                        type: 'chat',
+                        text: msgData.translated,
+                        sender: senderName,
+                        time: msgData.time,
+                        isLocal: isLocal,
+                        isTranslated: true,
+                    };
+
+                    console.log('🌍 Translation added to chat:', translatedMessage);
+
+                    setMessages((prev) => [...prev, translatedMessage]);
+                }
             } catch (error) {
                 console.error('메시지 파싱 실패:', error);
             }
@@ -207,7 +261,7 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose }) => {
 
     useDataChannel('chat_messages', onMessage);
 
-    // ✅ STT Finals를 채팅창에 통합 - 본인 여부 판단 개선
+    // ✅ STT Finals를 채팅창에 통합 - 번역 지원
     useEffect(() => {
         if (sttFinals.length > 0 && localParticipant) {
             const latestSTT = sttFinals[sttFinals.length - 1];
@@ -224,22 +278,52 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose }) => {
                 return;
             }
 
+            const isLocal = sttUsername === myUsername || latestSTT.identity === localParticipant.identity;
+            const timestamp = new Date(latestSTT.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            // 원문 STT 메시지
             const sttMessage = {
                 type: 'stt',
                 text: `🎤 ${latestSTT.text}`,
                 sender: sttUsername,
-                time: new Date(latestSTT.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                isLocal: sttUsername === myUsername || latestSTT.identity === localParticipant.identity,
+                time: timestamp,
+                isLocal: isLocal,
+                isTranslated: false,
             };
 
             console.log('🎤 STT message:', {
                 sttUsername,
                 myUsername,
-                isLocal: sttMessage.isLocal,
+                isLocal: isLocal,
                 text: latestSTT.text,
+                translated: latestSTT.translated,
+                hasTranslated: !!latestSTT.translated,
+                translatedLength: latestSTT.translated?.length || 0,
+                fullSTTData: latestSTT,
             });
 
             setMessages((prev) => [...prev, sttMessage]);
+
+            // 번역문이 있으면 별도 메시지로 추가
+            if (latestSTT.translated && latestSTT.translated.trim()) {
+                const translatedSTTMessage = {
+                    type: 'stt',
+                    text: `🎤 ${latestSTT.translated}`,
+                    sender: sttUsername,
+                    time: timestamp,
+                    isLocal: isLocal,
+                    isTranslated: true,
+                };
+
+                console.log('✅ 🌍 STT Translation added:', translatedSTTMessage);
+
+                setMessages((prev) => [...prev, translatedSTTMessage]);
+            } else {
+                console.log('❌ No translation found:', {
+                    translated: latestSTT.translated,
+                    reason: !latestSTT.translated ? 'translated is falsy' : 'translated is empty string',
+                });
+            }
         }
     }, [sttFinals, localParticipant, room]);
 
@@ -271,6 +355,7 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose }) => {
             ...messagePayload,
             sender: myUsername,
             isLocal: true,
+            isTranslated: false,
         };
 
         console.log('📤 Chat sent:', {
@@ -305,7 +390,7 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose }) => {
                                     <p className="text-xs mt-1">대화를 시작해보세요!</p>
                                 </div>
                             ) : (
-                                messages.map((msg, i) => <MessageBubble key={`${msg.sender}-${msg.time}-${i}`} msg={msg} />)
+                                messages.map((msg, i) => <MessageBubble key={`${msg.sender}-${msg.time}-${msg.isTranslated}-${i}`} msg={msg} />)
                             )}
                             <div ref={chatEndRef} />
                         </div>

@@ -152,7 +152,7 @@ const ConferenceUI = ({ meetingTitle, onLeave }) => {
         return identity;
     };
 
-    // STT DataChannel 구독 (개선된 로직)
+    // STT DataChannel 구독 (개선된 로직 - ✅ translated 필드 포함)
     useDataChannel('stt', (msg) => {
         try {
             const text = new TextDecoder().decode(msg.payload);
@@ -163,6 +163,7 @@ const ConferenceUI = ({ meetingTitle, onLeave }) => {
                 identity: data.identity,
                 username: data.username,
                 text: data.text?.substring(0, 50),
+                translated: data.translated?.substring(0, 50), // ✅ 번역 필드 로그 추가
                 participant_sid: data.participant_sid,
             });
 
@@ -174,7 +175,7 @@ const ConferenceUI = ({ meetingTitle, onLeave }) => {
 
             if (data.final) {
                 // ✅ Final: 확정된 텍스트
-                console.log(`✅ FINAL STT from ${username}: ${data.text}`);
+                console.log(`✅ FINAL STT from ${username}: ${data.text}`, data.translated ? `(번역: ${data.translated})` : '');
 
                 setFinals((prev) => [
                     ...prev,
@@ -182,6 +183,7 @@ const ConferenceUI = ({ meetingTitle, onLeave }) => {
                         identity: data.identity,
                         username: username,
                         text: data.text || '',
+                        translated: data.translated || null, // ✅✅✅ 핵심 수정: 번역 필드 추가!
                         ts: data.ts ?? Date.now(),
                     },
                 ]);
@@ -209,6 +211,81 @@ const ConferenceUI = ({ meetingTitle, onLeave }) => {
             console.error('❌ STT 파싱 오류:', e);
         }
     });
+
+    // ✅ LiveKit disconnect 버튼에 확인 창 기능 추가
+    useEffect(() => {
+        const handleDisconnectClick = async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const result = await Swal.fire({
+                title: '회의에서 나가시겠습니까?',
+                text: '나가시면 회의 연결이 종료됩니다.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: '예, 나가기',
+                cancelButtonText: '취소',
+                reverseButtons: true,
+                customClass: {
+                    popup: 'rounded-2xl',
+                    confirmButton: 'rounded-lg px-6 py-2.5 font-semibold',
+                    cancelButton: 'rounded-lg px-6 py-2.5 font-semibold',
+                },
+                backdrop: 'rgba(0, 0, 0, 0.7)',
+            });
+
+            if (result.isConfirmed) {
+                console.log('✅ User confirmed leaving the meeting');
+
+                // 1. LiveKit room disconnect 실행
+                try {
+                    await room.disconnect();
+                    console.log('🚪 Room disconnected successfully');
+                } catch (error) {
+                    console.error('❌ Error disconnecting from room:', error);
+                }
+
+                // 2. onLeave 콜백 실행 (페이지 이동 등)
+                if (onLeave) {
+                    onLeave();
+                }
+            } else {
+                console.log('❌ User cancelled leaving the meeting');
+            }
+        };
+
+        // lk-disconnect-button 찾기 및 이벤트 리스너 추가
+        const findAndAttachListener = () => {
+            const disconnectButton = document.querySelector('.lk-disconnect-button');
+            if (disconnectButton) {
+                console.log('✅ Found disconnect button, attaching custom handler');
+                disconnectButton.addEventListener('click', handleDisconnectClick, true);
+                return disconnectButton;
+            }
+            return null;
+        };
+
+        // 버튼이 렌더링될 때까지 기다리기
+        const button = findAndAttachListener();
+
+        // 버튼이 없으면 약간 지연 후 다시 시도
+        let timeoutId;
+        if (!button) {
+            timeoutId = setTimeout(findAndAttachListener, 500);
+        }
+
+        return () => {
+            const disconnectButton = document.querySelector('.lk-disconnect-button');
+            if (disconnectButton) {
+                disconnectButton.removeEventListener('click', handleDisconnectClick, true);
+            }
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+        };
+    }, [room, onLeave]);
 
     // 🆕 디버깅: 모든 participants의 오디오 트랙 상태 로깅
     useEffect(() => {
@@ -376,7 +453,7 @@ const ConferenceUI = ({ meetingTitle, onLeave }) => {
                             aria-pressed={isSidebarVisible}
                             data-lk-active={isSidebarVisible}
                             className="lk-button lk-button-icon"
-                            title="Transcript"
+                            title="채팅 및 정보"
                         >
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
@@ -391,10 +468,6 @@ const ConferenceUI = ({ meetingTitle, onLeave }) => {
                             >
                                 <path d="M4 6h16M4 12h16M4 18h12" />
                             </svg>
-                        </button>
-
-                        <button onClick={onLeave} className="lk-button bg-red-600 hover:bg-red-700 text-white font-semibold px-4 rounded-lg transition-colors" title="회의 나가기">
-                            나가기
                         </button>
                     </div>
                 </div>

@@ -18,7 +18,8 @@ const DashDocuments = () => {
     const [selectedItem, setSelectedItem] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [documents, setDocuments] = useState([]);
-    const [selectedDocs, setSelectedDocs] = useState([]); // ✅ 선택된 문서 ID 관리
+    const [selectedDocs, setSelectedDocs] = useState([]);
+    const [loading, setLoading] = useState(false);
 
     // === State for Documents ===
     const [docCurrentPage, setDocCurrentPage] = useState(1);
@@ -26,19 +27,24 @@ const DashDocuments = () => {
     // === State for Meeting Minutes ===
     const [minCurrentPage, setMinCurrentPage] = useState(1);
 
-    const { user, loading } = useContext(UserContext);
+    const { user, loading: userLoading } = useContext(UserContext);
 
     // ✅ 문서 데이터 불러오기
     useEffect(() => {
-        if (loading || !user?.userId) return;
+        if (userLoading || !user?.userId) return;
 
         const fetchDocuments = async () => {
+            setLoading(true);
             try {
-                const response = await axios.get(`/api/users/${user.userId}/documents`);
-                if (response.data && Array.isArray(response.data.items)) {
-                    const formattedDocuments = response.data.items.map((doc) => ({
+                const res = await axios.get(`/api/users/${user.userId}/documents`);
+                const items = Array.isArray(res.data?.items) ? res.data.items : [];
+
+                const formatted = items.map((doc) => {
+                    const sizeMB = (doc.size ?? 0) / 1024 / 1024;
+
+                    return {
                         id: doc.doc_id,
-                        title: doc.original_name,
+                        title: doc.original_name || '(제목 없음)',
                         lastModified: doc.uploaded_at
                             ? new Date(doc.uploaded_at).toLocaleDateString('ko-KR', {
                                   year: 'numeric',
@@ -48,23 +54,32 @@ const DashDocuments = () => {
                             : '날짜 정보 없음',
                         fromLang: doc.original_lang,
                         toLang: doc.translated_lang,
-                        size: `${(doc.size / 1024 / 1024).toFixed(2)} MB`,
+                        size: `${sizeMB.toFixed(2)} MB`,
                         author: doc.uploader_name,
                         filepath: doc.filepath,
-                    }));
-                    setDocuments(formattedDocuments);
-                } else {
-                    setDocuments([]);
-                }
-            } catch (error) {
-                console.error('문서 불러오기 오류:', error);
+                        downloadUrl: `/api/users/${user.userId}/documents/${doc.doc_id}/download`,
+                        use_context_rag: !!doc.use_context_rag,
+                    };
+                });
+
+                setDocuments(formatted);
+            } catch (err) {
+                console.error('문서 불러오기 오류:', err);
+                Swal.fire({
+                    icon: 'error',
+                    title: '문서 불러오기 실패',
+                    text: '문서를 불러오는 중 오류가 발생했습니다.',
+                });
                 setDocuments([]);
+            } finally {
+                setLoading(false);
             }
         };
 
         fetchDocuments();
-    }, [user, loading]);
+    }, [user, userLoading]);
 
+    // 새 문서 추가 핸들러
     const handleDocumentAdd = (newDocumentData) => {
         const formattedNewDocument = {
             id: newDocumentData.doc_id,
@@ -74,6 +89,8 @@ const DashDocuments = () => {
             size: `${(newDocumentData.size / 1024 / 1024).toFixed(2)} MB`,
             author: newDocumentData.uploader_name,
             filepath: newDocumentData.filepath,
+            downloadUrl: `/api/users/${user.userId}/documents/${newDocumentData.doc_id}/download`,
+            use_context_rag: !!newDocumentData.use_context_rag,
         };
         setDocuments((prevDocuments) => [formattedNewDocument, ...prevDocuments]);
     };
@@ -112,7 +129,7 @@ const DashDocuments = () => {
 
     // ✅ 전체 선택
     const handleSelectAll = () => {
-        if (selectedDocs.length === currentDocuments.length) {
+        if (selectedDocs.length === currentDocuments.length && currentDocuments.length > 0) {
             setSelectedDocs([]);
         } else {
             setSelectedDocs(currentDocuments.map((doc) => doc.id));
@@ -155,13 +172,21 @@ const DashDocuments = () => {
     };
 
     const handleItemClick = (item) => {
-        setSelectedItem(item);
+        setSelectedItem({
+            ...item,
+            userId: user.userId,
+        });
         setIsModalOpen(true);
     };
 
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setSelectedItem(null);
+    };
+
+    // ✅ RAG 상태 업데이트 핸들러
+    const updateDocRag = (docId, val) => {
+        setDocuments((prev) => prev.map((d) => (d.id === docId ? { ...d, use_context_rag: val } : d)));
     };
 
     return (
@@ -181,7 +206,7 @@ const DashDocuments = () => {
                             isActive={activeTab === '번역 문서'}
                             onClick={() => {
                                 setActiveTab('번역 문서');
-                                setMinCurrentPage(1); // 다른 탭으로 이동 시 페이지 1로 초기화
+                                setMinCurrentPage(1);
                             }}
                         />
                         <TabButton
@@ -189,7 +214,7 @@ const DashDocuments = () => {
                             isActive={activeTab === '회의록'}
                             onClick={() => {
                                 setActiveTab('회의록');
-                                setDocCurrentPage(1); // 다른 탭으로 이동 시 페이지 1로 초기화
+                                setDocCurrentPage(1);
                             }}
                         />
                     </nav>
@@ -202,14 +227,26 @@ const DashDocuments = () => {
                                 <SubTabButton title="전체" isActive={docSubTab === '전체'} onClick={() => setDocSubTab('전체')} />
                                 <SubTabButton title="원문" isActive={docSubTab === '원문'} onClick={() => setDocSubTab('원문')} />
                                 <SubTabButton title="번역" isActive={docSubTab === '번역'} onClick={() => setDocSubTab('번역')} />
-                                <button onClick={handleSelectAll} className="ml-auto text-sm text-slate-500 hover:text-slate-700">
-                                    {selectedDocs.length === currentDocuments.length ? '전체 해제' : '전체 선택'}
+                                <button onClick={handleSelectAll} className="ml-auto text-sm text-slate-500 hover:text-slate-700 transition">
+                                    {selectedDocs.length === currentDocuments.length && currentDocuments.length > 0 ? '전체 해제' : '전체 선택'}
                                 </button>
                             </div>
 
-                            {currentDocuments.length > 0 ? (
+                            {loading ? (
+                                <div className="text-center py-16 text-slate-500 bg-white rounded-xl border border-slate-200">
+                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                                    <p>문서를 불러오는 중...</p>
+                                </div>
+                            ) : currentDocuments.length > 0 ? (
                                 <>
-                                    <DocumentList documents={currentDocuments} onItemClick={handleItemClick} onSelect={handleSelectDoc} selectedDocs={selectedDocs} />
+                                    <DocumentList
+                                        userId={user.userId}
+                                        documents={currentDocuments}
+                                        onItemClick={handleItemClick}
+                                        onSelect={handleSelectDoc}
+                                        selectedDocs={selectedDocs}
+                                        onRagChange={updateDocRag}
+                                    />
                                     <Pagination currentPage={docCurrentPage} totalPages={totalDocPages} onPageChange={(page) => setDocCurrentPage(page)} />
                                 </>
                             ) : (
@@ -220,7 +257,6 @@ const DashDocuments = () => {
                         </>
                     )}
 
-                    {/* ✨ 회의록 탭 콘텐츠 */}
                     {activeTab === '회의록' && (
                         <>
                             {currentMinutes.length > 0 ? (

@@ -1,10 +1,10 @@
 import DocumentItem from './DocumentItem';
 import MeetingMinutesItem from './MeetingMinutesItem';
 
-export const DocumentList = ({ documents, onItemClick, onSelect, selectedDocs }) => (
+export const DocumentList = ({ userId, documents, onItemClick, onSelect, selectedDocs, onRagChange }) => (
     <div className="space-y-3">
         {documents.map((doc) => (
-            <DocumentItem key={doc.id} {...doc} onClick={onItemClick} onSelect={onSelect} isSelected={selectedDocs.includes(doc.id)} />
+            <DocumentItem key={doc.id} userId={userId} {...doc} onClick={onItemClick} onSelect={onSelect} isSelected={selectedDocs.includes(doc.id)} onRagChange={onRagChange} />
         ))}
     </div>
 );

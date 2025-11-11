@@ -6,7 +6,7 @@ import { BsFiletypeTxt, BsFileEarmarkTextFill } from 'react-icons/bs';
 import { LanguagesIcon, Sparkles } from 'lucide-react';
 import { DownloadIcon, DocumentIcon, FileTypePdfIcon, FileTypeDocxIcon } from '../../icons/icons';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useTranslator } from '../../../translation/TranslationProvider';
+import { useTranslator } from '../../../contexts/TranslationProvider';
 
 // === 언어/아이콘/MIME ===
 const languageMap = { ko: '한국어', en: '영어', ja: '일본어', 'zh-CN': '중국어' };

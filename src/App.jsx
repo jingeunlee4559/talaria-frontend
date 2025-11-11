@@ -4,8 +4,8 @@ import { useEffect } from 'react';
 import Aos from 'aos';
 import 'aos/dist/aos.css';
 import { UserProvider } from './contexts/UserContext';
-import { TranslationProvider } from './translation/TranslationProvider';
-import GlobalTranslatorHUD from './translation/GlobalTranslatorHUD';
+import { TranslationProvider } from './contexts/TranslationProvider';
+import GlobalTranslatorHUD from './components/dashboard/dashDoc/translation/GlobalTranslatorHUD';
 
 function App() {
     useEffect(() => {

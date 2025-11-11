@@ -1,25 +1,12 @@
-// src/translation/TranslationProvider.jsx
 import React, { createContext, useContext, useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import Swal from 'sweetalert2';
-import { ai } from '../axios'; // 기존과 동일: 8000 포인트용 axios 인스턴스
+import { ai } from '../axios';
 
 const TranslationContext = createContext(null);
 
-// 전역 Job 상태 타입 가이드
-// jobKey: `${relPath}::${target}`
-/*
-job = {
-  jobKey, docId, title, relPath, source, target,
-  status: 'IDLE'|'PENDING'|'PROCESSING'|'COMPLETED'|'FAILED',
-  percent: 0..100,
-  error: string|null,
-  startedAt: number,
-}
-*/
-
 export const TranslationProvider = ({ children }) => {
-    const [jobs, setJobs] = useState({}); // { jobKey: job }
-    const eventSourcesRef = useRef({}); // { jobKey: EventSource }
+    const [jobs, setJobs] = useState({});
+    const eventSourcesRef = useRef({});
 
     // HUD 표시 여부
     const [hudOpen, setHudOpen] = useState(true);

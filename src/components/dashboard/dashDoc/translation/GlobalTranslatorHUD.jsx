@@ -1,12 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslator } from './TranslationProvider';
+import { useTranslator } from '../../../../contexts/TranslationProvider';
 
-/**
- * Props:
- * - mode: "bottom-right" | "below-header"  (default: "bottom-right")
- * - headerSelector: string (mode="below-header"일 때 헤더 DOM 선택자, default: 'header')
- * - right: number (px), bottom: number (px), topGap: number (px)
- */
 export default function GlobalTranslatorHUD({ mode = 'bottom-right', headerSelector = 'header', right = 16, bottom = 16, topGap = 12 }) {
     const { jobs, stopJob } = useTranslator();
     const [open, setOpen] = useState(false); // 패널 열림 상태

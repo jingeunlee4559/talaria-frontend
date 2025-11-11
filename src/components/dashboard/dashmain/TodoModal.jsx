@@ -1,6 +1,6 @@
 import { X } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
-import axios from '../../../axios';
+import api from '../../../axios';
 
 const TodoModal = ({ isOpen, onClose, onSave, task, taskColorStyles, colorKeys, userId }) => {
     const [text, setText] = useState('');
@@ -13,7 +13,7 @@ const TodoModal = ({ isOpen, onClose, onSave, task, taskColorStyles, colorKeys, 
     const fetchTodoById = async (taskId) => {
         setLoading(true);
         try {
-            const response = await axios.get(`/api/users/${userId}/todos/${taskId}`);
+            const response = await api.get(`/api/users/${userId}/todos/${taskId}`);
             const todoData = response.data;
             setText(todoData.text);
             setTime(todoData.time || '');

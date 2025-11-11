@@ -1,7 +1,7 @@
 import React, { useContext, useState } from 'react';
 import { EyeIcon, GoogleIcon } from '../components/icons/icons';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from '../axios';
+import api from '../axios';
 import Swal from 'sweetalert2';
 import { UserContext } from '../contexts/UserContext';
 
@@ -21,7 +21,7 @@ const LoginPage = () => {
         setError(''); // 이전 에러 초기화
 
         try {
-            const response = await axios.post('/api/users/login', {
+            const response = await api.post('/api/users/login', {
                 email: email,
                 password: password,
             });

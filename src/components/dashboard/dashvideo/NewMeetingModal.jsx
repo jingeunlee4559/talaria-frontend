@@ -1,7 +1,7 @@
 import { Fragment, useState, useEffect, useContext } from 'react';
 import { Dialog, Transition, Combobox } from '@headlessui/react';
 import { X, Calendar, Clock, Users, AlertCircle, Pencil } from 'lucide-react';
-import axios from '../../../axios';
+import api from '../../../axios';
 import Swal from 'sweetalert2';
 import { UserContext } from '../../../contexts/UserContext';
 
@@ -102,7 +102,7 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
 
             setIsSearching(true);
             try {
-                const response = await axios.get(`/api/users/search`, {
+                const response = await api.get(`/api/users/search`, {
                     params: { keyword: trimmedInput },
                 });
                 console.log('🔍 검색 API 응답:', response.data);
@@ -206,7 +206,7 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
                 const inviteResults = await Promise.allSettled(
                     invitedUserIds.map((userId) => {
                         console.log(`📤 초대 요청: 회의 ${savedMeetingId}, 사용자 ${userId}`);
-                        return axios
+                        return api
                             .post(`/api/meetings/${savedMeetingId}/participants/invite`, {
                                 userId: userId,
                                 role: 'GUEST',
@@ -274,7 +274,7 @@ const NewMeetingModal = ({ isOpen, onClose, onConfirm, meetingToEdit }) => {
                         meetingId: savedMeetingId,
                     };
 
-                    await axios.post(`/api/users/${user.userId}/calendar/events`, eventPayload);
+                    await api.post(`/api/users/${user.userId}/calendar/events`, eventPayload);
                 } catch (calendarError) {
                     console.error('캘린더 일정 추가 실패:', calendarError);
                     Swal.fire({

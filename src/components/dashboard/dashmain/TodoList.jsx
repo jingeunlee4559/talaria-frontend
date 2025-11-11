@@ -1,6 +1,6 @@
 import { Check, Edit, MoreVertical, Plus, Trash } from 'lucide-react';
 import { React, useContext, useEffect, useRef, useState } from 'react';
-import axios from '../../../axios';
+import api from '../../../axios';
 import Swal from 'sweetalert2';
 import TodoModal from './TodoModal';
 import { UserContext } from '../../../contexts/UserContext';
@@ -106,7 +106,7 @@ const TodoList = ({ className }) => {
         setLoading(true);
         setError(null);
         try {
-            const response = await axios.get(`/api/users/${userId}/todos`);
+            const response = await api.get(`/api/users/${userId}/todos`);
             const backendTodos = response.data.items || [];
 
             console.log('📥 Backend Response:', backendTodos);
@@ -131,7 +131,7 @@ const TodoList = ({ className }) => {
             const backendData = mapFrontendToBackend(todoData, userId);
             console.log('📤 Creating todo with data:', JSON.stringify(backendData, null, 2));
 
-            const response = await axios.post(`/api/users/${userId}/todos`, backendData);
+            const response = await api.post(`/api/users/${userId}/todos`, backendData);
 
             console.log('✅ Create response:', response.data);
 
@@ -160,7 +160,7 @@ const TodoList = ({ className }) => {
             console.log('📤 Updating todo with data:', backendData);
 
             // 📌 변경점: PATCH 요청이 성공했는지 확인만 하고, 응답 데이터는 사용하지 않습니다.
-            await axios.patch(`/api/users/${userId}/todos/${taskId}`, backendData); // PUT 또는 PATCH (서버 API에 맞게)
+            await api.patch(`/api/users/${userId}/todos/${taskId}`, backendData); // PUT 또는 PATCH (서버 API에 맞게)
 
             console.log('✅ Todo updated successfully:', taskId);
             // 📌 변경점: 아무것도 반환하지 않습니다.
@@ -173,7 +173,7 @@ const TodoList = ({ className }) => {
     const toggleTodoComplete = async (taskId, currentTask) => {
         try {
             const newStatus = currentTask.completed ? 'pending' : 'completed';
-            const response = await axios.patch(`/api/users/${userId}/todos/${taskId}/status`, { status: newStatus }, { headers: { 'Content-Type': 'application/json' } });
+            const response = await api.patch(`/api/users/${userId}/todos/${taskId}/status`, { status: newStatus }, { headers: { 'Content-Type': 'application/json' } });
 
             console.log('✅ Toggle response (PATCH):', response.data);
             // 📌 변경점: 서버 응답을 그대로 반환하거나, 성공 여부만 반환합니다.
@@ -187,7 +187,7 @@ const TodoList = ({ className }) => {
     // ✅ API: Todo 삭제
     const deleteTodo = async (taskId) => {
         try {
-            await axios.delete(`/api/users/${userId}/todos/${taskId}`);
+            await api.delete(`/api/users/${userId}/todos/${taskId}`);
             console.log('✅ Todo deleted:', taskId);
         } catch (err) {
             console.error('❌ Error deleting todo:', err);

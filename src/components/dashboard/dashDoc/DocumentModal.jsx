@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import axios from '../../../axios';
+import api from '../../../axios';
 import { CopyIcon, CloseIcon, DownloadIcon, AIIcon, SearchIcon, ParticipantsIcon, DurationIcon, CalendarIcon } from '../../icons/icons';
 import Swal from 'sweetalert2';
 import { LanguagesIcon } from 'lucide-react';
@@ -219,7 +219,7 @@ const DocumentModal = ({ isOpen, onClose, itemData }) => {
         const fetchContent = async () => {
             setLoading(true);
             try {
-                const response = await axios.get(`/api/users/${itemData.userId || 1}/documents/${itemData.id}/content`);
+                const response = await api.get(`/api/users/${itemData.userId || 1}/documents/${itemData.id}/content`);
                 setDocumentContent(response.data);
             } catch (error) {
                 console.error('파일 내용 로드 실패:', error);

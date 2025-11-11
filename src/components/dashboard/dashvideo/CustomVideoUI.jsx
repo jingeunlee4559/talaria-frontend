@@ -3,7 +3,7 @@ import { RoomContext } from '@livekit/components-react';
 import { Room } from 'livekit-client';
 import '@livekit/components-styles';
 import ConferenceUI from './ConferenceUI';
-import axios from '../../../axios';
+import api from '../../../axios';
 import { UserContext } from '../../../contexts/UserContext';
 
 export default function CustomVideoConference({ roomName, identity, username, onLeave, meetingId, meetingTitle }) {
@@ -26,11 +26,11 @@ export default function CustomVideoConference({ roomName, identity, username, on
                     userId: user?.userId || 1,
                     ttlSec: 60,
                 };
-                
+
                 console.log('🎯 LiveKit 토큰 요청:', url, body);
 
-                const { data } = await axios.post(url, body);
-                
+                const { data } = await api.post(url, body);
+
                 console.log('✅ LiveKit 토큰 응답:', {
                     wsUrl: data.wsUrl,
                     room: data.room,
@@ -87,9 +87,7 @@ export default function CustomVideoConference({ roomName, identity, username, on
         return (
             <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-b from-white via-blue-50 to-blue-100 px-4">
                 <div className="w-16 h-16 border-4 border-blue-400 border-t-transparent rounded-full animate-spin shadow-md mb-6"></div>
-                <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-800 text-center tracking-wide animate-pulse">
-                    회의방 연결 중
-                </h1>
+                <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-800 text-center tracking-wide animate-pulse">회의방 연결 중</h1>
                 <p className="mt-2 text-gray-500 text-center text-lg sm:text-xl">잠시만 기다려주세요...</p>
                 <div className="flex space-x-2 mt-6">
                     <span className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></span>

@@ -1,16 +1,16 @@
-import React, { useState, useRef, useEffect } from 'react';
-import axios from '../../../axios';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import api, { ai } from '../../../axios'; // 8080 기본(api) + 8000(ai)
 import { createPortal } from 'react-dom';
 import Swal from 'sweetalert2';
 import { BsFiletypeTxt, BsFileEarmarkTextFill } from 'react-icons/bs';
 import { LanguagesIcon, Sparkles } from 'lucide-react';
 import { DownloadIcon, DocumentIcon, FileTypePdfIcon, FileTypeDocxIcon } from '../../icons/icons';
+import { motion, AnimatePresence } from 'framer-motion';
 
-// 언어 맵
-const languageMap = { ko: '한국어', en: '영어', ja: '일본어', ch: '중국어' };
+// === 언어/아이콘/MIME ===
+const languageMap = { ko: '한국어', en: '영어', ja: '일본어', 'zh-CN': '중국어' };
 const getLanguageName = (code) => languageMap[code] || code;
 
-// 아이콘 맵
 const fileIconMap = {
     pdf: <FileTypePdfIcon />,
     txt: <BsFiletypeTxt />,
@@ -18,7 +18,6 @@ const fileIconMap = {
     hwp: <BsFileEarmarkTextFill />,
 };
 
-// MIME 맵
 const mimeMap = {
     pdf: 'application/pdf',
     doc: 'application/msword',
@@ -53,7 +52,7 @@ const toast = (title, icon = 'success') => {
         icon,
         title,
         showConfirmButton: false,
-        timer: 1400,
+        timer: 1600,
         timerProgressBar: true,
     });
 };
@@ -61,158 +60,127 @@ const toast = (title, icon = 'success') => {
 const DocumentItem = ({ onClick, onSelect, isSelected, userId, isHost = true, onRagChange, ...doc }) => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownBtnRef = useRef(null);
-    const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
     const dropdownRef = useRef(null);
+
+    const [dropdownStyle, setDropdownStyle] = useState({
+        top: 0,
+        left: 0,
+        transformOrigin: 'top left',
+        placement: 'bottom', // 'bottom' | 'top'
+    });
+
     const [patching, setPatching] = useState(false);
     const [downloading, setDownloading] = useState(false);
 
-    // ✅ Optimistic UI: 문맥기반 토글 로컬 상태
-    const [localUseContextRag, setLocalUseContextRag] = useState(doc.use_context_rag ?? null);
+    // 번역 진행 상태 (SSE)
+    const [translatingTo, setTranslatingTo] = useState(null);
+    const [progress, setProgress] = useState(0);
+    const [status, setStatus] = useState('IDLE'); // 'IDLE' | 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED'
+    const sseRef = useRef(null);
 
-    // prop 변경 시 동기화
+    // 문맥기반 토글 로컬 상태 (Optimistic)
+    const [localUseContextRag, setLocalUseContextRag] = useState(doc.use_context_rag ?? null);
     useEffect(() => {
         setLocalUseContextRag(doc.use_context_rag ?? null);
     }, [doc.use_context_rag]);
 
-    const targetLangs = Object.keys(languageMap).filter((lang) => lang !== doc.fromLang);
+    const targetLangs = Object.keys(languageMap).filter((lang) => lang !== doc.fromLang && lang !== doc.original_lang);
     const ext = getExt(doc);
     const fileIcon = fileIconMap[ext] || <DocumentIcon />;
 
-    // 드롭다운 외부 클릭 닫기
+    // 외부 클릭 닫기
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (isDropdownOpen && dropdownRef.current && !dropdownRef.current.contains(event.target) && dropdownBtnRef.current && !dropdownBtnRef.current.contains(event.target)) {
                 setIsDropdownOpen(false);
             }
         };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        document.addEventListener('mousedown', handleClickOutside, true);
+        return () => document.removeEventListener('mousedown', handleClickOutside, true);
     }, [isDropdownOpen]);
 
-    // ✅ 완벽한 다운로드 핸들러
+    // ===== 다운로드 =====
     const handleDownload = async () => {
         if (downloading) return;
-
         setDownloading(true);
-
         try {
             const filename = getDownloadName(doc, ext);
             const downloadUrl = doc.downloadUrl || `/api/users/${userId}/documents/${doc.id}/download`;
 
-            // axios로 blob 다운로드
-            const response = await axios.get(downloadUrl, {
-                responseType: 'blob',
-                timeout: 30000, // 30초 타임아웃
-            });
-
-            // Content-Type 헤더에서 MIME 타입 가져오기
+            const response = await api.get(downloadUrl, { responseType: 'blob', timeout: 30000 });
             const contentType = response.headers['content-type'] || mimeMap[ext] || 'application/octet-stream';
-
-            // Blob 생성
             const blob = new Blob([response.data], { type: contentType });
 
-            // 다운로드 링크 생성 및 클릭
             const link = document.createElement('a');
             const url = URL.createObjectURL(blob);
             link.href = url;
             link.download = filename;
-
-            // DOM에 추가 (일부 브라우저에서 필요)
             document.body.appendChild(link);
             link.click();
-
-            // 정리
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
 
             toast('다운로드가 완료되었습니다');
         } catch (error) {
             console.error('다운로드 실패:', error);
-
-            if (error.response?.status === 404) {
-                toast('파일을 찾을 수 없습니다', 'error');
-            } else if (error.response?.status === 403) {
-                toast('파일 접근 권한이 없습니다', 'error');
-            } else if (error.code === 'ECONNABORTED') {
-                toast('다운로드 시간이 초과되었습니다', 'error');
-            } else {
-                toast('다운로드 중 오류가 발생했습니다', 'error');
-            }
+            if (error.response?.status === 404) toast('파일을 찾을 수 없습니다', 'error');
+            else if (error.response?.status === 403) toast('파일 접근 권한이 없습니다', 'error');
+            else if (error.code === 'ECONNABORTED') toast('다운로드 시간이 초과되었습니다', 'error');
+            else toast('다운로드 중 오류가 발생했습니다', 'error');
         } finally {
             setDownloading(false);
         }
     };
 
-    // ====== 🎯 PATCH API 호출 로직 ======
+    // ===== 문맥기반 토글 =====
     const patchUseContextRag = async (nextBool) => {
         const value = nextBool ? 1 : 0;
         const url = `/api/users/${userId}/documents/${doc.id}/use-context-rag`;
-        return axios.patch(
-            url,
-            { use_context_rag: value },
-            {
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            },
-        );
+        return api.patch(url, { use_context_rag: value }, { headers: { 'Content-Type': 'application/json' } });
     };
 
-    // ✅ 토글 클릭 시 SweetAlert 확인 후 처리
     const handleToggle = async (e) => {
         e.stopPropagation();
-
         if (!isHost) {
             toast('호스트만 변경할 수 있습니다', 'info');
             return;
         }
-
         if (patching) return;
 
         const currentState = localUseContextRag === true;
         const nextState = !currentState;
 
-        // 🎯 SweetAlert 확인 다이얼로그
         const result = await Swal.fire({
             title: nextState ? '문맥기반 번역을 켜시겠습니까?' : '문맥기반 번역을 끄시겠습니까?',
             html: nextState
-                ? `<div style="text-align: left; font-size: 14px; color: #64748b; line-height: 1.6;">
-                    <p style="margin-bottom: 8px;">• 이전 대화 내용을 참고하여 더욱 자연스러운 번역을 제공합니다.</p>
-                    <p style="margin-bottom: 8px;">• 문맥을 고려한 정확한 용어 선택이 가능합니다.</p>
-                    <p style="margin-bottom: 0;">• 번역 처리 시간이 약간 증가할 수 있습니다.</p>
-                   </div>`
-                : `<div style="text-align: left; font-size: 14px; color: #64748b; line-height: 1.6;">
-                    <p style="margin-bottom: 8px;">• 문서 내용만을 기반으로 번역합니다.</p>
-                    <p style="margin-bottom: 8px;">• 빠른 번역 속도를 제공합니다.</p>
-                    <p style="margin-bottom: 0;">• 간단한 문서나 독립적인 내용에 적합합니다.</p>
-                   </div>`,
+                ? `<div style="text-align:left;font-size:14px;color:#64748b;line-height:1.6;">
+             <p>• 이전 대화 내용을 참고하여 더욱 자연스러운 번역</p>
+             <p>• 용어 일관성 향상</p>
+             <p>• 처리 시간 소폭 증가 가능</p>
+           </div>`
+                : `<div style="text-align:left;font-size:14px;color:#64748b;line-height:1.6;">
+             <p>• 문서 내용만 기반으로 번역</p>
+             <p>• 빠른 처리 속도</p>
+             <p>• 독립 문서에 적합</p>
+           </div>`,
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: nextState ? '#4f46e5' : '#64748b',
             cancelButtonColor: '#94a3b8',
             confirmButtonText: nextState ? '네, 켤게요' : '네, 끌게요',
             cancelButtonText: '취소',
-            customClass: {
-                popup: 'swal-wide',
-            },
         });
+        if (!result.isConfirmed) return;
 
-        // 사용자가 취소를 누른 경우
-        if (!result.isConfirmed) {
-            return;
-        }
-
-        // 확인을 누른 경우 → API 호출
-        setLocalUseContextRag(nextState); // Optimistic UI
+        setLocalUseContextRag(nextState);
         setPatching(true);
-
         try {
             await patchUseContextRag(nextState);
             onRagChange?.(doc.id, nextState);
             toast(nextState ? '문맥기반 번역이 켜졌습니다' : '문맥기반 번역이 꺼졌습니다');
         } catch (err) {
             console.error('문맥기반 토글 실패:', err);
-            setLocalUseContextRag(currentState); // 롤백
+            setLocalUseContextRag(currentState); // rollback
             onRagChange?.(doc.id, currentState);
             toast('변경에 실패했습니다', 'error');
         } finally {
@@ -220,29 +188,183 @@ const DocumentItem = ({ onClick, onSelect, isSelected, userId, isHost = true, on
         }
     };
 
-    // 드롭다운 좌표 계산 (position: fixed)
-    const toggleDropdown = (e) => {
-        e.stopPropagation();
-        if (!dropdownBtnRef.current) return;
-        const rect = dropdownBtnRef.current.getBoundingClientRect();
-        setDropdownPos({ top: rect.bottom + 6, left: rect.left, width: rect.width });
-        setIsDropdownOpen((prev) => !prev);
+    // ===== 드롭다운 위치 계산 =====
+    const repositionDropdown = useCallback(() => {
+        if (!dropdownBtnRef.current || !dropdownRef.current) return;
+        const btnRect = dropdownBtnRef.current.getBoundingClientRect();
+        const menuRect = dropdownRef.current.getBoundingClientRect();
+
+        const margin = 8;
+        let top = btnRect.bottom + margin; // 기본: 아래
+        let left = btnRect.left; // 기본: 좌측 정렬
+        let placement = 'bottom';
+        let transformOrigin = 'top left';
+
+        // 우측 넘침 → 오른쪽 정렬
+        const overRight = left + menuRect.width > window.innerWidth - margin;
+        if (overRight) {
+            left = Math.max(margin, btnRect.right - menuRect.width);
+            transformOrigin = 'top right';
+        }
+
+        // 하단 넘침 → 위로 뒤집기
+        const overBottom = top + menuRect.height > window.innerHeight - margin;
+        if (overBottom) {
+            top = btnRect.top - menuRect.height - margin;
+            placement = 'top';
+            transformOrigin = overRight ? 'bottom right' : 'bottom left';
+        }
+
+        // 좌측 넘침 보정
+        if (left < margin) {
+            left = margin;
+            transformOrigin = placement === 'bottom' ? 'top left' : 'bottom left';
+        }
+
+        setDropdownStyle({ top, left, placement, transformOrigin });
+    }, []);
+
+    // 열릴 때 및 스크롤/리사이즈 시 재계산
+    useEffect(() => {
+        if (!isDropdownOpen) return;
+
+        const raf = requestAnimationFrame(() => repositionDropdown());
+        const onScroll = () => repositionDropdown();
+        const onResize = () => repositionDropdown();
+
+        document.addEventListener('scroll', onScroll, { passive: true, capture: true });
+        window.addEventListener('resize', onResize, { passive: true });
+
+        return () => {
+            cancelAnimationFrame(raf);
+            document.removeEventListener('scroll', onScroll, { capture: true });
+            window.removeEventListener('resize', onResize);
+        };
+    }, [isDropdownOpen, repositionDropdown]);
+
+    // ===== SSE 유틸 =====
+    const closeSSE = () => {
+        if (sseRef.current) {
+            sseRef.current.close();
+            sseRef.current = null;
+        }
     };
+
+    useEffect(() => () => closeSSE(), []);
+
+    const openSSE = (rel_path, source, target) => {
+        try {
+            // ai 인스턴스의 baseURL 사용(없으면 환경변수/로컬 기본값)
+            const base = (ai && ai.defaults && ai.defaults.baseURL) || (import.meta && import.meta.env && import.meta.env.VITE_AI_BASE) || 'http://127.0.0.1:8000';
+
+            const url = new URL(`${base.replace(/\/+$/, '')}/jobs/translate-doc/stream`);
+            if (rel_path) url.searchParams.set('rel_path', rel_path);
+            url.searchParams.set('source', source);
+            url.searchParams.set('target', target);
+
+            const es = new EventSource(url.toString());
+            sseRef.current = es;
+
+            setStatus('PENDING');
+            setProgress(0);
+
+            es.onmessage = (ev) => {
+                try {
+                    const msg = JSON.parse(ev.data);
+                    console.log('SSE Message:', msg);
+                    if (msg.type === 'started') {
+                        setStatus('PENDING');
+                        setProgress(0);
+                    } else if (msg.type === 'progress') {
+                        setStatus('PROCESSING');
+                        setProgress(typeof msg.percent === 'number' ? msg.percent : 0);
+                    } else if (msg.type === 'complete') {
+                        setStatus('COMPLETED');
+                        setProgress(100);
+                        toast('번역이 완료되었습니다');
+                        closeSSE();
+                    } else if (msg.type === 'failed') {
+                        const errorMsg = msg.error || '번역이 실패했습니다';
+
+                        console.error('TRANSLATION FAILED:', errorMsg); // 👈 콘솔에 에러 상세 출력
+
+                        setStatus('FAILED');
+                        toast(errorMsg, 'error'); // 👈 토스트에 실제 에러 메시지 표시
+                        closeSSE();
+                    }
+                } catch {
+                    // 파싱 실패 무시
+                }
+            };
+
+            es.onerror = () => {
+                setStatus('FAILED');
+                toast('진행률 스트림 연결이 끊어졌습니다', 'error');
+                closeSSE();
+            };
+        } catch {
+            setStatus('FAILED');
+            toast('진행률 스트림을 열 수 없습니다', 'error');
+        }
+    };
+
+    // ===== 번역 호출 (SSE 1회 호출로 제출+진행률 처리) =====
+    const callTranslate = async (target) => {
+        const rel_path = doc.rel_path || doc.filepath;
+        const source = doc.fromLang || doc.original_lang || 'ko';
+
+        if (!rel_path) {
+            toast('문서 경로(rel_path)를 찾을 수 없습니다', 'error');
+            return;
+        }
+
+        // 기존 스트림 있으면 닫기
+        closeSSE();
+
+        setTranslatingTo(target);
+        setStatus('PENDING');
+        setProgress(0);
+
+        // POST 호출 제거, SSE만 사용
+        openSSE(rel_path, source, target);
+        toast(`${getLanguageName(target)} 번역을 요청했습니다`);
+    };
+
+    // 진행바
+    const ProgressBar = () => (
+        <div className="mt-2">
+            <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold text-slate-600">번역 진행상황 {translatingTo ? `(${getLanguageName(translatingTo)})` : ''}</span>
+                <span className="text-xs text-slate-500">{progress}%</span>
+            </div>
+
+            <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
+                <div className={`h-full transition-all duration-300 ${status === 'FAILED' ? 'bg-red-400' : 'bg-indigo-500'}`} style={{ width: `${progress}%` }} />
+            </div>
+
+            <div className="mt-1.5">
+                {status === 'PENDING' && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-sky-50 text-sky-700">대기 중…</span>}
+                {status === 'PROCESSING' && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700">처리 중…</span>}
+                {status === 'COMPLETED' && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700">완료</span>}
+                {status === 'FAILED' && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700">실패</span>}
+            </div>
+        </div>
+    );
 
     return (
         <div
             className={`
-                flex items-center bg-white p-4 rounded-xl
-                transition-all duration-200 cursor-pointer
-                transform hover:-translate-y-0.5 hover:shadow-xl
-                ${isSelected ? 'shadow-lg border-blue-500 ring-2 ring-blue-500/30' : 'shadow-md border border-slate-200'}
-            `}
+        flex items-center bg-white p-4 rounded-xl
+        transition-all duration-200 cursor-pointer
+        transform hover:-translate-y-0.5 hover:shadow-xl
+        ${isSelected ? 'shadow-lg border-blue-500 ring-2 ring-blue-500/30' : 'shadow-md border border-slate-200'}
+      `}
             onClick={() => onClick?.({ ...doc, itemType: 'document' })}
         >
             {/* 체크박스 */}
             <input
                 type="checkbox"
-                checked={isSelected}
+                checked={!!isSelected}
                 onChange={() => onSelect?.(doc.id)}
                 onClick={(e) => e.stopPropagation()}
                 className="mr-4 w-5 h-5 rounded accent-indigo-600 focus:ring-2 focus:ring-indigo-500/50"
@@ -251,11 +373,11 @@ const DocumentItem = ({ onClick, onSelect, isSelected, userId, isHost = true, on
             {/* 아이콘 */}
             <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-lg w-12 h-12 flex items-center justify-center mr-4">{fileIcon}</div>
 
-            {/* 텍스트 */}
+            {/* 텍스트 + 진행바 */}
             <div className="flex-grow min-w-0">
                 <p className="text-lg font-bold text-slate-900 truncate">{doc.title}</p>
                 <p className="text-sm text-slate-500 mt-0.5 truncate">
-                    {getLanguageName(doc.fromLang)} | {doc.author} | {doc.lastModified} | {doc.size}
+                    {(languageMap[doc.fromLang] || languageMap[doc.original_lang] || doc.fromLang || doc.original_lang) ?? ''} | {doc.author} | {doc.lastModified} | {doc.size}
                 </p>
 
                 {/* 문맥기반 배지 */}
@@ -270,6 +392,9 @@ const DocumentItem = ({ onClick, onSelect, isSelected, userId, isHost = true, on
                     )}
                     {localUseContextRag == null && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700">기본값 사용</span>}
                 </div>
+
+                {/* 진행바 (진행 중/완료/실패 시 표시) */}
+                {(status === 'PENDING' || status === 'PROCESSING' || status === 'COMPLETED' || status === 'FAILED') && <ProgressBar />}
             </div>
 
             {/* 액션 영역 */}
@@ -281,19 +406,19 @@ const DocumentItem = ({ onClick, onSelect, isSelected, userId, isHost = true, on
                     aria-pressed={localUseContextRag === true}
                     disabled={!isHost || patching}
                     className={`
-                        group relative inline-flex items-center h-8 w-16 rounded-full px-1 transition-all
-                        ${localUseContextRag === true ? 'bg-gradient-to-r from-blue-500 to-indigo-600 shadow-md shadow-blue-500/30' : 'bg-slate-300'}
-                        ${!isHost ? 'opacity-50 cursor-not-allowed' : 'hover:brightness-105'}
-                        ${patching ? 'opacity-50 cursor-wait' : ''}
-                    `}
+            group relative inline-flex items-center h-8 w-16 rounded-full px-1 transition-all
+            ${localUseContextRag === true ? 'bg-gradient-to-r from-blue-500 to-indigo-600 shadow-md shadow-blue-500/30' : 'bg-slate-300'}
+            ${!isHost ? 'opacity-50 cursor-not-allowed' : 'hover:brightness-105'}
+            ${patching ? 'opacity-50 cursor-wait' : ''}
+          `}
                     title={isHost ? '문맥기반 번역' : '호스트만 변경 가능'}
                     onMouseDown={(e) => e.stopPropagation()}
                 >
                     <span
                         className={`
-                            inline-flex items-center justify-center h-6 w-6 transform rounded-full bg-white shadow-lg transition-all duration-300
-                            ${localUseContextRag === true ? 'translate-x-8' : 'translate-x-0'}
-                        `}
+              inline-flex items-center justify-center h-6 w-6 transform rounded-full bg-white shadow-lg transition-all duration-300
+              ${localUseContextRag === true ? 'translate-x-8' : 'translate-x-0'}
+            `}
                     >
                         <Sparkles size={14} className={`${localUseContextRag === true ? 'text-indigo-600' : 'text-slate-400'}`} />
                     </span>
@@ -315,38 +440,72 @@ const DocumentItem = ({ onClick, onSelect, isSelected, userId, isHost = true, on
                 </button>
 
                 {/* 번역 드롭다운 트리거 */}
-                <button ref={dropdownBtnRef} className="text-slate-500 hover:text-blue-600 hover:bg-blue-100 p-2 rounded-full transition" onClick={toggleDropdown} title="번역하기">
+                <button
+                    ref={dropdownBtnRef}
+                    className={`text-slate-500 hover:text-blue-600 hover:bg-blue-100 p-2 rounded-full transition ${translatingTo ? 'opacity-50 cursor-wait' : ''}`}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setIsDropdownOpen((prev) => !prev);
+                        requestAnimationFrame(() => repositionDropdown());
+                    }}
+                    title="번역하기"
+                    disabled={!!translatingTo}
+                >
                     <LanguagesIcon className="w-5 h-5" />
                 </button>
             </div>
 
             {/* ===== 드롭다운 (포털) ===== */}
-            {isDropdownOpen &&
-                createPortal(
-                    <div
-                        ref={dropdownRef}
-                        className="fixed z-[9999] w-48 bg-white border border-slate-200 rounded-xl shadow-2xl"
-                        style={{ top: dropdownPos.top, left: dropdownPos.left }}
-                        onMouseDown={(e) => e.stopPropagation()}
-                    >
-                        {targetLangs.map((lang, idx) => (
-                            <button
-                                key={lang}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setIsDropdownOpen(false);
-                                    // TODO: 번역 API 호출
-                                }}
-                                className={`w-full text-left px-4 py-2 hover:bg-slate-100 text-sm text-slate-800 ${idx === 0 ? 'rounded-t-xl' : ''} ${
-                                    idx === targetLangs.length - 1 ? 'rounded-b-xl' : ''
-                                }`}
-                            >
-                                {getLanguageName(lang)}로 번역
-                            </button>
-                        ))}
-                    </div>,
-                    document.body,
-                )}
+            {createPortal(
+                <AnimatePresence>
+                    {isDropdownOpen && (
+                        <motion.div
+                            ref={dropdownRef}
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            transition={{ type: 'spring', stiffness: 320, damping: 22 }}
+                            className="fixed z-[9999] w-56 rounded-xl border border-slate-200 bg-white shadow-2xl backdrop-blur-xl"
+                            style={{
+                                top: dropdownStyle.top,
+                                left: dropdownStyle.left,
+                                transformOrigin: dropdownStyle.transformOrigin,
+                            }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                        >
+                            {/* 화살표 */}
+                            <div
+                                className={`absolute w-3 h-3 bg-white border-l border-t border-slate-200 rotate-45`}
+                                style={dropdownStyle.placement === 'bottom' ? { top: -6, left: '16px' } : { bottom: -6, left: '16px' }}
+                            />
+
+                            <div className="py-1.5">
+                                {targetLangs.map((lang, idx) => (
+                                    <button
+                                        key={lang}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setIsDropdownOpen(false);
+                                            setTranslatingTo(lang);
+                                            setStatus('PENDING');
+                                            setProgress(0);
+                                            // SSE 1회 호출
+                                            callTranslate(lang);
+                                        }}
+                                        className={`w-full text-left px-4 py-2.5 text-sm text-slate-800 hover:bg-indigo-50 hover:text-indigo-700 transition-colors
+                      ${idx === 0 ? 'rounded-t-xl' : ''} ${idx === targetLangs.length - 1 ? 'rounded-b-xl' : ''}`}
+                                        disabled={!!translatingTo}
+                                    >
+                                        {translatingTo === lang ? '요청 중… ' : ''}
+                                        {getLanguageName(lang)}로 번역
+                                    </button>
+                                ))}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>,
+                document.body,
+            )}
         </div>
     );
 };

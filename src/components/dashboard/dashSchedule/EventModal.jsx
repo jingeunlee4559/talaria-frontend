@@ -4,7 +4,7 @@ import { X, Trash2, Clock, MapPin, AlignLeft, Video, Briefcase, Star, Plus, Chev
 import { format } from 'date-fns';
 import { IoIosAirplane } from 'react-icons/io';
 import { UserContext } from '../../../contexts/UserContext';
-import axios from '../../../axios';
+import api from '../../../axios';
 import Swal from 'sweetalert2';
 
 const eventTypes = [
@@ -126,8 +126,8 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
 
         try {
             const response = formData.id
-                ? await axios.put(`/api/users/${user.userId}/calendar/events/${formData.id}`, eventPayload)
-                : await axios.post(`/api/users/${user.userId}/calendar/events`, eventPayload);
+                ? await api.put(`/api/users/${user.userId}/calendar/events/${formData.id}`, eventPayload)
+                : await api.post(`/api/users/${user.userId}/calendar/events`, eventPayload);
 
             const savedEvent = response.data;
             console.log('서버로부터 받은 저장된 이벤트:', savedEvent);

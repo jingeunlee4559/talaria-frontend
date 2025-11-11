@@ -2,7 +2,7 @@ import React, { useContext } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, Radio, UsersRound, Video, XCircle } from 'lucide-react';
 import Swal from 'sweetalert2';
-import axios from '../../../axios'; // ✅ axios 경로 확인 필요
+import api from '../../../axios'; // ✅ axios 경로 확인 필요
 import { UserContext } from '../../../contexts/UserContext';
 
 const InProgressMeetingCard = ({ meeting, onJoinMeeting }) => {
@@ -26,7 +26,7 @@ const InProgressMeetingCard = ({ meeting, onJoinMeeting }) => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const res = await axios.patch(`/api/users/${user.userId}/meetings/${meeting.id}/end`);
+                    const res = await api.patch(`/api/users/${user.userId}/meetings/${meeting.id}/end`);
                     if (res.status === 200) {
                         Swal.fire({
                             icon: 'success',

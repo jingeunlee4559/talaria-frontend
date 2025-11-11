@@ -10,7 +10,7 @@ import UpcomingEvents from '../../components/dashboard/dashSchedule/UpcomingEven
 import EventModal from '../../components/dashboard/dashSchedule/EventModal';
 import { Plus } from 'lucide-react';
 import MoreEventsPopover from '../../components/dashboard/dashSchedule/MoreEventsPopover';
-import axios from '../../axios';
+import api from '../../axios';
 import { UserContext } from '../../contexts/UserContext';
 
 const eventTypes = {
@@ -54,7 +54,7 @@ const DashSchedule = () => {
             if (!user) return;
 
             try {
-                const response = await axios.get(`/api/users/${user.userId}/calendar/events`);
+                const response = await api.get(`/api/users/${user.userId}/calendar/events`);
 
                 const fetchedEvents = response.data.items.map((e) => {
                     const typeInKorean = typeMap[e.type] || '기타 일정';
@@ -140,7 +140,7 @@ const DashSchedule = () => {
         if (!user) return;
 
         try {
-            await axios.delete(`/api/users/${user.userId}/calendar/events/${eventId}`);
+            await api.delete(`/api/users/${user.userId}/calendar/events/${eventId}`);
             setEvents(events.filter((e) => e.id !== eventId));
             handleCloseModal();
         } catch (error) {

@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState, useContext } from 're
 import { FilePlus2, FileText, UploadCloud, X, HelpCircle, Loader2, Trash2, FileCheck2, Sparkles } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import Swal from 'sweetalert2';
-import axios from '../../../axios';
+import api from '../../../axios';
 import { UserContext } from '../../../contexts/UserContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -132,7 +132,7 @@ const FileUploadModal = ({ isOpen, onClose, onUploadSuccess, meetingId }) => {
 
             setUploadProgress(10);
 
-            const response = await axios.post(`/api/users/${user.userId}/documents`, formData, {
+            const response = await api.post(`/api/users/${user.userId}/documents`, formData, {
                 onUploadProgress: (evt) => {
                     if (!evt.total) return;
                     const percent = Math.round((evt.loaded * 100) / evt.total);

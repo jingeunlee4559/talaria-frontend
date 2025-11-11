@@ -12,12 +12,12 @@ import DocumentListModal from '../../components/dashboard/dashvideo/DocumentList
 import Pagination from '../../components/Pagination';
 
 import { UserContext } from '../../contexts/UserContext';
-import axios from '../../axios';
+import api from '../../axios';
 
 const MEETINGS_PER_PAGE = 6;
 const FILTERS = ['전체', '진행중', '예정', '종료'];
 
-const DashVideoPage = () => {
+const DashVideo = () => {
     const { user } = useContext(UserContext);
 
     const [meetings, setMeetings] = useState([]);
@@ -52,7 +52,7 @@ const DashVideoPage = () => {
         if (!user?.userId) return;
         (async () => {
             try {
-                const res = await axios.get(`/api/users/${user.userId}/meetings/all`);
+                const res = await api.get(`/api/users/${user.userId}/meetings/all`);
                 if (!Array.isArray(res.data?.items)) {
                     setMeetings([]);
                     return;
@@ -64,7 +64,7 @@ const DashVideoPage = () => {
                         let participantCount = 1;
                         try {
                             const countUrl = m.status === 'ONGOING' ? `/livekit/meetings/${m.meetings_id}/participants/count` : `/api/meetings/${m.meetings_id}/participants/count`; // ENDED, SCHEDULED은 이쪽만
-                            const cnt = await axios.get(countUrl);
+                            const cnt = await api.get(countUrl);
                             participantCount = cnt.data.totalCount ?? cnt.data.count ?? 1;
                         } catch {
                             // ignore
@@ -115,7 +115,7 @@ const DashVideoPage = () => {
         if (!user?.userId) return;
         (async () => {
             try {
-                const res = await axios.get(`/api/users/${user.userId}/documents`);
+                const res = await api.get(`/api/users/${user.userId}/documents`);
                 const items = Array.isArray(res.data?.items) ? res.data.items : [];
                 setMyDocuments(
                     items.map((d) => ({
@@ -181,7 +181,7 @@ const DashVideoPage = () => {
             setSelectedMeetingId(meeting.id);
             setSelectedMeetingStatus(meeting.rawStatus || 'SCHEDULED');
 
-            const res = await axios.get(`/api/users/${user.userId}/meetings/${meeting.id}/documents`);
+            const res = await api.get(`/api/users/${user.userId}/meetings/${meeting.id}/documents`);
             const items = Array.isArray(res.data?.items) ? res.data.items : [];
             setRoomDocuments(
                 items.map((d) => ({
@@ -211,7 +211,7 @@ const DashVideoPage = () => {
         if (!selectedMeetingId) return;
         try {
             const body = { docIds: selectedIds };
-            const res = await axios.post(`/api/users/${user.userId}/meetings/${selectedMeetingId}/documents`, body);
+            const res = await api.post(`/api/users/${user.userId}/meetings/${selectedMeetingId}/documents`, body);
 
             const duplicated = res.data?.duplicated || [];
             const notOwned = res.data?.notOwned || [];
@@ -224,7 +224,7 @@ const DashVideoPage = () => {
             }
 
             // 첨부 후 회의 문서 새로고침
-            const refreshed = await axios.get(`/api/users/${user.userId}/meetings/${selectedMeetingId}/documents`);
+            const refreshed = await api.get(`/api/users/${user.userId}/meetings/${selectedMeetingId}/documents`);
             const items = Array.isArray(refreshed.data?.items) ? refreshed.data.items : [];
             setRoomDocuments(
                 items.map((d) => ({
@@ -268,7 +268,7 @@ const DashVideoPage = () => {
             if (currentMeeting && currentMeeting.status === '예정') {
                 const updateData = { title: meetingTitle, status: 'ONGOING', inviteCode, scheduledAt: new Date().toISOString() };
                 if (currentMeeting.user_role === 'HOST') {
-                    await axios.patch(`/api/users/${user.userId}/meetings/${meetingId}`, updateData);
+                    await api.patch(`/api/users/${user.userId}/meetings/${meetingId}`, updateData);
                 }
             }
             const url = new URL('/meeting', window.location.origin);
@@ -340,21 +340,21 @@ const DashVideoPage = () => {
 
             let meetingId;
             if (isEditing) {
-                await axios.patch(`/api/users/${user.userId}/meetings/${meetingData.id}`, requestData);
+                await api.patch(`/api/users/${user.userId}/meetings/${meetingData.id}`, requestData);
                 meetingId = meetingData.id;
             } else {
-                const response = await axios.post(`/api/users/${user.userId}/meetings`, requestData);
+                const response = await api.post(`/api/users/${user.userId}/meetings`, requestData);
                 meetingId = response.data.meetings_id || response.data.id;
             }
 
             // 목록 새로고침
-            const res = await axios.get(`/api/users/${user.userId}/meetings/all`);
+            const res = await api.get(`/api/users/${user.userId}/meetings/all`);
             if (Array.isArray(res.data?.items)) {
                 const formatted = await Promise.all(
                     res.data.items.map(async (m) => {
                         let participantCount = 1;
                         try {
-                            const countRes = await axios.get(`/api/meetings/${m.meetings_id}/participants/count`);
+                            const countRes = await api.get(`/api/meetings/${m.meetings_id}/participants/count`);
                             participantCount = countRes.data.totalCount ?? countRes.data.count ?? 1;
                         } catch {
                             if (m.meetings_id === meetingId && meetingData.invited_ids) {
@@ -423,10 +423,10 @@ const DashVideoPage = () => {
 
         try {
             // 단건 DELETE API를 병렬 호출
-            await Promise.all(selectedIds.map((docId) => axios.delete(`/api/users/${user.userId}/meetings/${selectedMeetingId}/documents/${docId}`)));
+            await Promise.all(selectedIds.map((docId) => api.delete(`/api/users/${user.userId}/meetings/${selectedMeetingId}/documents/${docId}`)));
 
             // 최신 회의 문서 목록 재조회
-            const refreshed = await axios.get(`/api/users/${user.userId}/meetings/${selectedMeetingId}/documents`);
+            const refreshed = await api.get(`/api/users/${user.userId}/meetings/${selectedMeetingId}/documents`);
             const items = Array.isArray(refreshed.data.items) ? refreshed.data.items : [];
             setRoomDocuments(
                 items.map((d) => ({
@@ -593,4 +593,4 @@ const DashVideoPage = () => {
     );
 };
 
-export default DashVideoPage;
+export default DashVideo;

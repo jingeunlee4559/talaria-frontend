@@ -4,7 +4,7 @@ import NotificationDropdown from './NotificationDropdown';
 import ProfileDropdown from './ProfileDropdown';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
-import axios from '../../../axios';
+import api from '../../../axios';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { UserContext } from '../../../contexts/UserContext';
@@ -56,7 +56,7 @@ const DashBoardHeader = ({ setIsMobileSidebarOpen }) => {
             setIsLoading(true);
             try {
                 const userId = user.userId;
-                const response = await axios.get(`/api/users/${userId}/alerts`);
+                const response = await api.get(`/api/users/${userId}/alerts`);
 
                 const processedNotifications = response.data.items.map((noti) => ({
                     id: noti.id,
@@ -95,7 +95,7 @@ const DashBoardHeader = ({ setIsMobileSidebarOpen }) => {
             setNotifications(sortNotifications(updatedNotifications));
 
             try {
-                await axios.patch(`/api/users/${user.userId}/alerts/${notificationId}/seen`);
+                await api.patch(`/api/users/${user.userId}/alerts/${notificationId}/seen`);
             } catch (error) {
                 console.error('알림 읽음 처리 중 오류 발생:', error);
                 setNotifications(originalNotifications); // 실패 시 원래 상태로 복구
@@ -113,7 +113,7 @@ const DashBoardHeader = ({ setIsMobileSidebarOpen }) => {
         setNotifications(sortNotifications(updatedNotifications));
 
         try {
-            await axios.patch(`/api/users/${user.userId}/alerts/seen`);
+            await api.patch(`/api/users/${user.userId}/alerts/seen`);
         } catch (error) {
             console.error('전체 알림 읽음 처리 중 오류 발생:', error);
             setNotifications(originalNotifications);
@@ -152,7 +152,7 @@ const DashBoardHeader = ({ setIsMobileSidebarOpen }) => {
 
         if (result.isConfirmed) {
             try {
-                await axios.post('/api/users/logout', {}, { withCredentials: true });
+                await api.post('/api/users/logout', {}, { withCredentials: true });
                 localStorage.removeItem('loggedInUser');
                 sessionStorage.removeItem('loggedInUser');
                 setUser(null);

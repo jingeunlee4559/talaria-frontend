@@ -5,7 +5,7 @@ import { mockMinutes } from './mockDocuments';
 import { SubTabButton, TabButton } from '../../components/dashboard/dashDoc/TabButtons';
 import { DocumentList, MeetingMinutesList } from '../../components/dashboard/dashDoc/DocList';
 import DocHeader from '../../components/dashboard/dashDoc/DocHeader';
-import axios from '../../axios';
+import api from '../../axios';
 import { UserContext } from '../../contexts/UserContext';
 import Swal from 'sweetalert2';
 
@@ -36,7 +36,7 @@ const DashDocuments = () => {
         const fetchDocuments = async () => {
             setLoading(true);
             try {
-                const res = await axios.get(`/api/users/${user.userId}/documents`);
+                const res = await api.get(`/api/users/${user.userId}/documents`);
                 const items = Array.isArray(res.data?.items) ? res.data.items : [];
 
                 const formatted = items.map((doc) => {
@@ -159,7 +159,7 @@ const DashDocuments = () => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    await Promise.all(selectedDocs.map((id) => axios.delete(`/api/users/${user.userId}/documents/${id}`)));
+                    await Promise.all(selectedDocs.map((id) => api.delete(`/api/users/${user.userId}/documents/${id}`)));
                     setDocuments((prev) => prev.filter((doc) => !selectedDocs.includes(doc.id)));
                     setSelectedDocs([]);
                     Swal.fire('삭제 완료!', '선택한 문서가 성공적으로 삭제되었습니다.', 'success');

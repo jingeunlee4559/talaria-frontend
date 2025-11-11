@@ -6,7 +6,7 @@ import MeetingListItem from '../../components/dashboard/dashmain/MeetingListItem
 import TodoList from '../../components/dashboard/dashmain/TodoList';
 import { useContext, useEffect, useState } from 'react';
 import { UserContext } from '../../contexts/UserContext';
-import axios from '../../axios';
+import api from '../../axios';
 import NewMeetingModal from '../../components/dashboard/dashvideo/NewMeetingModal';
 import Swal from 'sweetalert2';
 
@@ -83,7 +83,7 @@ const DashHome = () => {
 
                 console.log('상태 업데이트 요청:', updateData);
 
-                await axios.patch(`/api/users/${user.userId}/meetings/${meetingId}`, updateData);
+                await api.patch(`/api/users/${user.userId}/meetings/${meetingId}`, updateData);
 
                 console.log('회의 상태가 ONGOING으로 변경되었습니다.');
 
@@ -142,7 +142,7 @@ const DashHome = () => {
         if (!user?.userId) return;
 
         try {
-            const res = await axios.get(`/api/users/${user.userId}/meetings/all`);
+            const res = await api.get(`/api/users/${user.userId}/meetings/all`);
             console.log('회의 데이터:', res.data.items);
 
             if (Array.isArray(res.data.items)) {
@@ -255,7 +255,7 @@ const DashHome = () => {
             // 3. API 호출
             // ❗️ user.userId가 이 함수 스코프에 있는지 확인하세요.
             // (없다면 user 객체를 DashHome의 state에서 가져와야 합니다.)
-            const response = await axios.post(`/api/users/${user.userId}/meetings`, requestData);
+            const response = await api.post(`/api/users/${user.userId}/meetings`, requestData);
 
             console.log('회의 생성 응답:', response.data);
 

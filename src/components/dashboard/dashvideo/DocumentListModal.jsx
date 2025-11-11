@@ -1,8 +1,19 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, FileText, Check, Download, UploadCloud, Search, Info, Trash2, Layers, CircleDot } from 'lucide-react';
+import { X, FileText, Check, Download, UploadCloud, Search, Info, Trash2, Layers, CircleDot, Lock as LockIcon } from 'lucide-react';
 
-// 1. 탭 버튼 컴포넌트
+/**
+ * props:
+ * - isOpen, onClose
+ * - myDocuments: [{id,title,size,lastModified,...}]
+ * - roomDocuments: [{id,title,...}]
+ * - onAddToMeeting(selectedIds)
+ * - onDownloadSelected(selectedDocs)
+ * - onDetachSelected(selectedIds)           // ⬅️ 추가: 해제 콜백
+ * - onDeleteDocument
+ * - initialMode: 'myDocs' | 'roomDocs'
+ * - meetingStatus: 'SCHEDULED' | 'ONGOING' | 'ENDED'
+ */
 const TabButton = ({ isActive, onClick, children }) => (
     <button
         onClick={onClick}
@@ -20,9 +31,8 @@ const DocumentItem = ({ doc, isSelected, onSelect, onDelete }) => (
         <div
             onClick={onSelect}
             className={`flex items-center gap-4 p-3.5 rounded-xl border-2 cursor-pointer transition-all duration-300 group relative
-                ${isSelected ? 'bg-white border-indigo-500 shadow-lg shadow-indigo-500/20' : 'bg-white border-transparent hover:border-indigo-400 hover:bg-white'}`}
+        ${isSelected ? 'bg-white border-indigo-500 shadow-lg shadow-indigo-500/20' : 'bg-white border-transparent hover:border-indigo-400 hover:bg-white'}`}
         >
-            {/* 선택 아이콘 */}
             <motion.div
                 className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all duration-300"
                 animate={{
@@ -39,21 +49,19 @@ const DocumentItem = ({ doc, isSelected, onSelect, onDelete }) => (
                 </AnimatePresence>
             </motion.div>
 
-            {/* 문서 정보 (수정된 부분) */}
             <div className="flex-grow overflow-hidden">
                 <p className="font-bold text-zinc-800 truncate">{doc.title ?? doc.name}</p>
                 <p className="text-sm text-zinc-500">
-                    {doc.lastModified ?? doc.date} · {doc.size || 'N/A'}
+                    {(doc.lastModified ?? doc.date) || ''} {doc.size ? `· ${doc.size}` : ''}
                 </p>
             </div>
 
             <FileText className="w-5 h-5 text-zinc-400 flex-shrink-0 group-hover:text-indigo-500 transition-colors" />
 
-            {/* 삭제 버튼 */}
             {onDelete && (
                 <button
                     onClick={(e) => {
-                        e.stopPropagation(); // 부모의 onSelect 이벤트 방지
+                        e.stopPropagation();
                         onDelete(doc.id);
                     }}
                     className="absolute top-2 right-2 p-1 rounded-full text-zinc-400 bg-transparent opacity-0 group-hover:opacity-100 hover:bg-red-100 hover:text-red-600 transition-all duration-200"
@@ -66,7 +74,6 @@ const DocumentItem = ({ doc, isSelected, onSelect, onDelete }) => (
     </motion.li>
 );
 
-// 3. 비어있을 때 표시할 컴포넌트
 const EmptyState = ({ mode, isSearching }) => {
     const messages = {
         myDocs: {
@@ -97,14 +104,25 @@ const EmptyState = ({ mode, isSearching }) => {
     );
 };
 
-// --- 메인 모달 컴포넌트 (디자인 개선) ---
-const DocumentListModal = ({ isOpen, onClose, myDocuments = [], roomDocuments = [], onAddToMeeting, onDownloadSelected, onDeleteDocument, initialMode = 'myDocs' }) => {
+const DocumentListModal = ({
+    isOpen,
+    onClose,
+    myDocuments = [],
+    roomDocuments = [],
+    onAddToMeeting,
+    onDownloadSelected,
+    onDetachSelected, // ⬅️ 추가
+    onDeleteDocument,
+    initialMode = 'myDocs',
+    meetingStatus = 'SCHEDULED',
+}) => {
     const [mode, setMode] = useState(initialMode);
     const [selectedIds, setSelectedIds] = useState(new Set());
     const [searchTerm, setSearchTerm] = useState('');
 
     const documents = useMemo(() => (mode === 'myDocs' ? myDocuments : roomDocuments), [mode, myDocuments, roomDocuments]);
-    const filteredDocuments = useMemo(() => documents.filter((doc) => (doc.title ?? doc.name).toLowerCase().includes(searchTerm.toLowerCase())), [documents, searchTerm]);
+
+    const filteredDocuments = useMemo(() => documents.filter((doc) => ((doc.title ?? doc.name) || '').toLowerCase().includes(searchTerm.toLowerCase())), [documents, searchTerm]);
 
     useEffect(() => {
         if (isOpen) {
@@ -116,30 +134,41 @@ const DocumentListModal = ({ isOpen, onClose, myDocuments = [], roomDocuments = 
 
     const handleSelect = (id) => {
         setSelectedIds((prev) => {
-            const newSet = new Set(prev);
-            newSet.has(id) ? newSet.delete(id) : newSet.add(id);
-            return newSet;
+            const s = new Set(prev);
+            s.has(id) ? s.delete(id) : s.add(id);
+            return s;
         });
     };
 
-    // ✨ 개선점: 전체 선택/해제 기능
     const handleSelectAll = () => {
-        if (selectedIds.size === filteredDocuments.length) {
-            setSelectedIds(new Set());
-        } else {
-            setSelectedIds(new Set(filteredDocuments.map((doc) => doc.id)));
-        }
+        if (selectedIds.size === filteredDocuments.length) setSelectedIds(new Set());
+        else setSelectedIds(new Set(filteredDocuments.map((d) => d.id)));
     };
+
+    const isEnded = meetingStatus === 'ENDED';
+    const isAllSelected = filteredDocuments.length > 0 && selectedIds.size === filteredDocuments.length;
 
     const handleConfirm = () => {
         const selectedArray = Array.from(selectedIds);
+
         if (mode === 'myDocs') {
+            if (isEnded) return;
             onAddToMeeting?.(selectedArray);
-        } else {
-            const selectedObjects = roomDocuments.filter((doc) => selectedArray.includes(doc.id));
-            onDownloadSelected?.(selectedObjects);
+            onClose();
+            return;
         }
+
+        // roomDocs: 기본 버튼은 다운로드
+        const selectedObjects = roomDocuments.filter((d) => selectedArray.includes(d.id));
+        onDownloadSelected?.(selectedObjects);
         onClose();
+    };
+
+    const handleDetach = async () => {
+        const ids = Array.from(selectedIds);
+        if (ids.length === 0) return;
+        await onDetachSelected?.(ids); // 부모에서 API 호출 & 새로고침
+        setSelectedIds(new Set());
     };
 
     const MODES_CONFIG = {
@@ -147,7 +176,6 @@ const DocumentListModal = ({ isOpen, onClose, myDocuments = [], roomDocuments = 
         roomDocs: { title: '회의 문서 다운로드', icon: <Download size={20} />, actionText: '다운로드' },
     };
     const { title, icon, actionText } = MODES_CONFIG[mode];
-    const isAllSelected = filteredDocuments.length > 0 && selectedIds.size === filteredDocuments.length;
 
     return (
         <AnimatePresence>
@@ -157,7 +185,7 @@ const DocumentListModal = ({ isOpen, onClose, myDocuments = [], roomDocuments = 
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     onClick={onClose}
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" // ✨ 개선점: 배경 블러 강화
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
                 >
                     <motion.div
                         initial={{ y: 50, opacity: 0, scale: 0.95 }}
@@ -165,7 +193,7 @@ const DocumentListModal = ({ isOpen, onClose, myDocuments = [], roomDocuments = 
                         exit={{ y: 50, opacity: 0, scale: 0.95 }}
                         transition={{ type: 'spring', damping: 30, stiffness: 250 }}
                         onClick={(e) => e.stopPropagation()}
-                        className="bg-slate-50 w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col overflow-hidden" // ✨ 개선점: 배경색 변경
+                        className="bg-slate-50 w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col overflow-hidden"
                         style={{ height: '90vh', maxHeight: '720px' }}
                     >
                         {/* 헤더 */}
@@ -194,7 +222,6 @@ const DocumentListModal = ({ isOpen, onClose, myDocuments = [], roomDocuments = 
 
                         {/* 본문 */}
                         <main className="px-6 pt-4 flex-grow flex flex-col overflow-hidden">
-                            {/* ✨ 개선점: 검색 바 & 전체 선택 버튼 */}
                             <div className="flex items-center gap-4 mb-4 flex-shrink-0">
                                 <div className="relative flex-grow">
                                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={20} />
@@ -211,6 +238,7 @@ const DocumentListModal = ({ isOpen, onClose, myDocuments = [], roomDocuments = 
                                         </button>
                                     )}
                                 </div>
+
                                 {filteredDocuments.length > 0 && (
                                     <button
                                         onClick={handleSelectAll}
@@ -221,6 +249,14 @@ const DocumentListModal = ({ isOpen, onClose, myDocuments = [], roomDocuments = 
                                     </button>
                                 )}
                             </div>
+
+                            {/* ENDED 정보 배지 */}
+                            {mode === 'myDocs' && meetingStatus === 'ENDED' && (
+                                <div className="mb-3 flex items-center gap-2 text-red-600 text-sm font-semibold">
+                                    <LockIcon size={16} />
+                                    종료된 회의에는 문서를 추가할 수 없습니다.
+                                </div>
+                            )}
 
                             <div className="flex-grow overflow-y-auto -mr-3 pr-3 scrollbar-thin scrollbar-thumb-zinc-300 scrollbar-track-transparent scrollbar-thumb-rounded-full">
                                 <AnimatePresence mode="wait">
@@ -245,7 +281,7 @@ const DocumentListModal = ({ isOpen, onClose, myDocuments = [], roomDocuments = 
 
                         {/* 푸터 */}
                         <footer className="p-6 border-t border-zinc-200 bg-white/70 backdrop-blur-xl flex-shrink-0">
-                            <div className="flex justify-between items-center">
+                            <div className="flex flex-wrap gap-3 w-full items-center justify-between">
                                 {selectedIds.size > 0 ? (
                                     <div className="flex items-center gap-4">
                                         <p className="text-sm font-medium text-zinc-600">
@@ -259,17 +295,38 @@ const DocumentListModal = ({ isOpen, onClose, myDocuments = [], roomDocuments = 
                                 ) : (
                                     <div className="text-sm text-zinc-500">항목을 선택해주세요.</div>
                                 )}
-                                <motion.button
-                                    onClick={handleConfirm}
-                                    disabled={selectedIds.size === 0}
-                                    className="flex items-center gap-2.5 px-6 py-3 rounded-xl text-base font-bold text-white bg-indigo-600 shadow-lg shadow-indigo-500/40 transition-all duration-300 disabled:bg-zinc-300 disabled:shadow-none disabled:cursor-not-allowed"
-                                    whileHover={{ scale: selectedIds.size > 0 ? 1.05 : 1, y: selectedIds.size > 0 ? -3 : 0 }}
-                                    whileTap={{ scale: selectedIds.size > 0 ? 0.98 : 1 }}
-                                    transition={{ type: 'spring', stiffness: 400, damping: 15 }}
-                                >
-                                    {icon}
-                                    <span>{actionText}</span>
-                                </motion.button>
+
+                                <div className="flex items-center gap-2 ml-auto">
+                                    {/* roomDocs에서만 '해제' 제공 */}
+                                    {mode === 'roomDocs' && (
+                                        <motion.button
+                                            type="button"
+                                            onClick={handleDetach}
+                                            disabled={selectedIds.size === 0}
+                                            className="flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-bold text-red-600 border-2 border-red-300 bg-white hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            whileHover={{ scale: selectedIds.size > 0 ? 1.03 : 1 }}
+                                            whileTap={{ scale: selectedIds.size > 0 ? 0.98 : 1 }}
+                                        >
+                                            <Trash2 size={18} />
+                                            해제
+                                        </motion.button>
+                                    )}
+
+                                    <motion.button
+                                        onClick={handleConfirm}
+                                        disabled={selectedIds.size === 0 || (mode === 'myDocs' && meetingStatus === 'ENDED')}
+                                        className="flex items-center gap-2.5 px-6 py-3 rounded-xl text-base font-bold text-white bg-indigo-600 shadow-lg shadow-indigo-500/40 transition-all duration-300 disabled:bg-zinc-300 disabled:shadow-none disabled:cursor-not-allowed"
+                                        whileHover={{
+                                            scale: selectedIds.size > 0 && !(mode === 'myDocs' && meetingStatus === 'ENDED') ? 1.05 : 1,
+                                            y: selectedIds.size > 0 && !(mode === 'myDocs' && meetingStatus === 'ENDED') ? -3 : 0,
+                                        }}
+                                        whileTap={{ scale: selectedIds.size > 0 && !(mode === 'myDocs' && meetingStatus === 'ENDED') ? 0.98 : 1 }}
+                                        transition={{ type: 'spring', stiffness: 400, damping: 15 }}
+                                    >
+                                        {icon}
+                                        <span>{actionText}</span>
+                                    </motion.button>
+                                </div>
                             </div>
                         </footer>
                     </motion.div>

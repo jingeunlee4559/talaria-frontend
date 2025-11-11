@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import api, { ai } from '../../../axios'; // 8080 기본(api) + 8000(ai)
+import api from '../../../axios'; // NOTE: 여기선 기본 API만 쓰면 됨. ai는 Provider에서 사용
 import { createPortal } from 'react-dom';
 import Swal from 'sweetalert2';
 import { BsFiletypeTxt, BsFileEarmarkTextFill } from 'react-icons/bs';
 import { LanguagesIcon, Sparkles } from 'lucide-react';
 import { DownloadIcon, DocumentIcon, FileTypePdfIcon, FileTypeDocxIcon } from '../../icons/icons';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslator } from '../../../translation/TranslationProvider';
 
 // === 언어/아이콘/MIME ===
 const languageMap = { ko: '한국어', en: '영어', ja: '일본어', 'zh-CN': '중국어' };
@@ -66,17 +67,20 @@ const DocumentItem = ({ onClick, onSelect, isSelected, userId, isHost = true, on
         top: 0,
         left: 0,
         transformOrigin: 'top left',
-        placement: 'bottom', // 'bottom' | 'top'
+        placement: 'bottom',
     });
 
     const [patching, setPatching] = useState(false);
     const [downloading, setDownloading] = useState(false);
 
-    // 번역 진행 상태 (SSE)
-    const [translatingTo, setTranslatingTo] = useState(null);
-    const [progress, setProgress] = useState(0);
-    const [status, setStatus] = useState('IDLE'); // 'IDLE' | 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED'
-    const sseRef = useRef(null);
+    // === 전역 번역 훅 ===
+    const { startJob, getJobByDocId } = useTranslator();
+    const job = getJobByDocId(doc.id); // 없을 수 있음
+
+    const translatingTo = job?.target || null;
+    const progress = job?.percent ?? 0;
+    const status = job?.status || 'IDLE';
+    const translating = status === 'PENDING' || status === 'PROCESSING';
 
     // 문맥기반 토글 로컬 상태 (Optimistic)
     const [localUseContextRag, setLocalUseContextRag] = useState(doc.use_context_rag ?? null);
@@ -195,19 +199,17 @@ const DocumentItem = ({ onClick, onSelect, isSelected, userId, isHost = true, on
         const menuRect = dropdownRef.current.getBoundingClientRect();
 
         const margin = 8;
-        let top = btnRect.bottom + margin; // 기본: 아래
-        let left = btnRect.left; // 기본: 좌측 정렬
+        let top = btnRect.bottom + margin;
+        let left = btnRect.left;
         let placement = 'bottom';
         let transformOrigin = 'top left';
 
-        // 우측 넘침 → 오른쪽 정렬
         const overRight = left + menuRect.width > window.innerWidth - margin;
         if (overRight) {
             left = Math.max(margin, btnRect.right - menuRect.width);
             transformOrigin = 'top right';
         }
 
-        // 하단 넘침 → 위로 뒤집기
         const overBottom = top + menuRect.height > window.innerHeight - margin;
         if (overBottom) {
             top = btnRect.top - menuRect.height - margin;
@@ -215,7 +217,6 @@ const DocumentItem = ({ onClick, onSelect, isSelected, userId, isHost = true, on
             transformOrigin = overRight ? 'bottom right' : 'bottom left';
         }
 
-        // 좌측 넘침 보정
         if (left < margin) {
             left = margin;
             transformOrigin = placement === 'bottom' ? 'top left' : 'bottom left';
@@ -224,10 +225,8 @@ const DocumentItem = ({ onClick, onSelect, isSelected, userId, isHost = true, on
         setDropdownStyle({ top, left, placement, transformOrigin });
     }, []);
 
-    // 열릴 때 및 스크롤/리사이즈 시 재계산
     useEffect(() => {
         if (!isDropdownOpen) return;
-
         const raf = requestAnimationFrame(() => repositionDropdown());
         const onScroll = () => repositionDropdown();
         const onResize = () => repositionDropdown();
@@ -242,73 +241,7 @@ const DocumentItem = ({ onClick, onSelect, isSelected, userId, isHost = true, on
         };
     }, [isDropdownOpen, repositionDropdown]);
 
-    // ===== SSE 유틸 =====
-    const closeSSE = () => {
-        if (sseRef.current) {
-            sseRef.current.close();
-            sseRef.current = null;
-        }
-    };
-
-    useEffect(() => () => closeSSE(), []);
-
-    const openSSE = (rel_path, source, target) => {
-        try {
-            // ai 인스턴스의 baseURL 사용(없으면 환경변수/로컬 기본값)
-            const base = (ai && ai.defaults && ai.defaults.baseURL) || (import.meta && import.meta.env && import.meta.env.VITE_AI_BASE) || 'http://127.0.0.1:8000';
-
-            const url = new URL(`${base.replace(/\/+$/, '')}/jobs/translate-doc/stream`);
-            if (rel_path) url.searchParams.set('rel_path', rel_path);
-            url.searchParams.set('source', source);
-            url.searchParams.set('target', target);
-
-            const es = new EventSource(url.toString());
-            sseRef.current = es;
-
-            setStatus('PENDING');
-            setProgress(0);
-
-            es.onmessage = (ev) => {
-                try {
-                    const msg = JSON.parse(ev.data);
-                    console.log('SSE Message:', msg);
-                    if (msg.type === 'started') {
-                        setStatus('PENDING');
-                        setProgress(0);
-                    } else if (msg.type === 'progress') {
-                        setStatus('PROCESSING');
-                        setProgress(typeof msg.percent === 'number' ? msg.percent : 0);
-                    } else if (msg.type === 'complete') {
-                        setStatus('COMPLETED');
-                        setProgress(100);
-                        toast('번역이 완료되었습니다');
-                        closeSSE();
-                    } else if (msg.type === 'failed') {
-                        const errorMsg = msg.error || '번역이 실패했습니다';
-
-                        console.error('TRANSLATION FAILED:', errorMsg); // 👈 콘솔에 에러 상세 출력
-
-                        setStatus('FAILED');
-                        toast(errorMsg, 'error'); // 👈 토스트에 실제 에러 메시지 표시
-                        closeSSE();
-                    }
-                } catch {
-                    // 파싱 실패 무시
-                }
-            };
-
-            es.onerror = () => {
-                setStatus('FAILED');
-                toast('진행률 스트림 연결이 끊어졌습니다', 'error');
-                closeSSE();
-            };
-        } catch {
-            setStatus('FAILED');
-            toast('진행률 스트림을 열 수 없습니다', 'error');
-        }
-    };
-
-    // ===== 번역 호출 (SSE 1회 호출로 제출+진행률 처리) =====
+    // ===== 번역 호출: 전역 훅 사용 =====
     const callTranslate = async (target) => {
         const rel_path = doc.rel_path || doc.filepath;
         const source = doc.fromLang || doc.original_lang || 'ko';
@@ -317,31 +250,20 @@ const DocumentItem = ({ onClick, onSelect, isSelected, userId, isHost = true, on
             toast('문서 경로(rel_path)를 찾을 수 없습니다', 'error');
             return;
         }
-
-        // 기존 스트림 있으면 닫기
-        closeSSE();
-
-        setTranslatingTo(target);
-        setStatus('PENDING');
-        setProgress(0);
-
-        // POST 호출 제거, SSE만 사용
-        openSSE(rel_path, source, target);
+        startJob({ relPath: rel_path, source, target, docId: doc.id, title: doc.title });
         toast(`${getLanguageName(target)} 번역을 요청했습니다`);
     };
 
-    // 진행바
+    // 진행바(UI는 동일)
     const ProgressBar = () => (
         <div className="mt-2">
             <div className="flex items-center justify-between mb-1">
                 <span className="text-xs font-semibold text-slate-600">번역 진행상황 {translatingTo ? `(${getLanguageName(translatingTo)})` : ''}</span>
                 <span className="text-xs text-slate-500">{progress}%</span>
             </div>
-
             <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
                 <div className={`h-full transition-all duration-300 ${status === 'FAILED' ? 'bg-red-400' : 'bg-indigo-500'}`} style={{ width: `${progress}%` }} />
             </div>
-
             <div className="mt-1.5">
                 {status === 'PENDING' && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-sky-50 text-sky-700">대기 중…</span>}
                 {status === 'PROCESSING' && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700">처리 중…</span>}
@@ -393,7 +315,7 @@ const DocumentItem = ({ onClick, onSelect, isSelected, userId, isHost = true, on
                     {localUseContextRag == null && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700">기본값 사용</span>}
                 </div>
 
-                {/* 진행바 (진행 중/완료/실패 시 표시) */}
+                {/* 진행바 (전역 상태 기준) */}
                 {(status === 'PENDING' || status === 'PROCESSING' || status === 'COMPLETED' || status === 'FAILED') && <ProgressBar />}
             </div>
 
@@ -442,14 +364,14 @@ const DocumentItem = ({ onClick, onSelect, isSelected, userId, isHost = true, on
                 {/* 번역 드롭다운 트리거 */}
                 <button
                     ref={dropdownBtnRef}
-                    className={`text-slate-500 hover:text-blue-600 hover:bg-blue-100 p-2 rounded-full transition ${translatingTo ? 'opacity-50 cursor-wait' : ''}`}
+                    className={`text-slate-500 hover:text-blue-600 hover:bg-blue-100 p-2 rounded-full transition ${translating ? 'opacity-50 cursor-wait' : ''}`}
                     onClick={(e) => {
                         e.stopPropagation();
                         setIsDropdownOpen((prev) => !prev);
                         requestAnimationFrame(() => repositionDropdown());
                     }}
                     title="번역하기"
-                    disabled={!!translatingTo}
+                    disabled={translating}
                 >
                     <LanguagesIcon className="w-5 h-5" />
                 </button>
@@ -486,15 +408,12 @@ const DocumentItem = ({ onClick, onSelect, isSelected, userId, isHost = true, on
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             setIsDropdownOpen(false);
-                                            setTranslatingTo(lang);
-                                            setStatus('PENDING');
-                                            setProgress(0);
-                                            // SSE 1회 호출
+                                            // 전역 번역 시작
                                             callTranslate(lang);
                                         }}
                                         className={`w-full text-left px-4 py-2.5 text-sm text-slate-800 hover:bg-indigo-50 hover:text-indigo-700 transition-colors
                       ${idx === 0 ? 'rounded-t-xl' : ''} ${idx === targetLangs.length - 1 ? 'rounded-b-xl' : ''}`}
-                                        disabled={!!translatingTo}
+                                        disabled={translating}
                                     >
                                         {translatingTo === lang ? '요청 중… ' : ''}
                                         {getLanguageName(lang)}로 번역

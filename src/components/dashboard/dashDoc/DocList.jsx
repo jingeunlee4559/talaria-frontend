@@ -1,3 +1,4 @@
+import React from 'react';
 import DocumentItem from './DocumentItem';
 import MeetingMinutesItem from './MeetingMinutesItem';
 

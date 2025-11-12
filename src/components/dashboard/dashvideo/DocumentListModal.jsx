@@ -1,19 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, FileText, Check, Download, UploadCloud, Search, Info, Trash2, Layers, CircleDot, Lock as LockIcon } from 'lucide-react';
+import { X, FileText, Check, Download, UploadCloud, Search, Info, Trash2, Layers, CircleDot, Lock as LockIcon, Languages } from 'lucide-react';
 
-/**
- * props:
- * - isOpen, onClose
- * - myDocuments: [{id,title,size,lastModified,...}]
- * - roomDocuments: [{id,title,...}]
- * - onAddToMeeting(selectedIds)
- * - onDownloadSelected(selectedDocs)
- * - onDetachSelected(selectedIds)           // ⬅️ 추가: 해제 콜백
- * - onDeleteDocument
- * - initialMode: 'myDocs' | 'roomDocs'
- * - meetingStatus: 'SCHEDULED' | 'ONGOING' | 'ENDED'
- */
 const TabButton = ({ isActive, onClick, children }) => (
     <button
         onClick={onClick}
@@ -26,53 +14,81 @@ const TabButton = ({ isActive, onClick, children }) => (
     </button>
 );
 
-const DocumentItem = ({ doc, isSelected, onSelect, onDelete }) => (
-    <motion.li variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} transition={{ type: 'spring', stiffness: 260, damping: 25 }} layout="position">
-        <div
-            onClick={onSelect}
-            className={`flex items-center gap-4 p-3.5 rounded-xl border-2 cursor-pointer transition-all duration-300 group relative
-        ${isSelected ? 'bg-white border-indigo-500 shadow-lg shadow-indigo-500/20' : 'bg-white border-transparent hover:border-indigo-400 hover:bg-white'}`}
-        >
-            <motion.div
-                className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all duration-300"
-                animate={{
-                    backgroundColor: isSelected ? '#4f46e5' : '#ffffff',
-                    borderColor: isSelected ? '#4f46e5' : '#d1d5db',
-                }}
-            >
-                <AnimatePresence>
-                    {isSelected && (
-                        <motion.div initial={{ scale: 0, rotate: -90 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0, rotate: 90 }} transition={{ type: 'spring', stiffness: 500, damping: 20 }}>
-                            <Check className="w-4 h-4 text-white" />
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </motion.div>
-
-            <div className="flex-grow overflow-hidden">
-                <p className="font-bold text-zinc-800 truncate">{doc.title ?? doc.name}</p>
-                <p className="text-sm text-zinc-500">
-                    {(doc.lastModified ?? doc.date) || ''} {doc.size ? `· ${doc.size}` : ''}
-                </p>
-            </div>
-
-            <FileText className="w-5 h-5 text-zinc-400 flex-shrink-0 group-hover:text-indigo-500 transition-colors" />
-
-            {onDelete && (
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(doc.id);
-                    }}
-                    className="absolute top-2 right-2 p-1 rounded-full text-zinc-400 bg-transparent opacity-0 group-hover:opacity-100 hover:bg-red-100 hover:text-red-600 transition-all duration-200"
-                    aria-label="Delete document"
-                >
-                    <Trash2 size={16} />
-                </button>
-            )}
-        </div>
-    </motion.li>
+const SubTab = ({ isActive, onClick, children }) => (
+    <button
+        onClick={onClick}
+        className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
+            isActive ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-zinc-600 border-zinc-200 hover:border-indigo-400'
+        }`}
+    >
+        {children}
+    </button>
 );
+
+const DocumentItem = ({ doc, isSelected, onSelect, onDelete }) => {
+    const isTranslation = doc.__kind === 'translations' || doc.doc_type === 'TRANSLATION' || !!doc.trans_doc_id;
+
+    return (
+        <motion.li variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} transition={{ type: 'spring', stiffness: 260, damping: 25 }} layout="position">
+            <div
+                onClick={onSelect}
+                className={`flex items-center gap-4 p-3.5 rounded-xl border-2 cursor-pointer transition-all duration-300 group relative
+          ${isSelected ? 'bg-white border-indigo-500 shadow-lg shadow-indigo-500/20' : 'bg-white border-transparent hover:border-indigo-400 hover:bg-white'}`}
+            >
+                <motion.div
+                    className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all duration-300"
+                    animate={{
+                        backgroundColor: isSelected ? '#4f46e5' : '#ffffff',
+                        borderColor: isSelected ? '#4f46e5' : '#d1d5db',
+                    }}
+                >
+                    <AnimatePresence>
+                        {isSelected && (
+                            <motion.div
+                                initial={{ scale: 0, rotate: -90 }}
+                                animate={{ scale: 1, rotate: 0 }}
+                                exit={{ scale: 0, rotate: 90 }}
+                                transition={{ type: 'spring', stiffness: 500, damping: 20 }}
+                            >
+                                <Check className="w-4 h-4 text-white" />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </motion.div>
+
+                <div className="flex-grow overflow-hidden">
+                    <p className="font-bold text-zinc-800 truncate">
+                        {doc.title ?? doc.name}
+                        {isTranslation && (
+                            <span className="ml-2 inline-flex items-center gap-1 text-[11px] font-semibold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 align-middle">
+                                <Languages size={12} /> {`${(doc.fromLang || doc.source_lang || '').toUpperCase()}→${(doc.toLang || doc.target_language || '').toUpperCase()}`}
+                            </span>
+                        )}
+                    </p>
+                    <p className="text-sm text-zinc-500 flex items-center gap-2">
+                        {(doc.lastModified ?? doc.date) || ''}
+                        {doc.size ? <span>· {doc.size}</span> : null}
+                    </p>
+                </div>
+
+                <FileText className="w-5 h-5 text-zinc-400 flex-shrink-0 group-hover:text-indigo-500 transition-colors" />
+
+                {onDelete && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onDelete(doc.id);
+                        }}
+                        className="absolute top-2 right-2 p-1 rounded-full text-zinc-400 bg-transparent opacity-0 group-hover:opacity-100 hover:bg-red-100 hover:text-red-600 transition-all duration-200"
+                        aria-label="Delete document"
+                    >
+                        <Trash2 size={16} />
+                    </button>
+                )}
+            </div>
+        </motion.li>
+    );
+};
 
 const EmptyState = ({ mode, isSearching }) => {
     const messages = {
@@ -107,72 +123,112 @@ const EmptyState = ({ mode, isSearching }) => {
 const DocumentListModal = ({
     isOpen,
     onClose,
-    myDocuments = [],
+    myDocumentsByType = { originals: [], translations: [] },
     roomDocuments = [],
     onAddToMeeting,
     onDownloadSelected,
-    onDetachSelected, // ⬅️ 추가
+    onDetachSelected,
     onDeleteDocument,
     initialMode = 'myDocs',
     meetingStatus = 'SCHEDULED',
 }) => {
     const [mode, setMode] = useState(initialMode);
+    const [subTab, setSubTab] = useState('originals'); // 'originals' | 'translations' | 'all'
     const [selectedIds, setSelectedIds] = useState(new Set());
     const [searchTerm, setSearchTerm] = useState('');
 
-    const documents = useMemo(() => (mode === 'myDocs' ? myDocuments : roomDocuments), [mode, myDocuments, roomDocuments]);
+    const originals = myDocumentsByType.originals || [];
+    const translations = myDocumentsByType.translations || [];
+
+    const allMerged = useMemo(() => {
+        const o = originals.map((d) => ({ ...d, _uid: `o:${d.id}`, __kind: 'originals' }));
+        const t = translations.map((d) => ({ ...d, _uid: `t:${d.id}`, __kind: 'translations' }));
+        return [...o, ...t];
+    }, [originals, translations]);
+
+    const documents = useMemo(() => {
+        if (mode === 'myDocs') {
+            if (subTab === 'originals') return originals.map((d) => ({ ...d, _uid: `o:${d.id}`, __kind: 'originals' }));
+            if (subTab === 'translations') return translations.map((d) => ({ ...d, _uid: `t:${d.id}`, __kind: 'translations' }));
+            return allMerged;
+        }
+        // 회의 문서는 서버 doc_type 대신 trans_doc_id 존재로 번역 구분, doc_type은 UI 표준화된 값 사용
+        return (roomDocuments || []).map((d) => {
+            const isTrans = d.doc_type === 'TRANSLATION' || !!d.trans_doc_id;
+            return { ...d, doc_type: isTrans ? 'TRANSLATION' : 'ORIGINAL', _uid: `r:${d.id}`, __kind: 'room' };
+        });
+    }, [mode, subTab, originals, translations, allMerged, roomDocuments]);
 
     const filteredDocuments = useMemo(() => documents.filter((doc) => ((doc.title ?? doc.name) || '').toLowerCase().includes(searchTerm.toLowerCase())), [documents, searchTerm]);
 
     useEffect(() => {
         if (isOpen) {
             setMode(initialMode);
+            setSubTab('originals');
             setSelectedIds(new Set());
             setSearchTerm('');
         }
     }, [isOpen, initialMode]);
 
-    const handleSelect = (id) => {
+    const handleSelect = (_uid) => {
         setSelectedIds((prev) => {
             const s = new Set(prev);
-            s.has(id) ? s.delete(id) : s.add(id);
+            s.has(_uid) ? s.delete(_uid) : s.add(_uid);
             return s;
         });
     };
 
     const handleSelectAll = () => {
         if (selectedIds.size === filteredDocuments.length) setSelectedIds(new Set());
-        else setSelectedIds(new Set(filteredDocuments.map((d) => d.id)));
+        else setSelectedIds(new Set(filteredDocuments.map((d) => d._uid)));
     };
 
     const isEnded = meetingStatus === 'ENDED';
     const isAllSelected = filteredDocuments.length > 0 && selectedIds.size === filteredDocuments.length;
 
     const handleConfirm = () => {
-        const selectedArray = Array.from(selectedIds);
-
         if (mode === 'myDocs') {
             if (isEnded) return;
-            onAddToMeeting?.(selectedArray);
+
+            const selectedDocs = filteredDocuments.filter((d) => selectedIds.has(d._uid));
+
+            if (subTab === 'originals') {
+                const ids = selectedDocs.map((d) => d.id);
+                onAddToMeeting?.(ids, 'originals');
+                onClose();
+                return;
+            }
+            if (subTab === 'translations') {
+                const ids = selectedDocs.map((d) => d.id); // trans_doc_id
+                onAddToMeeting?.(ids, 'translations');
+                onClose();
+                return;
+            }
+
+            // all
+            const originalIds = selectedDocs.filter((d) => d.__kind === 'originals').map((d) => d.id);
+            const transIds = selectedDocs.filter((d) => d.__kind === 'translations').map((d) => d.id);
+            if (originalIds.length) onAddToMeeting?.(originalIds, 'originals');
+            if (transIds.length) onAddToMeeting?.(transIds, 'translations');
             onClose();
             return;
         }
 
-        // roomDocs: 기본 버튼은 다운로드
-        const selectedObjects = roomDocuments.filter((d) => selectedArray.includes(d.id));
-        onDownloadSelected?.(selectedObjects);
+        // roomDocs: 다운로드
+        const selectedRoomDocs = filteredDocuments.filter((d) => selectedIds.has(d._uid));
+        onDownloadSelected?.(selectedRoomDocs);
         onClose();
     };
 
     const handleDetach = async () => {
-        const ids = Array.from(selectedIds);
+        const ids = filteredDocuments.filter((d) => selectedIds.has(d._uid)).map((d) => d.id);
         if (ids.length === 0) return;
-        await onDetachSelected?.(ids); // 부모에서 API 호출 & 새로고침
+        await onDetachSelected?.(ids);
         setSelectedIds(new Set());
     };
 
     const MODES_CONFIG = {
-        myDocs: { title: '내 문서 추가', icon: <UploadCloud size={20} />, actionText: '회의에 추가' },
+        myDocs: { title: '내 문서 선택', icon: <UploadCloud size={20} />, actionText: '회의에 추가' },
         roomDocs: { title: '회의 문서 다운로드', icon: <Download size={20} />, actionText: '다운로드' },
     };
     const { title, icon, actionText } = MODES_CONFIG[mode];
@@ -201,7 +257,7 @@ const DocumentListModal = ({
                             <div className="flex justify-between items-start">
                                 <div>
                                     <h2 className="text-2xl font-bold text-zinc-800">{title}</h2>
-                                    <p className="text-sm text-zinc-500 mt-1">공유할 문서를 선택하거나 회의에 공유된 문서를 확인하세요.</p>
+                                    <p className="text-sm text-zinc-500 mt-1">원문/번역을 구분하거나, 한 화면에서 함께 확인하세요.</p>
                                 </div>
                                 <button
                                     onClick={onClose}
@@ -210,6 +266,8 @@ const DocumentListModal = ({
                                     <X size={20} />
                                 </button>
                             </div>
+
+                            {/* 상단 탭 */}
                             <div className="mt-6 flex gap-6 border-b border-zinc-200">
                                 <TabButton isActive={mode === 'myDocs'} onClick={() => setMode('myDocs')}>
                                     내 문서
@@ -218,6 +276,21 @@ const DocumentListModal = ({
                                     회의 문서
                                 </TabButton>
                             </div>
+
+                            {/* 내 문서 하위 탭 */}
+                            {mode === 'myDocs' && (
+                                <div className="mt-4 flex items-center gap-2">
+                                    <SubTab isActive={subTab === 'originals'} onClick={() => setSubTab('originals')}>
+                                        원문
+                                    </SubTab>
+                                    <SubTab isActive={subTab === 'translations'} onClick={() => setSubTab('translations')}>
+                                        번역
+                                    </SubTab>
+                                    <SubTab isActive={subTab === 'all'} onClick={() => setSubTab('all')}>
+                                        전체
+                                    </SubTab>
+                                </div>
+                            )}
                         </header>
 
                         {/* 본문 */}
@@ -250,7 +323,7 @@ const DocumentListModal = ({
                                 )}
                             </div>
 
-                            {/* ENDED 정보 배지 */}
+                            {/* ENDED 정보 */}
                             {mode === 'myDocs' && meetingStatus === 'ENDED' && (
                                 <div className="mb-3 flex items-center gap-2 text-red-600 text-sm font-semibold">
                                     <LockIcon size={16} />
@@ -261,19 +334,25 @@ const DocumentListModal = ({
                             <div className="flex-grow overflow-y-auto -mr-3 pr-3 scrollbar-thin scrollbar-thumb-zinc-300 scrollbar-track-transparent scrollbar-thumb-rounded-full">
                                 <AnimatePresence mode="wait">
                                     {filteredDocuments.length > 0 ? (
-                                        <motion.ul key={mode} initial="hidden" animate="visible" variants={{ visible: { transition: { staggerChildren: 0.05 } } }} className="space-y-3 pb-2">
+                                        <motion.ul
+                                            key={`${mode}-${subTab}`}
+                                            initial="hidden"
+                                            animate="visible"
+                                            variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
+                                            className="space-y-3 pb-2"
+                                        >
                                             {filteredDocuments.map((doc) => (
                                                 <DocumentItem
-                                                    key={doc.id}
+                                                    key={doc._uid}
                                                     doc={doc}
-                                                    isSelected={selectedIds.has(doc.id)}
-                                                    onSelect={() => handleSelect(doc.id)}
+                                                    isSelected={selectedIds.has(doc._uid)}
+                                                    onSelect={() => handleSelect(doc._uid)}
                                                     onDelete={mode === 'myDocs' ? onDeleteDocument : undefined}
                                                 />
                                             ))}
                                         </motion.ul>
                                     ) : (
-                                        <EmptyState key={`empty-${mode}`} mode={mode} isSearching={searchTerm.length > 0} />
+                                        <EmptyState key={`empty-${mode}-${subTab}`} mode={mode} isSearching={searchTerm.length > 0} />
                                     )}
                                 </AnimatePresence>
                             </div>
@@ -297,7 +376,6 @@ const DocumentListModal = ({
                                 )}
 
                                 <div className="flex items-center gap-2 ml-auto">
-                                    {/* roomDocs에서만 '해제' 제공 */}
                                     {mode === 'roomDocs' && (
                                         <motion.button
                                             type="button"

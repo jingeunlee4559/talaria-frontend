@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import api from '../../../axios'; // NOTE: 여기선 기본 API만 쓰면 됨. ai는 Provider에서 사용
+import api from '../../../axios';
 import { createPortal } from 'react-dom';
 import Swal from 'sweetalert2';
 import { BsFiletypeTxt, BsFileEarmarkTextFill } from 'react-icons/bs';
@@ -8,7 +8,6 @@ import { DownloadIcon, DocumentIcon, FileTypePdfIcon, FileTypeDocxIcon } from '.
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslator } from '../../../contexts/TranslationProvider';
 
-// === 언어/아이콘/MIME ===
 const languageMap = { ko: '한국어', en: '영어', ja: '일본어', 'zh-CN': '중국어' };
 const getLanguageName = (code) => languageMap[code] || code;
 
@@ -35,15 +34,16 @@ const mimeMap = {
 };
 
 const getExt = (doc) => {
-    const fromPath = doc?.filepath?.split('.').pop()?.toLowerCase();
-    if (fromPath) return fromPath;
-    const fromTitle = doc?.title?.split('.').pop()?.toLowerCase();
-    return fromTitle || 'txt';
+    // 번역 문서는 translated_rel_path, 원문은 filepath 기준
+    const path = doc?.translated_rel_path || doc?.rel_path || doc?.filepath || doc?.title;
+    const ext = path?.split('.').pop()?.toLowerCase();
+    return ext || 'txt';
 };
 
 const getDownloadName = (doc, ext) => {
-    const base = doc?.title?.replace(/\.[^/.]+$/, '') || 'document';
-    return `${base}.${ext}`;
+    // 번역 문서도 제목 꼬리표 없이 원제만 사용
+    const baseTitle = doc?.type === 'translated' ? doc?.title?.replace(/\s*·\s*[a-zA-Z-]+ 번역$/g, '') || 'document' : doc?.title?.replace(/\.[^/.]+$/, '') || 'document';
+    return `${baseTitle}.${ext}`;
 };
 
 const toast = (title, icon = 'success') => {
@@ -73,29 +73,33 @@ const DocumentItem = ({ onClick, onSelect, isSelected, userId, isHost = true, on
     const [patching, setPatching] = useState(false);
     const [downloading, setDownloading] = useState(false);
 
-    // === 전역 번역 훅 ===
+    // 번역 전역 훅(원문만 사용)
     const { startJob, getJobByDocId } = useTranslator();
-    const job = getJobByDocId(doc.id); // 없을 수 있음
-
+    const job = getJobByDocId(doc.id);
     const translatingTo = job?.target || null;
     const progress = job?.percent ?? 0;
     const status = job?.status || 'IDLE';
     const translating = status === 'PENDING' || status === 'PROCESSING';
 
-    // 문맥기반 토글 로컬 상태 (Optimistic)
+    // 문맥기반(원문만)
     const [localUseContextRag, setLocalUseContextRag] = useState(doc.use_context_rag ?? null);
     useEffect(() => {
         setLocalUseContextRag(doc.use_context_rag ?? null);
     }, [doc.use_context_rag]);
 
-    const targetLangs = Object.keys(languageMap).filter((lang) => lang !== doc.fromLang && lang !== doc.original_lang);
+    const isOriginal = doc.type === 'original';
+    const isTranslated = doc.type === 'translated';
+
+    const origLangLabel = getLanguageName(doc.fromLang || '');
+    const targetLangLabel = getLanguageName(doc.target_language || '');
+
     const ext = getExt(doc);
     const fileIcon = fileIconMap[ext] || <DocumentIcon />;
 
-    // 외부 클릭 닫기
+    // 드롭다운 외부 클릭 닫기
     useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (isDropdownOpen && dropdownRef.current && !dropdownRef.current.contains(event.target) && dropdownBtnRef.current && !dropdownBtnRef.current.contains(event.target)) {
+        const handleClickOutside = (e) => {
+            if (isDropdownOpen && dropdownRef.current && !dropdownRef.current.contains(e.target) && dropdownBtnRef.current && !dropdownBtnRef.current.contains(e.target)) {
                 setIsDropdownOpen(false);
             }
         };
@@ -103,13 +107,13 @@ const DocumentItem = ({ onClick, onSelect, isSelected, userId, isHost = true, on
         return () => document.removeEventListener('mousedown', handleClickOutside, true);
     }, [isDropdownOpen]);
 
-    // ===== 다운로드 =====
+    // 다운로드
     const handleDownload = async () => {
         if (downloading) return;
         setDownloading(true);
         try {
             const filename = getDownloadName(doc, ext);
-            const downloadUrl = doc.downloadUrl || `/api/users/${userId}/documents/${doc.id}/download`;
+            const downloadUrl = doc.downloadUrl; // 각 타입별로 이미 세팅됨
 
             const response = await api.get(downloadUrl, { responseType: 'blob', timeout: 30000 });
             const contentType = response.headers['content-type'] || mimeMap[ext] || 'application/octet-stream';
@@ -136,15 +140,16 @@ const DocumentItem = ({ onClick, onSelect, isSelected, userId, isHost = true, on
         }
     };
 
-    // ===== 문맥기반 토글 =====
+    // 문맥기반 토글(원문만)
     const patchUseContextRag = async (nextBool) => {
         const value = nextBool ? 1 : 0;
-        const url = `/api/users/${userId}/documents/${doc.id}/use-context-rag`;
+        const url = `/api/users/${userId}/documents/${doc.doc_id}/use-context-rag`;
         return api.patch(url, { use_context_rag: value }, { headers: { 'Content-Type': 'application/json' } });
     };
 
     const handleToggle = async (e) => {
         e.stopPropagation();
+        if (!isOriginal) return; // 번역 문서는 토글 불가(렌더 자체를 숨겼지만 방어로직 유지)
         if (!isHost) {
             toast('호스트만 변경할 수 있습니다', 'info');
             return;
@@ -158,12 +163,12 @@ const DocumentItem = ({ onClick, onSelect, isSelected, userId, isHost = true, on
             title: nextState ? '문맥기반 번역을 켜시겠습니까?' : '문맥기반 번역을 끄시겠습니까?',
             html: nextState
                 ? `<div style="text-align:left;font-size:14px;color:#64748b;line-height:1.6;">
-             <p>• 이전 대화 내용을 참고하여 더욱 자연스러운 번역</p>
+             <p>• 이전 대화/문맥 참고로 자연스러운 번역</p>
              <p>• 용어 일관성 향상</p>
              <p>• 처리 시간 소폭 증가 가능</p>
            </div>`
                 : `<div style="text-align:left;font-size:14px;color:#64748b;line-height:1.6;">
-             <p>• 문서 내용만 기반으로 번역</p>
+             <p>• 문서 자체 내용만 기반</p>
              <p>• 빠른 처리 속도</p>
              <p>• 독립 문서에 적합</p>
            </div>`,
@@ -192,7 +197,7 @@ const DocumentItem = ({ onClick, onSelect, isSelected, userId, isHost = true, on
         }
     };
 
-    // ===== 드롭다운 위치 계산 =====
+    // 드롭다운 위치
     const repositionDropdown = useCallback(() => {
         if (!dropdownBtnRef.current || !dropdownRef.current) return;
         const btnRect = dropdownBtnRef.current.getBoundingClientRect();
@@ -241,20 +246,23 @@ const DocumentItem = ({ onClick, onSelect, isSelected, userId, isHost = true, on
         };
     }, [isDropdownOpen, repositionDropdown]);
 
-    // ===== 번역 호출: 전역 훅 사용 =====
+    // 재번역(원문만 허용)
+    const targetLangs = Object.keys(languageMap).filter((lang) => isOriginal && lang !== doc.fromLang);
+
     const callTranslate = async (target) => {
+        if (!isOriginal) return;
         const rel_path = doc.rel_path || doc.filepath;
-        const source = doc.fromLang || doc.original_lang || 'ko';
+        const source = doc.fromLang || 'ko';
 
         if (!rel_path) {
             toast('문서 경로(rel_path)를 찾을 수 없습니다', 'error');
             return;
         }
+        // 전역 번역 잡 시작
         startJob({ relPath: rel_path, source, target, docId: doc.id, title: doc.title });
         toast(`${getLanguageName(target)} 번역을 요청했습니다`);
     };
 
-    // 진행바(UI는 동일)
     const ProgressBar = () => (
         <div className="mt-2">
             <div className="flex items-center justify-between mb-1">
@@ -299,56 +307,69 @@ const DocumentItem = ({ onClick, onSelect, isSelected, userId, isHost = true, on
             <div className="flex-grow min-w-0">
                 <p className="text-lg font-bold text-slate-900 truncate">{doc.title}</p>
                 <p className="text-sm text-slate-500 mt-0.5 truncate">
-                    {(languageMap[doc.fromLang] || languageMap[doc.original_lang] || doc.fromLang || doc.original_lang) ?? ''} | {doc.author} | {doc.lastModified} | {doc.size}
+                    {isOriginal ? (
+                        <>
+                            {origLangLabel} | {doc.author || ''} | {doc.lastModified} | {doc.size}
+                        </>
+                    ) : (
+                        <>
+                            {origLangLabel} &rarr; {targetLangLabel} | {doc.author || ''} | {doc.lastModified} | {doc.size}
+                        </>
+                    )}
                 </p>
 
-                {/* 문맥기반 배지 */}
+                {/* 문맥기반 배지(원문만) / 번역문서 배지 */}
                 <div className="mt-1">
-                    {localUseContextRag === true && (
+                    {isOriginal && localUseContextRag === true && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700">
                             <Sparkles size={12} /> 문맥기반: 켜짐
                         </span>
                     )}
-                    {localUseContextRag === false && (
+                    {isOriginal && localUseContextRag === false && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600">문맥기반: 꺼짐</span>
                     )}
-                    {localUseContextRag == null && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700">기본값 사용</span>}
+                    {isOriginal && localUseContextRag == null && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700">기본값 사용</span>
+                    )}
+                    {isTranslated && <span className="ml-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700">번역 문서</span>}
                 </div>
 
-                {/* 진행바 (전역 상태 기준) */}
-                {(status === 'PENDING' || status === 'PROCESSING' || status === 'COMPLETED' || status === 'FAILED') && <ProgressBar />}
+                {/* 진행바(원문 번역 작업만 표시) */}
+                {isOriginal && (status === 'PENDING' || status === 'PROCESSING' || status === 'COMPLETED' || status === 'FAILED') && <ProgressBar />}
             </div>
 
             {/* 액션 영역 */}
             <div className="relative ml-auto flex items-center space-x-1 pl-2">
-                {/* 문맥기반 토글 */}
-                <button
-                    type="button"
-                    onClick={handleToggle}
-                    aria-pressed={localUseContextRag === true}
-                    disabled={!isHost || patching}
-                    className={`
-            group relative inline-flex items-center h-8 w-16 rounded-full px-1 transition-all
-            ${localUseContextRag === true ? 'bg-gradient-to-r from-blue-500 to-indigo-600 shadow-md shadow-blue-500/30' : 'bg-slate-300'}
-            ${!isHost ? 'opacity-50 cursor-not-allowed' : 'hover:brightness-105'}
-            ${patching ? 'opacity-50 cursor-wait' : ''}
-          `}
-                    title={isHost ? '문맥기반 번역' : '호스트만 변경 가능'}
-                    onMouseDown={(e) => e.stopPropagation()}
-                >
-                    <span
+                {/* ✅ 문맥기반 토글: 원문만 렌더 */}
+                {isOriginal && (
+                    <button
+                        type="button"
+                        onClick={handleToggle}
+                        aria-pressed={localUseContextRag === true}
+                        disabled={!isHost || patching}
                         className={`
-              inline-flex items-center justify-center h-6 w-6 transform rounded-full bg-white shadow-lg transition-all duration-300
-              ${localUseContextRag === true ? 'translate-x-8' : 'translate-x-0'}
+              group relative inline-flex items-center h-8 w-16 rounded-full px-1 transition-all
+              ${localUseContextRag === true ? 'bg-gradient-to-r from-blue-500 to-indigo-600 shadow-md shadow-blue-500/30' : 'bg-slate-300'}
+              ${!isHost ? 'opacity-50 cursor-not-allowed' : 'hover:brightness-105'}
+              ${patching ? 'opacity-50 cursor-wait' : ''}
             `}
+                        title="문맥기반 번역"
+                        onMouseDown={(e) => e.stopPropagation()}
                     >
-                        <Sparkles size={14} className={`${localUseContextRag === true ? 'text-indigo-600' : 'text-slate-400'}`} />
-                    </span>
-                    <span className="absolute left-2 text-[10px] font-bold text-white/90 select-none">OFF</span>
-                    <span className="absolute right-2 text-[10px] font-bold text-white/90 select-none">ON</span>
-                </button>
+                        <span
+                            className={`
+                inline-flex items-center justify-center h-6 w-6 transform rounded-full bg-white shadow-lg transition-all duration-300
+                ${localUseContextRag === true ? 'translate-x-8' : 'translate-x-0'}
+              `}
+                        >
+                            <Sparkles size={14} className={`${localUseContextRag === true ? 'text-indigo-600' : 'text-slate-400'}`} />
+                        </span>
+                        <span className="absolute left-2 text-[10px] font-bold text-white/90 select-none">OFF</span>
+                        <span className="absolute right-2 text-[10px] font-bold text-white/90 select-none">ON</span>
+                    </button>
+                )}
 
-                {/* 다운로드 */}
+                {/* 다운로드(공통) */}
                 <button
                     className={`text-slate-500 hover:text-blue-600 hover:bg-blue-100 p-2 rounded-full transition ${downloading ? 'opacity-50 cursor-not-allowed' : ''}`}
                     onClick={(e) => {
@@ -361,70 +382,68 @@ const DocumentItem = ({ onClick, onSelect, isSelected, userId, isHost = true, on
                     <DownloadIcon className={`w-5 h-5 ${downloading ? 'animate-pulse' : ''}`} />
                 </button>
 
-                {/* 번역 드롭다운 트리거 */}
-                <button
-                    ref={dropdownBtnRef}
-                    className={`text-slate-500 hover:text-blue-600 hover:bg-blue-100 p-2 rounded-full transition ${translating ? 'opacity-50 cursor-wait' : ''}`}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setIsDropdownOpen((prev) => !prev);
-                        requestAnimationFrame(() => repositionDropdown());
-                    }}
-                    title="번역하기"
-                    disabled={translating}
-                >
-                    <LanguagesIcon className="w-5 h-5" />
-                </button>
+                {/* ✅ 번역 드롭다운 트리거: 원문만 렌더 */}
+                {isOriginal && (
+                    <button
+                        ref={dropdownBtnRef}
+                        className={`text-slate-500 hover:text-blue-600 hover:bg-blue-100 p-2 rounded-full transition ${translating ? 'opacity-50 cursor-wait' : ''}`}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (translating) return;
+                            setIsDropdownOpen((prev) => !prev);
+                            requestAnimationFrame(() => repositionDropdown());
+                        }}
+                        title="번역하기"
+                        disabled={translating}
+                    >
+                        <LanguagesIcon className="w-5 h-5" />
+                    </button>
+                )}
             </div>
 
-            {/* ===== 드롭다운 (포털) ===== */}
-            {createPortal(
-                <AnimatePresence>
-                    {isDropdownOpen && (
-                        <motion.div
-                            ref={dropdownRef}
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            transition={{ type: 'spring', stiffness: 320, damping: 22 }}
-                            className="fixed z-[9999] w-56 rounded-xl border border-slate-200 bg-white shadow-2xl backdrop-blur-xl"
-                            style={{
-                                top: dropdownStyle.top,
-                                left: dropdownStyle.left,
-                                transformOrigin: dropdownStyle.transformOrigin,
-                            }}
-                            onMouseDown={(e) => e.stopPropagation()}
-                        >
-                            {/* 화살표 */}
-                            <div
-                                className={`absolute w-3 h-3 bg-white border-l border-t border-slate-200 rotate-45`}
-                                style={dropdownStyle.placement === 'bottom' ? { top: -6, left: '16px' } : { bottom: -6, left: '16px' }}
-                            />
-
-                            <div className="py-1.5">
-                                {targetLangs.map((lang, idx) => (
-                                    <button
-                                        key={lang}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setIsDropdownOpen(false);
-                                            // 전역 번역 시작
-                                            callTranslate(lang);
-                                        }}
-                                        className={`w-full text-left px-4 py-2.5 text-sm text-slate-800 hover:bg-indigo-50 hover:text-indigo-700 transition-colors
-                      ${idx === 0 ? 'rounded-t-xl' : ''} ${idx === targetLangs.length - 1 ? 'rounded-b-xl' : ''}`}
-                                        disabled={translating}
-                                    >
-                                        {translatingTo === lang ? '요청 중… ' : ''}
-                                        {getLanguageName(lang)}로 번역
-                                    </button>
-                                ))}
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>,
-                document.body,
-            )}
+            {/* ✅ 드롭다운(포털)도 원문일 때만 렌더 */}
+            {isOriginal &&
+                createPortal(
+                    <AnimatePresence>
+                        {isDropdownOpen && (
+                            <motion.div
+                                ref={dropdownRef}
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                transition={{ type: 'spring', stiffness: 320, damping: 22 }}
+                                className="fixed z-[9999] w-56 rounded-xl border border-slate-200 bg-white shadow-2xl backdrop-blur-xl"
+                                style={{ top: dropdownStyle.top, left: dropdownStyle.left, transformOrigin: dropdownStyle.transformOrigin }}
+                                onMouseDown={(e) => e.stopPropagation()}
+                            >
+                                {/* 안내 화살표 */}
+                                <div
+                                    className={`absolute w-3 h-3 bg-white border-l border-t border-slate-200 rotate-45`}
+                                    style={dropdownStyle.placement === 'bottom' ? { top: -6, left: '16px' } : { bottom: -6, left: '16px' }}
+                                />
+                                <div className="py-1.5">
+                                    {targetLangs.map((lang, idx) => (
+                                        <button
+                                            key={lang}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsDropdownOpen(false);
+                                                callTranslate(lang);
+                                            }}
+                                            className={`w-full text-left px-4 py-2.5 text-sm text-slate-800 hover:bg-indigo-50 hover:text-indigo-700 transition-colors
+                        ${idx === 0 ? 'rounded-t-xl' : ''} ${idx === targetLangs.length - 1 ? 'rounded-b-xl' : ''}`}
+                                            disabled={translating}
+                                        >
+                                            {translatingTo === lang ? '요청 중… ' : ''}
+                                            {getLanguageName(lang)}로 번역
+                                        </button>
+                                    ))}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>,
+                    document.body,
+                )}
         </div>
     );
 };

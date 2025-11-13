@@ -1,4 +1,4 @@
-// src/components/sidebar/TranscriptSidebar.jsx
+// src/components/dashboard/dashvideo/TranscriptSidebarComponents/TranscriptSidebar.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useDataChannel, useLocalParticipant, useRemoteParticipants, useRoomContext } from '@livekit/components-react';
 
@@ -39,52 +39,54 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose, userLocale
     console.log('🌍 TranscriptSidebar userLocale:', userLocale, '-> normalized:', myLocale);
 
     // 🔥 채팅 메시지 수신
-    const onMessage = useCallback((message) => {
-        if (message.from) {
-            try {
-                const textDecoder = new TextDecoder();
-                const msgData = JSON.parse(textDecoder.decode(message.payload));
-                const senderName = msgData.username || getParticipantNickname(message.from, room);
-                const isLocal = message.from.isLocal;
+    const onMessage = useCallback(
+        (message) => {
+            if (message.from) {
+                try {
+                    const textDecoder = new TextDecoder();
+                    const msgData = JSON.parse(textDecoder.decode(message.payload));
+                    const senderName = msgData.username || getParticipantNickname(message.from, room);
+                    const isLocal = message.from.isLocal;
 
-                // 🔥 번역이 있으면 하나의 메시지로 처리
-                if (msgData.translations && typeof msgData.translations === 'object') {
-                    const sourceLocale = normalizeLocale(msgData.locale || 'ko-KR');
-                    const translated = findTranslation(msgData.translations, myLocale);
+                    // 🔥 번역이 있으면 하나의 메시지로 처리
+                    if (msgData.translations && typeof msgData.translations === 'object') {
+                        const sourceLocale = normalizeLocale(msgData.locale || 'ko-KR');
+                        const translated = findTranslation(msgData.translations, myLocale);
 
-                    if (translated) {
-                        const translatedMessage = {
-                            type: 'chat',
-                            text: translated,  // 번역된 텍스트
-                            originalText: msgData.text,  // ✅ 원문 추가!
-                            translatedTexts: msgData.translations,
-                            sourceLocale: sourceLocale,
-                            sender: senderName,
-                            time: msgData.time,
-                            isLocal: isLocal,
-                            isTranslated: true,
-                        };
-                        setMessages((prev) => [...prev, translatedMessage]);
-                        return; // ✅ 원문 메시지는 추가하지 않음
+                        if (translated) {
+                            const translatedMessage = {
+                                type: 'chat',
+                                text: translated, // 번역된 텍스트
+                                originalText: msgData.text, // ✅ 원문 추가!
+                                translatedTexts: msgData.translations,
+                                sourceLocale: sourceLocale,
+                                sender: senderName,
+                                time: msgData.time,
+                                isLocal: isLocal,
+                                isTranslated: true,
+                            };
+                            setMessages((prev) => [...prev, translatedMessage]);
+                            return; // ✅ 원문 메시지는 추가하지 않음
+                        }
                     }
+
+                    // 번역이 없으면 원문만
+                    const originalMessage = {
+                        type: 'chat',
+                        text: msgData.text,
+                        sender: senderName,
+                        time: msgData.time,
+                        isLocal: isLocal,
+                        isTranslated: false,
+                    };
+                    setMessages((prev) => [...prev, originalMessage]);
+                } catch (error) {
+                    console.error('메시지 파싱 실패:', error);
                 }
-
-                // 번역이 없으면 원문만
-                const originalMessage = {
-                    type: 'chat',
-                    text: msgData.text,
-                    sender: senderName,
-                    time: msgData.time,
-                    isLocal: isLocal,
-                    isTranslated: false,
-                };
-                setMessages((prev) => [...prev, originalMessage]);
-
-            } catch (error) {
-                console.error('메시지 파싱 실패:', error);
             }
-        }
-    }, [room, myLocale]);
+        },
+        [room, myLocale],
+    );
 
     useDataChannel('chat_messages', onMessage);
 
@@ -106,8 +108,8 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose, userLocale
                 if (translated) {
                     const translatedSTTMessage = {
                         type: 'stt',
-                        text: `🎤 ${translated}`,  // 번역된 텍스트
-                        originalText: `🎤 ${latestSTT.text}`,  // ✅ 원문 추가!
+                        text: `🎤 ${translated}`, // 번역된 텍스트
+                        originalText: `🎤 ${latestSTT.text}`, // ✅ 원문 추가!
                         translatedTexts: latestSTT.translations,
                         sourceLocale: sourceLocale,
                         sender: sttUsername,
@@ -119,11 +121,7 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose, userLocale
                     setMessages((prev) => {
                         // 중복 체크
                         const isDuplicate = prev.some(
-                            (msg) =>
-                                msg.type === 'stt' &&
-                                msg.originalText === translatedSTTMessage.originalText &&
-                                msg.sender === sttUsername &&
-                                Date.now() - new Date(msg.time).getTime() < 2000
+                            (msg) => msg.type === 'stt' && msg.originalText === translatedSTTMessage.originalText && msg.sender === sttUsername && Date.now() - new Date(msg.time).getTime() < 2000,
                         );
 
                         if (isDuplicate) {
@@ -133,7 +131,7 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose, userLocale
 
                         return [...prev, translatedSTTMessage];
                     });
-                    
+
                     return; // ✅ 원문 메시지는 추가하지 않음
                 }
             }
@@ -149,13 +147,7 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose, userLocale
             };
 
             setMessages((prev) => {
-                const isDuplicate = prev.some(
-                    (msg) =>
-                        msg.type === 'stt' &&
-                        msg.text === sttMessage.text &&
-                        msg.sender === sttUsername &&
-                        Date.now() - new Date(msg.time).getTime() < 2000
-                );
+                const isDuplicate = prev.some((msg) => msg.type === 'stt' && msg.text === sttMessage.text && msg.sender === sttUsername && Date.now() - new Date(msg.time).getTime() < 2000);
 
                 if (isDuplicate) {
                     console.log('⏭️ Duplicate STT message, skipping');
@@ -187,12 +179,15 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose, userLocale
         setChatInput('');
     }, [chatInput, sendChat, localParticipant, room, myLocale]);
 
-    const handleKeyPress = useCallback((e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleSendMessage();
-        }
-    }, [handleSendMessage]);
+    const handleKeyPress = useCallback(
+        (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+            }
+        },
+        [handleSendMessage],
+    );
 
     const renderContent = () => {
         switch (activeTab) {
@@ -201,7 +196,7 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose, userLocale
             case 'participants':
                 return <ParticipantsTab localParticipant={localParticipant} remoteParticipants={remoteParticipants} room={room} />;
             case 'documents':
-                return <DocumentsTab documents={documents} />;
+                return <DocumentsTab documents={documents} />; // 🔥 여기로 ConferenceUI 에서 받은 문서 배열 전달
             case 'dictionary':
                 return <DictionaryTab />;
             default:
@@ -210,19 +205,25 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose, userLocale
     };
 
     const getTabClass = (tabName) =>
-        `pb-2 px-1 text-sm font-semibold transition-colors duration-200 cursor-pointer ${
-            activeTab === tabName ? 'text-white border-b-2 border-pink-500' : 'text-gray-400 hover:text-white'
-        }`;
+        `pb-2 px-1 text-sm font-semibold transition-colors duration-200 cursor-pointer ${activeTab === tabName ? 'text-white border-b-2 border-pink-500' : 'text-gray-400 hover:text-white'}`;
 
     return (
         <div className="w-full h-full bg-[#2C3349] flex flex-col shadow-2xl rounded-r-2xl">
             {/* 헤더 */}
             <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-gray-700/50">
                 <div className="flex space-x-5">
-                    <button onClick={() => setActiveTab('chat')} className={getTabClass('chat')}>채팅</button>
-                    <button onClick={() => setActiveTab('participants')} className={getTabClass('participants')}>참가자</button>
-                    <button onClick={() => setActiveTab('documents')} className={getTabClass('documents')}>자료</button>
-                    <button onClick={() => setActiveTab('dictionary')} className={getTabClass('dictionary')}>사전</button>
+                    <button onClick={() => setActiveTab('chat')} className={getTabClass('chat')}>
+                        채팅
+                    </button>
+                    <button onClick={() => setActiveTab('participants')} className={getTabClass('participants')}>
+                        참가자
+                    </button>
+                    <button onClick={() => setActiveTab('documents')} className={getTabClass('documents')}>
+                        자료
+                    </button>
+                    <button onClick={() => setActiveTab('dictionary')} className={getTabClass('dictionary')}>
+                        사전
+                    </button>
                 </div>
                 {onClose && (
                     <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
@@ -232,9 +233,7 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose, userLocale
             </div>
 
             {/* 콘텐츠 */}
-            <div className="flex-grow p-4 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
-                {renderContent()}
-            </div>
+            <div className="flex-grow p-4 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">{renderContent()}</div>
 
             {/* 채팅 입력 */}
             {activeTab === 'chat' && (

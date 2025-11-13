@@ -1,13 +1,6 @@
-import { useEffect, useState, useRef } from 'react';
-import {
-    ControlBar,
-    RoomAudioRenderer,
-    LayoutContextProvider,
-    useParticipants,
-    useRoomContext,
-    useDataChannel,
-    useTracks,
-} from '@livekit/components-react';
+// src/components/dashboard/dashvideo/ConferenceUI.jsx
+import { useEffect, useState, useRef, useContext } from 'react';
+import { ControlBar, RoomAudioRenderer, LayoutContextProvider, useParticipants, useRoomContext, useDataChannel, useTracks } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import Swal from 'sweetalert2';
 import TranscriptSidebar from './TranscriptSidebarComponents/TranscriptSidebar';
@@ -16,24 +9,90 @@ import SubtitleOverlay from './SubtitleOverlay';
 import MannerChecker from './MannerChecker';
 import { FiCopy, FiMaximize, FiMinimize } from 'react-icons/fi';
 
+// 🔥 유저 정보 + axios
+import { UserContext } from '../../../contexts/UserContext';
+import api from '../../../axios';
+
 const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
     const room = useRoomContext();
     const participants = useParticipants();
     const participantCount = participants.length;
 
+    const { user } = useContext(UserContext);
+
     const [isSidebarVisible, setIsSidebarVisible] = useState(true);
     const [partials, setPartials] = useState({});
     const [finals, setFinals] = useState([]);
+
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [showControls, setShowControls] = useState(true);
+
     const mainContainerRef = useRef(null);
     const controlsTimeoutRef = useRef(null);
 
+    // 🔥 사이드바 "자료" 탭에 뿌릴 회의 문서 목록
+    const [sidebarDocuments, setSidebarDocuments] = useState([]);
+
     // 화면 공유 상태 확인
-    const tracks = useTracks([{ source: Track.Source.ScreenShare, withPlaceholder: false }], { onlySubscribed: false });
+    const tracks = useTracks([{ source: Track.Source.ScreenShare, withPlaceholder: false }], {
+        onlySubscribed: false,
+    });
     const hasScreenShare = tracks.length > 0;
 
     console.log('🌍 ConferenceUI userLocale:', userLocale);
+
+    // ===== 회의 문서 목록 조회 (사이드바용) =====
+    useEffect(() => {
+        if (!user?.userId) return;
+
+        const searchParams = new URLSearchParams(window.location.search);
+        const meetingId = searchParams.get('id');
+        if (!meetingId) return;
+
+        const fetchMeetingDocsForSidebar = async () => {
+            try {
+                const res = await api.get(`/api/users/${user.userId}/meetings/${meetingId}/documents`);
+                const items = Array.isArray(res.data?.items) ? res.data.items : [];
+
+                const mapped = items.map((d) => {
+                    // 번역 여부: trans_doc_id 존재 or doc_type === 'TRANSLATION'
+                    const isTrans = !!d.trans_doc_id || d.doc_type === 'TRANSLATION';
+
+                    const docId = isTrans ? d.trans_doc_id : d.doc_id;
+                    const bytes = Number(isTrans ? d.trans_size_bytes ?? d.size : d.size) || 0;
+                    const size = bytes > 0 ? `${(bytes / 1024 / 1024).toFixed(2)} MB` : '';
+
+                    const name = d.original_name || d.title || '제목 없는 문서';
+
+                    // 🔥 DocumentsTab에서 쓰는 메타 정보들까지 모두 세팅
+                    return {
+                        id: docId,
+                        trans_doc_id: d.trans_doc_id ?? null,
+                        doc_type: isTrans ? 'TRANSLATION' : 'ORIGINAL',
+                        title: name,
+                        original_name: d.original_name,
+                        size,
+                        rel_path: d.rel_path || d.filepath,
+                        // 언어 정보 (KO→EN 표시용)
+                        source_lang: d.source_lang || d.original_lang,
+                        target_language: d.target_language,
+                        // 실제 다운로드 URL (8080 백엔드 라우트 그대로)
+                        url: isTrans
+                            ? `/api/users/${user.userId}/meetings/${meetingId}/documents/translations/${docId}/download`
+                            : `/api/users/${user.userId}/meetings/${meetingId}/documents/${docId}/download`,
+                    };
+                });
+
+                console.log('📂 sidebarDocuments mapped:', mapped);
+                setSidebarDocuments(mapped);
+            } catch (e) {
+                console.error('회의 문서(사이드바) 불러오기 실패:', e);
+                setSidebarDocuments([]);
+            }
+        };
+
+        fetchMeetingDocsForSidebar();
+    }, [user?.userId]);
 
     // 전체화면에서 마우스 움직임 감지
     useEffect(() => {
@@ -96,12 +155,7 @@ const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
     // 전체화면 상태 감지
     useEffect(() => {
         const handleFullscreenChange = () => {
-            const isFull = !!(
-                document.fullscreenElement ||
-                document.webkitFullscreenElement ||
-                document.mozFullScreenElement ||
-                document.msFullscreenElement
-            );
+            const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
             setIsFullscreen(isFull);
         };
         document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -291,9 +345,7 @@ const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
                             {/* 회의 정보 */}
                             <div className="absolute top-4 left-4 z-50 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-xl text-white shadow-lg border border-white/10">
                                 <p className="font-bold text-base">{meetingTitle || '회의'}</p>
-                                <p className="text-xs text-slate-300">
-                                    {participantCount > 0 ? `👥 ${participantCount}명 참여 중` : '연결 중...'}
-                                </p>
+                                <p className="text-xs text-slate-300">{participantCount > 0 ? `👥 ${participantCount}명 참여 중` : '연결 중...'}</p>
                             </div>
                         </>
                     )}
@@ -315,14 +367,9 @@ const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
                         {Object.keys(partials).length > 0 && (!isFullscreen || showControls) && (
                             <div className="absolute bottom-32 left-1/2 -translate-x-1/2 w-[90%] max-w-3xl z-35">
                                 {Object.entries(partials).map(([key, data]) => (
-                                    <div
-                                        key={key}
-                                        className="bg-yellow-500/20 backdrop-blur-md border-2 border-yellow-400/50 text-white rounded-xl px-4 py-2 mb-2 shadow-lg animate-pulse"
-                                    >
+                                    <div key={key} className="bg-yellow-500/20 backdrop-blur-md border-2 border-yellow-400/50 text-white rounded-xl px-4 py-2 mb-2 shadow-lg animate-pulse">
                                         <div className="text-center">
-                                            <span className="text-xs font-bold text-yellow-300 mr-2">
-                                                🎙️ {data.username} (입력 중...)
-                                            </span>
+                                            <span className="text-xs font-bold text-yellow-300 mr-2">🎙️ {data.username} (입력 중...)</span>
                                             <p className="text-base leading-6 mt-1">
                                                 {data.text}
                                                 <span className="inline-block w-2 h-4 bg-yellow-400 ml-1 animate-blink"></span>
@@ -345,11 +392,7 @@ const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
                     >
                         <ControlBar variation="minimal" />
 
-                        <button
-                            onClick={toggleFullscreen}
-                            title={isFullscreen ? '전체화면 종료' : '전체화면'}
-                            className="lk-button lk-button-icon"
-                        >
+                        <button onClick={toggleFullscreen} title={isFullscreen ? '전체화면 종료' : '전체화면'} className="lk-button lk-button-icon">
                             {isFullscreen ? <FiMinimize size={20} /> : <FiMaximize size={20} />}
                         </button>
 
@@ -384,7 +427,7 @@ const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
                 {/* 사이드바 */}
                 {isSidebarVisible && (
                     <aside className="flex-shrink-0 bg-slate-800 border-l border-slate-700 overflow-hidden w-full h-[40vh] md:h-full md:w-[360px]">
-                        <TranscriptSidebar sttFinals={finals} userLocale={userLocale} />
+                        <TranscriptSidebar documents={sidebarDocuments} sttFinals={finals} userLocale={userLocale} />
                     </aside>
                 )}
 

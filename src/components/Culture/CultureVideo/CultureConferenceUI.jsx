@@ -10,6 +10,7 @@ import { UserContext } from '../../../contexts/UserContext';
 import CustomVideoGrid from '../../dashboard/dashvideo/CustomVideoGrid';
 import MannerChecker from '../../dashboard/dashvideo/MannerChecker';
 import CultureLiveChatSidebar from './CultureLiveChatSidebar';
+import SpecialEffectAnimation from '../contents/SpecialEffectAnimation';
 
 const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
     const room = useRoomContext();
@@ -35,6 +36,19 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
 
     const mainContainerRef = useRef(null);
     const controlsTimeoutRef = useRef(null);
+
+    const [activeEffects, setActiveEffects] = useState([]);
+
+    // 🔥 채팅에서 이펙트 요청 들어왔을 때
+    const handleEffectTrigger = (effect) => {
+        const id = Date.now() + Math.random();
+        setActiveEffects((prev) => [...prev, { ...effect, id }]);
+    };
+
+    // 🔥 애니메이션 1번 끝난 것 제거
+    const handleEffectComplete = (id) => {
+        setActiveEffects((prev) => prev.filter((e) => e.id !== id));
+    };
 
     // 미디어 상태 동기화
     useEffect(() => {
@@ -312,6 +326,10 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
                                 style={{ cursor: isFullscreen && !showControls ? 'none' : 'default' }}
                             >
                                 <div className="relative w-full aspect-[16/9] bg-black">
+                                    {/* 🔥 이펙트 오버레이 (영상 위 전체) */}
+                                    {activeEffects.map((effect) => (
+                                        <SpecialEffectAnimation key={effect.id} effect={effect} onComplete={() => handleEffectComplete(effect.id)} />
+                                    ))}
                                     {/* 비디오 그리드 */}
                                     <CustomVideoGrid />
 
@@ -448,7 +466,7 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
                         {showChatSidebar && !isFullscreen && (
                             <div className="w-full lg:w-[420px] lg:flex-shrink-0">
                                 <div className="sticky top-6" style={{ height: 'calc(100vh - 3rem)', maxHeight: '800px' }}>
-                                    <CultureLiveChatSidebar userLocale={userLocale} sttFinals={finals} onClose={() => setShowChatSidebar(false)} />
+                                    <CultureLiveChatSidebar userLocale={userLocale} sttFinals={finals} onClose={() => setShowChatSidebar(false)} onEffectTrigger={handleEffectTrigger} />
                                 </div>
                             </div>
                         )}

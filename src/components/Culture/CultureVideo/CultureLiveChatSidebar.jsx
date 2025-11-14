@@ -280,6 +280,19 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
     const myLocale = normalizeLocale(userLocale);
     const messagesContainerRef = useRef(null);
 
+    useEffect(() => {
+        if (activeTab !== 'chat') return;
+
+        const container = messagesContainerRef.current;
+        if (!container) return;
+
+        // 🔥 채팅 사이드바(메시지 영역)만 부드럽게 아래로 스크롤
+        container.scrollTo({
+            top: container.scrollHeight,
+            behavior: 'smooth',
+        });
+    }, [messages.length, activeTab]);
+
     // 🔥 Chat Message Receiver
     const onMessage = useCallback(
         (message) => {
@@ -616,7 +629,7 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                                 <div className="flex flex-col items-center justify-center h-full text-gray-400">
                                     <MessageCircle className="w-16 h-16 mb-3 opacity-30" />
                                     <p className="text-sm font-medium">아직 메시지가 없습니다</p>
-                                    <p className="text-xs mt-1<p className=text-xs mt-1">첫 메시지를 보내보세요! 🎉</p>
+                                    <p className="text-xs mt-1">첫 메시지를 보내보세요! 🎉</p>
                                 </div>
                             ) : (
                                 messages.map((msg) => (

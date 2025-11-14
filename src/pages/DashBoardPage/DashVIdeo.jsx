@@ -313,13 +313,13 @@ const DashVideo = () => {
                     await api.patch(`/api/users/${user.userId}/meetings/${meetingId}`, updateData);
                 }
             }
-            const url = new URL('/meeting', window.location.origin);
+            const url = new URL('/business/meeting', window.location.origin);
             url.searchParams.set('id', meetingId);
             url.searchParams.set('title', meetingTitle);
             url.searchParams.set('invite', inviteCode);
             window.open(url.toString(), '_blank', 'noopener,noreferrer');
         } catch {
-            const url = new URL('/meeting', window.location.origin);
+            const url = new URL('/business/meeting', window.location.origin);
             url.searchParams.set('id', meetingId);
             url.searchParams.set('title', meetingTitle);
             url.searchParams.set('invite', inviteCode);

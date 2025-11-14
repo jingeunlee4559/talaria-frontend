@@ -92,7 +92,7 @@ const DashHome = () => {
             }
 
             // 회의방으로 이동
-            const url = new URL('/meeting', window.location.origin);
+            const url = new URL('/business/meeting', window.location.origin);
             url.searchParams.set('id', meetingId);
             url.searchParams.set('title', meetingTitle);
             url.searchParams.set('invite', inviteCode);
@@ -101,7 +101,7 @@ const DashHome = () => {
             console.error('회의 참여 중 오류:', error);
 
             // 에러가 발생해도 회의방은 열어줌
-            const url = new URL('/meeting', window.location.origin);
+            const url = new URL('/business/meeting', window.location.origin);
             url.searchParams.set('id', meetingId);
             url.searchParams.set('title', meetingTitle);
             url.searchParams.set('invite', inviteCode);

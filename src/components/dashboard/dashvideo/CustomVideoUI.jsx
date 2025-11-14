@@ -5,8 +5,9 @@ import '@livekit/components-styles';
 import ConferenceUI from './ConferenceUI';
 import api from '../../../axios';
 import { UserContext } from '../../../contexts/UserContext';
+import CultureConferenceUI from '../../Culture/CultureVideo/CultureConferenceUI';
 
-export default function CustomVideoConference({ roomName, identity, username, onLeave, meetingId, meetingTitle }) {
+export default function CustomVideoConference({ roomName, identity, username, onLeave, meetingId, meetingTitle, isCultureMode = false }) {
     const [room] = useState(() => new Room({ adaptiveStream: true, dynacast: true }));
     const [connected, setConnected] = useState(false);
     const [needAudioUnlock, setNeedAudioUnlock] = useState(false);
@@ -113,7 +114,11 @@ export default function CustomVideoConference({ roomName, identity, username, on
                     </button>
                 </div>
             )}
-            <ConferenceUI onLeave={onLeave} meetingTitle={meetingTitle} userLocale={userLocale} />
+            {isCultureMode ? (
+                <CultureConferenceUI onLeave={onLeave} meetingTitle={meetingTitle} userLocale={userLocale} />
+            ) : (
+                <ConferenceUI onLeave={onLeave} meetingTitle={meetingTitle} userLocale={userLocale} />
+            )}
         </RoomContext.Provider>
     );
 }

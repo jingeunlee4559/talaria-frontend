@@ -45,7 +45,7 @@ const LoginPage = () => {
 
                 // 로그인 성공 후 대시보드 이동
                 setUser(userData);
-                navigate('/Dashboardhome');
+                navigate('/');
             }
         } catch (err) {
             console.error('로그인 실패:', err);

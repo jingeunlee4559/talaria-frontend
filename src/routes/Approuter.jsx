@@ -15,6 +15,10 @@ import SecuritySettings from '../pages/DashBoardPage/Dashsettings/SecuritySettin
 import SettingsLayout from '../pages/DashBoardPage/Dashsettings/SettingsLayout';
 import MeetingPage from '../components/dashboard/dashvideo/MeetingPage';
 import DashSchedule from '../pages/DashBoardPage/DashSchedule';
+import CultureLayout from '../layouts/CultureLayout';
+import CultureHome from '../pages/CulturePage/CultureHome';
+import CultureViedos from '../pages/CulturePage/CultureViedos';
+import CultureLiveView from '../components/Culture/CultureVideo/CultureLiveView';
 
 const Approuter = () => {
     return (
@@ -25,20 +29,26 @@ const Approuter = () => {
                 <Route path="/Register" element={<Register />} />
                 {/* <Route path="/Board" element={<Board />} /> */}
             </Route>
-        
+
             <Route element={<DashboardLayout />}>
-                <Route path="/dashboardHome" element={<DashHome />} />
-                <Route path="/dashboardHome/DashVideo" element={<DashVIdeo />} />
-                <Route path="/dashboardhome/DashDocuments" element={<DashDocuments/>}/>
-                <Route path="/dashboardhome/Schedule" element={<DashSchedule/>}/>
-               <Route path="/dashboardhome/settings" element={<SettingsLayout />}>
-                    <Route index element={<ProfileSettings />} /> 
+                <Route path="/business/dashboardHome" element={<DashHome />} />
+                <Route path="/business/dashboardHome/DashVideo" element={<DashVIdeo />} />
+                <Route path="/business/dashboardhome/DashDocuments" element={<DashDocuments />} />
+                <Route path="/business/dashboardhome/Schedule" element={<DashSchedule />} />
+                <Route path="/business/dashboardhome/settings" element={<SettingsLayout />}>
+                    <Route index element={<ProfileSettings />} />
                     <Route path="notifications" element={<NotificationSettings />} />
                     <Route path="security" element={<SecuritySettings />} />
                 </Route>
             </Route>
 
-             <Route path="/meeting" element={<MeetingPage />} />
+            <Route element={<CultureLayout />}>
+                <Route path="/Culture/CultureHome" element={<CultureHome />} />
+                <Route path="/Culture/Videos" element={<CultureViedos />} />
+            </Route>
+
+            <Route path="/business/meeting" element={<MeetingPage />} />
+            <Route path="/culture/live" element={<CultureLiveView />} />
         </Routes>
     );
 };

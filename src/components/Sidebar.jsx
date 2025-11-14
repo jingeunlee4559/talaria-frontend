@@ -11,11 +11,11 @@ const Sidebar = ({ isOpen, setIsOpen, className }) => {
     const { setUser } = useContext(UserContext);
 
     const menuItems = [
-        { name: '대시보드', icon: FiHome, path: '/dashboardhome' },
-        { name: '영상 회의', icon: FiVideo, path: '/dashboardhome/DashVideo' },
-        { name: '문서 관리', icon: FiFileText, path: '/dashboardhome/DashDocuments' },
-        { name: '일정', icon: Calendar, path: '/dashboardhome/Schedule' },
-        { name: '설정', icon: FiSettings, path: '/dashboardhome/settings' },
+        { name: '대시보드', icon: FiHome, path: '/business/dashboardhome' },
+        { name: '영상 회의', icon: FiVideo, path: '/business/dashboardhome/DashVideo' },
+        { name: '문서 관리', icon: FiFileText, path: '/business/dashboardhome/DashDocuments' },
+        { name: '일정', icon: Calendar, path: '/business/dashboardhome/Schedule' },
+        { name: '설정', icon: FiSettings, path: '/business/dashboardhome/settings' },
     ];
 
     // ✅ 로그아웃 함수

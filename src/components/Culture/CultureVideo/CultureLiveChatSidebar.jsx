@@ -336,6 +336,27 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
             const isLocal = sttUsername === myUsername || latestSTT.identity === localParticipant.identity;
             const timestamp = new Date(latestSTT.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+            // 🎯 STT 텍스트에서 특수 효과 감지 및 트리거
+            const sttText = latestSTT.text || '';
+            const detectedEffect = detectSpecialEffect(sttText);
+
+            // 번역된 텍스트에서도 이모지 감지 (우선순위: 번역 > 원본)
+            let effectToTrigger = detectedEffect;
+            if (latestSTT.translations && typeof latestSTT.translations === 'object') {
+                const translated = findTranslation(latestSTT.translations, myLocale);
+                if (translated) {
+                    const translatedEffect = detectSpecialEffect(translated);
+                    if (translatedEffect) {
+                        effectToTrigger = translatedEffect;
+                    }
+                }
+            }
+
+            // 효과 트리거
+            if (effectToTrigger && onEffectTrigger) {
+                onEffectTrigger(effectToTrigger);
+            }
+
             if (latestSTT.translations && typeof latestSTT.translations === 'object') {
                 const sourceLocale = normalizeLocale(latestSTT.locale || 'ko-KR');
                 const translated = findTranslation(latestSTT.translations, myLocale);
@@ -379,7 +400,7 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                 return [...prev, sttMessage];
             });
         }
-    }, [sttFinals, localParticipant, room, myLocale]);
+    }, [sttFinals, localParticipant, room, myLocale, onEffectTrigger]);
 
     // Send Message
     const handleSendMessage = useCallback(() => {

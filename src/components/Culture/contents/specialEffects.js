@@ -43,6 +43,7 @@ export const SPECIAL_EFFECTS = {
     '🏆': { type: 'trophy', emoji: '🏆', color: 'gold', name: '트로피', description: '아래에서 위로 폭발하는 승리 트로피' },
 };
 
+// 🎯 단일 이모지 감지 (첫 번째 발견된 이모지만)
 export const detectSpecialEffect = (text) => {
     for (const [emoji, effect] of Object.entries(SPECIAL_EFFECTS)) {
         if (text.includes(emoji)) {
@@ -50,6 +51,17 @@ export const detectSpecialEffect = (text) => {
         }
     }
     return null;
+};
+
+// 🎯 모든 이모지 감지 (메시지에 포함된 모든 애니메이션 이모지)
+export const detectAllSpecialEffects = (text) => {
+    const detectedEffects = [];
+    for (const [emoji, effect] of Object.entries(SPECIAL_EFFECTS)) {
+        if (text.includes(emoji)) {
+            detectedEffects.push(effect);
+        }
+    }
+    return detectedEffects;
 };
 
 // 애니메이션 타입별 그룹화

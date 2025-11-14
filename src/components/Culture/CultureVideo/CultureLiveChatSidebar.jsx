@@ -260,6 +260,9 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
     const [selectedEffect, setSelectedEffect] = useState(TEXT_EFFECTS[0]);
     const [showTextEffectPicker, setShowTextEffectPicker] = useState(false);
 
+    // 🎯 이모지 효과 트리거 추적 (STT 메시지 ID별로)
+    const triggeredEffectsRef = useRef(new Set());
+
     const chatEndRef = useRef(null);
     const room = useRoomContext();
     const { localParticipant } = useLocalParticipant();
@@ -336,26 +339,8 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
             const isLocal = sttUsername === myUsername || latestSTT.identity === localParticipant.identity;
             const timestamp = new Date(latestSTT.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-            // 🎯 STT 텍스트에서 특수 효과 감지 및 트리거
-            const sttText = latestSTT.text || '';
-            const detectedEffect = detectSpecialEffect(sttText);
-
-            // 번역된 텍스트에서도 이모지 감지 (우선순위: 번역 > 원본)
-            let effectToTrigger = detectedEffect;
-            if (latestSTT.translations && typeof latestSTT.translations === 'object') {
-                const translated = findTranslation(latestSTT.translations, myLocale);
-                if (translated) {
-                    const translatedEffect = detectSpecialEffect(translated);
-                    if (translatedEffect) {
-                        effectToTrigger = translatedEffect;
-                    }
-                }
-            }
-
-            // 효과 트리거
-            if (effectToTrigger && onEffectTrigger) {
-                onEffectTrigger(effectToTrigger);
-            }
+            // 🎯 고유 메시지 ID 생성 (중복 방지용)
+            const messageId = `${latestSTT.identity}-${latestSTT.text}-${latestSTT.ts}`;
 
             if (latestSTT.translations && typeof latestSTT.translations === 'object') {
                 const sourceLocale = normalizeLocale(latestSTT.locale || 'ko-KR');
@@ -379,6 +364,33 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                             (msg) => msg.type === 'stt' && msg.originalText === translatedSTTMessage.originalText && msg.sender === sttUsername && Date.now() - new Date(msg.time).getTime() < 2000,
                         );
                         if (isDuplicate) return prev;
+
+                        // 🎯 이 메시지에서 이미 효과를 트리거했는지 확인
+                        if (!triggeredEffectsRef.current.has(messageId)) {
+                            const sttText = latestSTT.text || '';
+                            const detectedEffect = detectSpecialEffect(sttText);
+
+                            // 번역된 텍스트에서도 이모지 감지 (우선순위: 번역 > 원본)
+                            let effectToTrigger = detectedEffect;
+                            if (translated) {
+                                const translatedEffect = detectSpecialEffect(translated);
+                                if (translatedEffect) {
+                                    effectToTrigger = translatedEffect;
+                                }
+                            }
+
+                            // 효과 트리거 (처음 한 번만)
+                            if (effectToTrigger && onEffectTrigger) {
+                                onEffectTrigger(effectToTrigger);
+                                triggeredEffectsRef.current.add(messageId);
+
+                                // 10초 후 추적 목록에서 제거 (메모리 관리)
+                                setTimeout(() => {
+                                    triggeredEffectsRef.current.delete(messageId);
+                                }, 10000);
+                            }
+                        }
+
                         return [...prev, translatedSTTMessage];
                     });
                     return;
@@ -397,6 +409,23 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
             setMessages((prev) => {
                 const isDuplicate = prev.some((msg) => msg.type === 'stt' && msg.text === sttMessage.text && msg.sender === sttUsername && Date.now() - new Date(msg.time).getTime() < 2000);
                 if (isDuplicate) return prev;
+
+                // 🎯 이 메시지에서 이미 효과를 트리거했는지 확인
+                if (!triggeredEffectsRef.current.has(messageId)) {
+                    const sttText = latestSTT.text || '';
+                    const detectedEffect = detectSpecialEffect(sttText);
+
+                    if (detectedEffect && onEffectTrigger) {
+                        onEffectTrigger(detectedEffect);
+                        triggeredEffectsRef.current.add(messageId);
+
+                        // 10초 후 추적 목록에서 제거 (메모리 관리)
+                        setTimeout(() => {
+                            triggeredEffectsRef.current.delete(messageId);
+                        }, 10000);
+                    }
+                }
+
                 return [...prev, sttMessage];
             });
         }
@@ -424,7 +453,7 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
         setChatInput('');
         setShowEmojiPicker(false);
         setShowFontPicker(false);
-    }, [chatInput, sendChat, localParticipant, room, myLocale, selectedFont]);
+    }, [chatInput, sendChat, localParticipant, room, myLocale, selectedFont, selectedEffect]);
 
     const handleKeyPress = useCallback(
         (e) => {
@@ -608,6 +637,7 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                                     onClick={() => {
                                         setShowEmojiPicker(!showEmojiPicker);
                                         setShowFontPicker(false);
+                                        setShowTextEffectPicker(false);
                                     }}
                                     className={`p-2 rounded-lg transition-colors ${showEmojiPicker ? 'bg-pink-500 text-white' : 'bg-pink-50 hover:bg-pink-100 text-gray-600'}`}
                                     title="이모지"
@@ -618,6 +648,7 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                                     onClick={() => {
                                         setShowFontPicker(!showFontPicker);
                                         setShowEmojiPicker(false);
+                                        setShowTextEffectPicker(false);
                                     }}
                                     className={`p-2 rounded-lg transition-colors ${showFontPicker ? 'bg-pink-500 text-white' : 'bg-pink-50 hover:bg-pink-100 text-gray-600'}`}
                                     title="폰트"

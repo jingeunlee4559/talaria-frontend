@@ -139,6 +139,8 @@ const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger }) => {
     const originalText = msg.originalText || msg.text;
     const [liked, setLiked] = useState(false);
 
+    // 🎯 메시지 고유 ID 생성 (한 번만 실행되도록)
+    const messageIdRef = useRef(`${msg.sender}-${msg.time}-${originalText}`);
     const hasTriggeredRef = useRef(false);
 
     const textEffectClass = TEXT_EFFECT_MAP[msg.textEffect || 'none']?.className || '';
@@ -152,7 +154,7 @@ const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger }) => {
             onEffectTrigger(effect);
             hasTriggeredRef.current = true; // 다시는 안 쏘게 플래그 세팅
         }
-    }, [originalText, onEffectTrigger]);
+    }, [messageIdRef.current]); // originalText 대신 messageIdRef 사용
 
     const handleLike = () => {
         setLiked(true);
@@ -286,12 +288,16 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                     const fontStyle = msgData.fontStyle || FONT_STYLES[0].style;
                     const textEffect = msgData.textEffect || 'none';
 
+                    // 🎯 메시지 고유 ID 생성
+                    const messageId = `${senderName}-${msgData.time}-${msgData.text}`;
+
                     if (msgData.translations && typeof msgData.translations === 'object') {
                         const sourceLocale = normalizeLocale(msgData.locale || 'ko-KR');
                         const translated = findTranslation(msgData.translations, myLocale);
 
                         if (translated) {
                             const translatedMessage = {
+                                id: messageId, // 🎯 고유 ID 추가
                                 type: 'chat',
                                 text: translated,
                                 originalText: msgData.text,
@@ -304,12 +310,17 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                                 fontStyle: fontStyle,
                                 textEffect: textEffect,
                             };
-                            setMessages((prev) => [...prev, translatedMessage]);
+                            setMessages((prev) => {
+                                // 🎯 중복 메시지 방지
+                                if (prev.some((m) => m.id === messageId)) return prev;
+                                return [...prev, translatedMessage];
+                            });
                             return;
                         }
                     }
 
                     const originalMessage = {
+                        id: messageId, // 🎯 고유 ID 추가
                         type: 'chat',
                         text: msgData.text,
                         sender: senderName,
@@ -319,7 +330,11 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                         fontStyle: fontStyle,
                         textEffect: textEffect,
                     };
-                    setMessages((prev) => [...prev, originalMessage]);
+                    setMessages((prev) => {
+                        // 🎯 중복 메시지 방지
+                        if (prev.some((m) => m.id === messageId)) return prev;
+                        return [...prev, originalMessage];
+                    });
                 } catch (error) {
                     console.error('메시지 파싱 실패:', error);
                 }
@@ -436,12 +451,14 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
         if (!chatInput.trim() || !sendChat || !localParticipant) return;
 
         const myUsername = getParticipantNickname(localParticipant, room);
+        const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
         const messagePayload = {
             type: 'chat',
             text: chatInput,
             username: myUsername,
             locale: myLocale,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            time: currentTime,
             fontStyle: selectedFont.style,
             textEffect: selectedEffect.id,
         };
@@ -449,7 +466,16 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
         const textEncoder = new TextEncoder();
         sendChat(textEncoder.encode(JSON.stringify(messagePayload)));
 
-        setMessages((prev) => [...prev, { ...messagePayload, sender: myUsername, isLocal: true, isTranslated: false }]);
+        // 🎯 로컬 메시지에 고유 ID 추가
+        const localMessage = {
+            ...messagePayload,
+            id: `${myUsername}-${currentTime}-${chatInput}`, // 고유 ID
+            sender: myUsername,
+            isLocal: true,
+            isTranslated: false,
+        };
+
+        setMessages((prev) => [...prev, localMessage]);
         setChatInput('');
         setShowEmojiPicker(false);
         setShowFontPicker(false);
@@ -553,8 +579,14 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                                     <p className="text-xs mt-1">첫 메시지를 보내보세요! 🎉</p>
                                 </div>
                             ) : (
-                                messages.map((msg, i) => (
-                                    <MessageBubble key={`${msg.sender}-${msg.time}-${i}`} msg={msg} userLocale={userLocale} onLike={handleLike} onEffectTrigger={onEffectTrigger} />
+                                messages.map((msg) => (
+                                    <MessageBubble
+                                        key={msg.id || `${msg.sender}-${msg.time}-${Math.random()}`}
+                                        msg={msg}
+                                        userLocale={userLocale}
+                                        onLike={handleLike}
+                                        onEffectTrigger={onEffectTrigger}
+                                    />
                                 ))
                             )}
                             <div ref={chatEndRef} />

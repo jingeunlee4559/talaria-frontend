@@ -30,6 +30,9 @@ const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
     const mainContainerRef = useRef(null);
     const controlsTimeoutRef = useRef(null);
 
+    const sttSeenRef = useRef(new Set());
+    const sttTimerRef = useRef(null);
+
     // 🔥 사이드바 "자료" 탭에 뿌릴 회의 문서 목록
     const [sidebarDocuments, setSidebarDocuments] = useState([]);
 
@@ -211,34 +214,66 @@ const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
             const username = data.username || getParticipantUsername(data.identity) || data.identity || 'Unknown';
             const key = data.identity || data.participant_sid || 'unknown';
 
+            // 🔑 최종 STT 메시지 고유 ID
+            const messageId = `stt-${data.identity || 'unknown'}-${data.text || ''}-${data.ts || ''}`;
+
             if (data.final) {
+                // ✅ 이미 처리한 STT면 무시
+                if (sttSeenRef.current.has(messageId)) {
+                    console.log('🔄 STT 중복 감지 - 무시:', messageId);
+                    return;
+                }
+
+                console.log('✅ 새 STT Final:', messageId);
+                sttSeenRef.current.add(messageId);
+
+                // 🎯 10초 후 추적 목록에서 제거 (메모리 관리)
+                setTimeout(() => {
+                    sttSeenRef.current.delete(messageId);
+                }, 10000);
+
                 // 🔥 Final STT - translations 객체와 함께 저장
-                setFinals((prev) => [
-                    ...prev,
-                    {
-                        identity: data.identity,
-                        username,
-                        text: data.text || '',
-                        locale: data.locale || 'ko-KR',
-                        translations: data.translations || {}, // 🔥 translations 객체
-                        ts: data.ts ?? Date.now(),
-                    },
-                ]);
+                setFinals((prev) => {
+                    // 🎯 한 번 더 중복 체크
+                    if (prev.some((m) => m.id === messageId)) {
+                        return prev;
+                    }
+                    return [
+                        ...prev,
+                        {
+                            id: messageId,
+                            identity: data.identity,
+                            username,
+                            text: data.text || '',
+                            locale: data.locale || 'ko-KR',
+                            translations: data.translations || {},
+                            ts: data.ts ?? Date.now(),
+                        },
+                    ];
+                });
+
                 setPartials((prev) => {
                     const next = { ...prev };
                     delete next[key];
                     return next;
                 });
             } else {
-                // Partial STT
-                setPartials((prev) => ({
-                    ...prev,
-                    [key]: {
-                        text: data.text || '',
-                        username,
-                        identity: data.identity,
-                    },
-                }));
+                // Partial STT (타이핑 중)
+                // 🎯 디바운싱: 너무 자주 업데이트되지 않도록
+                if (sttTimerRef.current) {
+                    clearTimeout(sttTimerRef.current);
+                }
+
+                sttTimerRef.current = setTimeout(() => {
+                    setPartials((prev) => ({
+                        ...prev,
+                        [key]: {
+                            text: data.text || '',
+                            username,
+                            identity: data.identity,
+                        },
+                    }));
+                }, 100); // 100ms 디바운싱
             }
         } catch (e) {
             console.error('❌ STT 파싱 오류:', e);

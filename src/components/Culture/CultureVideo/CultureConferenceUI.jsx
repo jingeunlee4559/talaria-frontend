@@ -1,5 +1,5 @@
 // src/components/Culture/LiveView/CultureConferenceUI.jsx
-import React, { useEffect, useState, useRef, useContext } from 'react';
+import React, { useEffect, useState, useRef, useContext, useCallback } from 'react';
 import { RoomAudioRenderer, LayoutContextProvider, useParticipants, useRoomContext, useDataChannel, useLocalParticipant } from '@livekit/components-react';
 import Swal from 'sweetalert2';
 import { FiCopy, FiMaximize, FiMinimize, FiHeart } from 'react-icons/fi';
@@ -38,6 +38,12 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
     const controlsTimeoutRef = useRef(null);
 
     const [activeEffects, setActiveEffects] = useState([]);
+
+    // 🔥 STT 중복 방지용
+    const sttSeenRef = useRef(new Set());
+
+    // 🔥 여기에 추가!
+    const sttTimerRef = useRef(null);
 
     // 🔥 채팅에서 이펙트 요청 들어왔을 때
     const handleEffectTrigger = (effect) => {
@@ -196,84 +202,131 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
         };
     }, []);
 
-    // === 참가자 이름 가져오기 ===
-    const getParticipantUsername = (identity) => {
-        if (!identity) return 'Unknown';
+    // === 참가자 이름 가져오기 (useCallback으로 메모) ===
+    const getParticipantUsername = useCallback(
+        (identity) => {
+            if (!identity) return 'Unknown';
 
-        if (room.localParticipant?.identity === identity) {
-            try {
-                const metadata = JSON.parse(room.localParticipant.metadata || '{}');
-                return metadata.username || room.localParticipant.name || identity;
-            } catch {
-                return room.localParticipant.name || identity;
-            }
-        }
-
-        for (const p of room.remoteParticipants.values()) {
-            if (p.identity === identity) {
+            if (room.localParticipant?.identity === identity) {
                 try {
-                    const metadata = JSON.parse(p.metadata || '{}');
-                    return metadata.username || p.name || identity;
+                    const metadata = JSON.parse(room.localParticipant.metadata || '{}');
+                    return metadata.username || room.localParticipant.name || identity;
                 } catch {
-                    return p.name || identity;
+                    return room.localParticipant.name || identity;
                 }
             }
-        }
 
-        return identity;
-    };
-
-    // === STT DataChannel 구독 (채널명: 'stt') ===
-    useDataChannel('stt', (msg) => {
-        try {
-            const text = new TextDecoder().decode(msg.payload);
-            const data = JSON.parse(text);
-
-            const username = data.username || getParticipantUsername(data.identity) || data.identity || 'Unknown';
-            const key = data.identity || data.participant_sid || 'unknown';
-
-            if (data.final) {
-                const finalMsg = {
-                    identity: data.identity,
-                    username,
-                    text: data.text || '',
-                    locale: data.locale || 'ko-KR',
-                    translations: data.translations || {},
-                    ts: data.ts ?? Date.now(),
-                };
-
-                setFinals((prev) => [...prev, finalMsg]);
-
-                setChatMessages((prev) => [
-                    ...prev,
-                    {
-                        id: Date.now() + Math.random(),
-                        username,
-                        text: data.text,
-                        translations: data.translations,
-                        timestamp: new Date(),
-                    },
-                ]);
-
-                setPartials((prev) => {
-                    const next = { ...prev };
-                    delete next[key];
-                    return next;
-                });
-            } else {
-                setPartials((prev) => ({
-                    ...prev,
-                    [key]: {
-                        text: data.text || '',
-                        username,
-                        identity: data.identity,
-                    },
-                }));
+            for (const p of room.remoteParticipants.values()) {
+                if (p.identity === identity) {
+                    try {
+                        const metadata = JSON.parse(p.metadata || '{}');
+                        return metadata.username || p.name || identity;
+                    } catch {
+                        return p.name || identity;
+                    }
+                }
             }
-        } catch (e) {
-            console.error('❌ STT 파싱 오류:', e);
-        }
-    });
+
+            return identity;
+        },
+        [room],
+    );
+
+    // === STT DataChannel 구독 (중복 방지 포함, 채널명: 'stt') ===
+    const handleSttMessage = useCallback(
+        (msg) => {
+            try {
+                const text = new TextDecoder().decode(msg.payload);
+                const data = JSON.parse(text);
+
+                const username = data.username || getParticipantUsername(data.identity) || data.identity || 'Unknown';
+                const key = data.identity || data.participant_sid || 'unknown';
+
+                const messageId = `stt-${data.identity || 'unknown'}-${data.text || ''}-${data.ts || ''}`;
+
+                console.log('🔔 STT 수신:', {
+                    messageId,
+                    text: data.text?.substring(0, 30),
+                    final: data.final,
+                    이미처리됨: sttSeenRef.current.has(messageId),
+                });
+
+                if (data.final) {
+                    // ✅ 이미 처리한 STT면 무시
+                    if (sttSeenRef.current.has(messageId)) {
+                        console.log('🔄 STT 중복 감지 - 무시:', messageId);
+                    }
+                    sttSeenRef.current.add(messageId);
+
+                    setTimeout(() => {
+                        sttSeenRef.current.delete(messageId);
+                    }, 10000);
+
+                    const finalMsg = {
+                        id: messageId,
+                        identity: data.identity,
+                        username,
+                        text: data.text || '',
+                        locale: data.locale || 'ko-KR',
+                        translations: data.translations || {},
+                        ts: data.ts ?? Date.now(),
+                    };
+
+                    setFinals((prev) => {
+                        // 🎯 한 번 더 중복 체크
+                        if (prev.some((m) => m.id === messageId)) {
+                            return prev;
+                        }
+                        return [...prev, finalMsg];
+                    });
+
+                    setChatMessages((prev) => {
+                        // 🎯 채팅 메시지도 중복 체크
+                        if (prev.some((m) => m.id === messageId)) {
+                            return prev;
+                        }
+                        return [
+                            ...prev,
+                            {
+                                id: messageId,
+                                username,
+                                text: data.text,
+                                translations: data.translations,
+                                timestamp: new Date(),
+                            },
+                        ];
+                    });
+
+                    setPartials((prev) => {
+                        const next = { ...prev };
+                        delete next[key];
+                        return next;
+                    });
+                } else {
+                    // 부분(STT 타이핑 중)
+                    if (sttTimerRef.current) {
+                        clearTimeout(sttTimerRef.current);
+                    }
+
+                    sttTimerRef.current = setTimeout(() => {
+                        setPartials((prev) => ({
+                            ...prev,
+                            [key]: {
+                                text: data.text || '',
+                                username,
+                                identity: data.identity,
+                            },
+                        }));
+                    }, 100); // 100ms 디바운싱
+                }
+            } catch (e) {
+                console.error('❌ STT 파싱 오류:', e);
+            }
+        },
+        [getParticipantUsername],
+    );
+
+    useDataChannel('stt', handleSttMessage);
 
     // === 좋아요 애니메이션 ===
     const handleLike = () => {

@@ -1,5 +1,5 @@
 // src/components/Culture/LiveView/CultureLiveChatSidebar.jsx
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useDataChannel, useLocalParticipant, useRemoteParticipants, useRoomContext } from '@livekit/components-react';
 import { MessageCircle, Users, Send, X, Sparkles, Globe, Heart, Smile, Type, Info, ChevronRight } from 'lucide-react';
 
@@ -265,6 +265,12 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
     // 🎯 이모지 효과 트리거 추적 (STT 메시지 ID별로)
     const triggeredEffectsRef = useRef(new Set());
 
+    // 🎯 useMemo로 ref 안정화 (재마운트 시에도 유지)
+    const processedSttMessagesRef = useMemo(() => ({ current: new Set() }), []);
+
+    // 🎯 마지막 STT ID 추적
+    const lastProcessedIdRef = useRef(null);
+
     const chatEndRef = useRef(null);
     const room = useRoomContext();
     const { localParticipant } = useLocalParticipant();
@@ -347,104 +353,138 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
 
     // 🔥 STT Finals Handler
     useEffect(() => {
-        if (sttFinals.length > 0 && localParticipant) {
-            const latestSTT = sttFinals[sttFinals.length - 1];
-            const myUsername = getParticipantNickname(localParticipant, room);
-            const sttUsername = latestSTT.username || latestSTT.identity;
-            const isLocal = sttUsername === myUsername || latestSTT.identity === localParticipant.identity;
-            const timestamp = new Date(latestSTT.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        if (sttFinals.length === 0 || !localParticipant) return;
 
-            // 🎯 고유 메시지 ID 생성 (중복 방지용)
-            const messageId = `${latestSTT.identity}-${latestSTT.text}-${latestSTT.ts}`;
+        const latestSTT = sttFinals[sttFinals.length - 1];
+        const myUsername = getParticipantNickname(localParticipant, room);
+        const sttUsername = latestSTT.username || latestSTT.identity;
+        const isLocal = sttUsername === myUsername || latestSTT.identity === localParticipant.identity;
+        const timestamp = new Date(latestSTT.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-            if (latestSTT.translations && typeof latestSTT.translations === 'object') {
-                const sourceLocale = normalizeLocale(latestSTT.locale || 'ko-KR');
-                const translated = findTranslation(latestSTT.translations, myLocale);
+        // 🎯 고유 메시지 ID 생성 (중복 방지용)
+        const messageId = `stt-${latestSTT.identity}-${latestSTT.text}-${latestSTT.ts}`;
 
-                if (translated) {
-                    const translatedSTTMessage = {
-                        type: 'stt',
-                        text: `🎤 ${translated}`,
-                        originalText: `🎤 ${latestSTT.text}`,
-                        translatedTexts: latestSTT.translations,
-                        sourceLocale: sourceLocale,
-                        sender: sttUsername,
-                        time: timestamp,
-                        isLocal: isLocal,
-                        isTranslated: true,
-                    };
+        // 🎯 이미 처리한 메시지면 바로 리턴
+        if (lastProcessedIdRef.current === messageId) {
+            console.log('⏭️ 이미 처리한 메시지 - 스킵:', messageId);
+            return;
+        }
 
-                    setMessages((prev) => {
-                        const isDuplicate = prev.some(
-                            (msg) => msg.type === 'stt' && msg.originalText === translatedSTTMessage.originalText && msg.sender === sttUsername && Date.now() - new Date(msg.time).getTime() < 2000,
-                        );
-                        if (isDuplicate) return prev;
+        console.log('📨 사이드바 STT 처리:', {
+            messageId,
+            text: latestSTT.text?.substring(0, 30),
+            이미처리됨: processedSttMessagesRef.current.has(messageId),
+            전체목록크기: processedSttMessagesRef.current.size,
+        });
 
-                        // 🎯 이 메시지에서 이미 효과를 트리거했는지 확인
-                        if (!triggeredEffectsRef.current.has(messageId)) {
-                            const sttText = latestSTT.text || '';
-                            const detectedEffect = detectSpecialEffect(sttText);
+        if (processedSttMessagesRef.current.has(messageId)) {
+            console.log('❌ 사이드바 중복 감지 - 무시:', messageId);
+            lastProcessedIdRef.current = messageId;
+            return;
+        }
 
-                            // 번역된 텍스트에서도 이모지 감지 (우선순위: 번역 > 원본)
-                            let effectToTrigger = detectedEffect;
-                            if (translated) {
-                                const translatedEffect = detectSpecialEffect(translated);
-                                if (translatedEffect) {
-                                    effectToTrigger = translatedEffect;
-                                }
-                            }
+        // 🎯 처리 완료 표시
+        processedSttMessagesRef.current.add(messageId);
+        lastProcessedIdRef.current = messageId;
 
-                            // 효과 트리거 (처음 한 번만)
-                            if (effectToTrigger && onEffectTrigger) {
-                                onEffectTrigger(effectToTrigger);
-                                triggeredEffectsRef.current.add(messageId);
+        // 🎯 10초 후 추적 목록에서 제거 (메모리 관리)
+        setTimeout(() => {
+            processedSttMessagesRef.current.delete(messageId);
+        }, 10000);
 
-                                // 10초 후 추적 목록에서 제거 (메모리 관리)
-                                setTimeout(() => {
-                                    triggeredEffectsRef.current.delete(messageId);
-                                }, 10000);
+        if (latestSTT.translations && typeof latestSTT.translations === 'object') {
+            const sourceLocale = normalizeLocale(latestSTT.locale || 'ko-KR');
+            const translated = findTranslation(latestSTT.translations, myLocale);
+
+            if (translated) {
+                const translatedSTTMessage = {
+                    id: messageId,
+                    type: 'stt',
+                    text: `🎤 ${translated}`,
+                    originalText: `🎤 ${latestSTT.text}`,
+                    translatedTexts: latestSTT.translations,
+                    sourceLocale: sourceLocale,
+                    sender: sttUsername,
+                    time: timestamp,
+                    isLocal: isLocal,
+                    isTranslated: true,
+                };
+
+                setMessages((prev) => {
+                    // 🎯 ID로 중복 체크
+                    if (prev.some((msg) => msg.id === messageId)) {
+                        console.log('⚠️ setMessages 중복 방지:', messageId);
+                        return prev;
+                    }
+
+                    // 🎯 이 메시지에서 이미 효과를 트리거했는지 확인
+                    if (!triggeredEffectsRef.current.has(messageId)) {
+                        const sttText = latestSTT.text || '';
+                        const detectedEffect = detectSpecialEffect(sttText);
+
+                        // 번역된 텍스트에서도 이모지 감지 (우선순위: 번역 > 원본)
+                        let effectToTrigger = detectedEffect;
+                        if (translated) {
+                            const translatedEffect = detectSpecialEffect(translated);
+                            if (translatedEffect) {
+                                effectToTrigger = translatedEffect;
                             }
                         }
 
-                        return [...prev, translatedSTTMessage];
-                    });
-                    return;
+                        // 효과 트리거 (처음 한 번만)
+                        if (effectToTrigger && onEffectTrigger) {
+                            onEffectTrigger(effectToTrigger);
+                            triggeredEffectsRef.current.add(messageId);
+
+                            // 10초 후 추적 목록에서 제거 (메모리 관리)
+                            setTimeout(() => {
+                                triggeredEffectsRef.current.delete(messageId);
+                            }, 10000);
+                        }
+                    }
+
+                    return [...prev, translatedSTTMessage];
+                });
+                return;
+            }
+        }
+
+        const sttMessage = {
+            id: messageId,
+            type: 'stt',
+            text: `🎤 ${latestSTT.text}`,
+            sender: sttUsername,
+            time: timestamp,
+            isLocal: isLocal,
+            isTranslated: false,
+        };
+
+        setMessages((prev) => {
+            // 🎯 ID로 중복 체크
+            if (prev.some((msg) => msg.id === messageId)) {
+                console.log('⚠️ setMessages 중복 방지:', messageId);
+                return prev;
+            }
+
+            // 🎯 이 메시지에서 이미 효과를 트리거했는지 확인
+            if (!triggeredEffectsRef.current.has(messageId)) {
+                const sttText = latestSTT.text || '';
+                const detectedEffect = detectSpecialEffect(sttText);
+
+                if (detectedEffect && onEffectTrigger) {
+                    onEffectTrigger(detectedEffect);
+                    triggeredEffectsRef.current.add(messageId);
+
+                    // 10초 후 추적 목록에서 제거 (메모리 관리)
+                    setTimeout(() => {
+                        triggeredEffectsRef.current.delete(messageId);
+                    }, 10000);
                 }
             }
 
-            const sttMessage = {
-                type: 'stt',
-                text: `🎤 ${latestSTT.text}`,
-                sender: sttUsername,
-                time: timestamp,
-                isLocal: isLocal,
-                isTranslated: false,
-            };
-
-            setMessages((prev) => {
-                const isDuplicate = prev.some((msg) => msg.type === 'stt' && msg.text === sttMessage.text && msg.sender === sttUsername && Date.now() - new Date(msg.time).getTime() < 2000);
-                if (isDuplicate) return prev;
-
-                // 🎯 이 메시지에서 이미 효과를 트리거했는지 확인
-                if (!triggeredEffectsRef.current.has(messageId)) {
-                    const sttText = latestSTT.text || '';
-                    const detectedEffect = detectSpecialEffect(sttText);
-
-                    if (detectedEffect && onEffectTrigger) {
-                        onEffectTrigger(detectedEffect);
-                        triggeredEffectsRef.current.add(messageId);
-
-                        // 10초 후 추적 목록에서 제거 (메모리 관리)
-                        setTimeout(() => {
-                            triggeredEffectsRef.current.delete(messageId);
-                        }, 10000);
-                    }
-                }
-
-                return [...prev, sttMessage];
-            });
-        }
-    }, [sttFinals, localParticipant, room, myLocale, onEffectTrigger]);
+            return [...prev, sttMessage];
+        });
+    }, [sttFinals.length, localParticipant?.identity, myLocale]);
 
     // Send Message
     const handleSendMessage = useCallback(() => {
@@ -576,7 +616,7 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                                 <div className="flex flex-col items-center justify-center h-full text-gray-400">
                                     <MessageCircle className="w-16 h-16 mb-3 opacity-30" />
                                     <p className="text-sm font-medium">아직 메시지가 없습니다</p>
-                                    <p className="text-xs mt-1">첫 메시지를 보내보세요! 🎉</p>
+                                    <p className="text-xs mt-1<p className=text-xs mt-1">첫 메시지를 보내보세요! 🎉</p>
                                 </div>
                             ) : (
                                 messages.map((msg) => (

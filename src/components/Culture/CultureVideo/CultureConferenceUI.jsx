@@ -3,14 +3,17 @@ import React, { useEffect, useState, useRef, useContext, useCallback } from 'rea
 import { RoomAudioRenderer, LayoutContextProvider, useParticipants, useRoomContext, useDataChannel, useLocalParticipant } from '@livekit/components-react';
 import Swal from 'sweetalert2';
 import { FiCopy, FiMaximize, FiMinimize, FiHeart } from 'react-icons/fi';
-import { Users, MessageCircle, Info, Mic, MicOff, Video, VideoOff, MonitorUp, PhoneOff } from 'lucide-react';
-
+import { Users, MessageCircle, Info, Mic, MicOff, Video, VideoOff, MonitorUp, PhoneOff, Palette } from 'lucide-react';
 import CultureSubtitleOverlay from './CultureSubtitleOverlay';
 import { UserContext } from '../../../contexts/UserContext';
 import CustomVideoGrid from '../../dashboard/dashvideo/CustomVideoGrid';
 import MannerChecker from '../../dashboard/dashvideo/MannerChecker';
 import CultureLiveChatSidebar from './CultureLiveChatSidebar';
 import SpecialEffectAnimation from '../contents/SpecialEffectAnimation';
+import ThemeBackground from '../contents/ThemeBackground';
+import BackgroundThemeSelector from '../contents/BackgroundThemeSelector';
+import '../../../css/EnhancedAnimations.css';
+import { BACKGROUND_THEMES } from '../contents/backgroundThemes';
 
 const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
     const room = useRoomContext();
@@ -28,6 +31,10 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
     const [showControls, setShowControls] = useState(true);
     const [activeTab, setActiveTab] = useState('info');
     const [showChatSidebar, setShowChatSidebar] = useState(true);
+    const [showThemeSelector, setShowThemeSelector] = useState(false);
+
+    // 🎨 배경 테마 상태 (DataChannel로 동기화)
+    const [currentTheme, setCurrentTheme] = useState('default');
 
     // 미디어 상태
     const [isMicOn, setIsMicOn] = useState(true);
@@ -36,22 +43,42 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
 
     const mainContainerRef = useRef(null);
     const controlsTimeoutRef = useRef(null);
-
     const [activeEffects, setActiveEffects] = useState([]);
-
-    // 🔥 STT 중복 방지용
     const sttSeenRef = useRef(new Set());
-
-    // 🔥 여기에 추가!
     const sttTimerRef = useRef(null);
+    console.log('showThemeSelector:', showThemeSelector);
+    // 🎨 테마 변경 DataChannel
+    const { send: sendTheme } = useDataChannel('theme_change');
 
-    // 🔥 채팅에서 이펙트 요청 들어왔을 때
+    // 🎨 테마 변경 수신
+    useDataChannel('theme_change', (msg) => {
+        try {
+            const textDecoder = new TextDecoder();
+            const data = JSON.parse(textDecoder.decode(msg.payload));
+            if (data.themeId) {
+                setCurrentTheme(data.themeId);
+            }
+        } catch (error) {
+            console.error('테마 변경 수신 오류:', error);
+        }
+    });
+
+    // 🎨 테마 변경 핸들러 (모든 참가자에게 전송)
+    const handleThemeChange = (themeId) => {
+        setCurrentTheme(themeId);
+
+        // 다른 참가자들에게 테마 변경 알림
+        if (sendTheme) {
+            const textEncoder = new TextEncoder();
+            sendTheme(textEncoder.encode(JSON.stringify({ themeId })));
+        }
+    };
+
     const handleEffectTrigger = (effect) => {
         const id = Date.now() + Math.random();
         setActiveEffects((prev) => [...prev, { ...effect, id }]);
     };
 
-    // 🔥 애니메이션 1번 끝난 것 제거
     const handleEffectComplete = (id) => {
         setActiveEffects((prev) => prev.filter((e) => e.id !== id));
     };
@@ -81,7 +108,6 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
         };
     }, [localParticipant]);
 
-    // === 미디어 토글 함수들 ===
     const toggleMicrophone = async () => {
         if (!localParticipant) return;
         try {
@@ -129,13 +155,12 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
             try {
                 await room.disconnect();
             } catch (error) {
-                console.error('❌ Error disconnecting:', error);
+                console.error('⚠️ Error disconnecting:', error);
             }
             onLeave && onLeave();
         }
     };
 
-    // === 전체화면에서 마우스 움직임 감지 → 컨트롤 숨김/표시 ===
     useEffect(() => {
         if (!isFullscreen) {
             setShowControls(true);
@@ -169,7 +194,6 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
         };
     }, [isFullscreen]);
 
-    // === 전체화면 토글 ===
     const toggleFullscreen = async () => {
         const element = mainContainerRef.current;
         if (!element) return;
@@ -183,7 +207,7 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
                 else if (document.webkitExitFullscreen) await document.webkitExitFullscreen();
             }
         } catch (err) {
-            console.error('❌ Fullscreen error:', err);
+            console.error('⚠️ Fullscreen error:', err);
         }
     };
 
@@ -202,7 +226,6 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
         };
     }, []);
 
-    // === 참가자 이름 가져오기 (useCallback으로 메모) ===
     const getParticipantUsername = useCallback(
         (identity) => {
             if (!identity) return 'Unknown';
@@ -232,7 +255,6 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
         [room],
     );
 
-    // === STT DataChannel 구독 (중복 방지 포함, 채널명: 'stt') ===
     const handleSttMessage = useCallback(
         (msg) => {
             try {
@@ -241,20 +263,11 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
 
                 const username = data.username || getParticipantUsername(data.identity) || data.identity || 'Unknown';
                 const key = data.identity || data.participant_sid || 'unknown';
-
                 const messageId = `stt-${data.identity || 'unknown'}-${data.text || ''}-${data.ts || ''}`;
 
-                console.log('🔔 STT 수신:', {
-                    messageId,
-                    text: data.text?.substring(0, 30),
-                    final: data.final,
-                    이미처리됨: sttSeenRef.current.has(messageId),
-                });
-
                 if (data.final) {
-                    // ✅ 이미 처리한 STT면 무시
                     if (sttSeenRef.current.has(messageId)) {
-                        console.log('🔄 STT 중복 감지 - 무시:', messageId);
+                        return;
                     }
                     sttSeenRef.current.add(messageId);
 
@@ -273,7 +286,6 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
                     };
 
                     setFinals((prev) => {
-                        // 🎯 한 번 더 중복 체크
                         if (prev.some((m) => m.id === messageId)) {
                             return prev;
                         }
@@ -281,7 +293,6 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
                     });
 
                     setChatMessages((prev) => {
-                        // 🎯 채팅 메시지도 중복 체크
                         if (prev.some((m) => m.id === messageId)) {
                             return prev;
                         }
@@ -303,7 +314,6 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
                         return next;
                     });
                 } else {
-                    // 부분(STT 타이핑 중)
                     if (sttTimerRef.current) {
                         clearTimeout(sttTimerRef.current);
                     }
@@ -317,10 +327,10 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
                                 identity: data.identity,
                             },
                         }));
-                    }, 100); // 100ms 디바운싱
+                    }, 100);
                 }
             } catch (e) {
-                console.error('❌ STT 파싱 오류:', e);
+                console.error('⚠️ STT 파싱 오류:', e);
             }
         },
         [getParticipantUsername],
@@ -328,7 +338,6 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
 
     useDataChannel('stt', handleSttMessage);
 
-    // === 좋아요 애니메이션 ===
     const handleLike = () => {
         setLikes((prev) => prev + 1);
 
@@ -349,7 +358,6 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
         }, 2000);
     };
 
-    // === 링크 복사 ===
     const handleCopyLink = () => {
         const currentUrl = window.location.href;
         navigator.clipboard.writeText(currentUrl).then(() => {
@@ -367,9 +375,17 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
 
     return (
         <LayoutContextProvider>
-            <div data-lk-theme="default" className="w-full min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100">
-                {/* ====== 메인 컨텐츠: 영상 + 채팅 2단 레이아웃 ====== */}
-                <div className="w-full max-w-[1800px] mx-auto px-4 py-6">
+            {/* 🎨 테마 선택기 모달 */}
+            {showThemeSelector && <BackgroundThemeSelector currentTheme={currentTheme} onThemeChange={handleThemeChange} onClose={() => setShowThemeSelector(false)} />}
+
+            <div data-lk-theme="default" className="w-full min-h-screen relative overflow-hidden">
+                {/* 🎨 배경 테마 레이어 */}
+                <div className="fixed inset-0 z-0">
+                    <ThemeBackground themeId={currentTheme} />
+                </div>
+
+                {/* 메인 컨텐츠 (배경 위에 표시) */}
+                <div className="relative z-10 w-full max-w-[1800px] mx-auto px-4 py-6">
                     <div className={`flex gap-4 ${isFullscreen ? 'flex-col' : 'flex-col lg:flex-row'}`}>
                         {/* 왼쪽: 영상 영역 */}
                         <div className={`${isFullscreen ? 'w-full' : 'flex-1 lg:flex-[2]'}`}>
@@ -379,10 +395,11 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
                                 style={{ cursor: isFullscreen && !showControls ? 'none' : 'default' }}
                             >
                                 <div className="relative w-full aspect-[16/9] bg-black">
-                                    {/* 🔥 이펙트 오버레이 (영상 위 전체) */}
+                                    {/* 이펙트 오버레이 */}
                                     {activeEffects.map((effect) => (
                                         <SpecialEffectAnimation key={effect.id} effect={effect} onComplete={() => handleEffectComplete(effect.id)} />
                                     ))}
+
                                     {/* 비디오 그리드 */}
                                     <CustomVideoGrid />
 
@@ -403,7 +420,16 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
                                                 <p className="font-bold text-base">{meetingTitle || '문화 라이브'}</p>
                                             </div>
 
-                                            <div className="absolute top-4 right-4 z-50">
+                                            <div className="absolute top-4 right-4 z-50 flex gap-2">
+                                                {/* 테마 변경 버튼 */}
+                                                <button
+                                                    onClick={() => setShowThemeSelector(true)}
+                                                    className="bg-white/90 backdrop-blur-sm p-2.5 rounded-full hover:bg-white transition-all shadow-lg hover:scale-105"
+                                                    title="배경 테마 변경"
+                                                >
+                                                    <Palette className="w-5 h-5 text-purple-600" />
+                                                </button>
+
                                                 <button
                                                     onClick={handleLike}
                                                     className="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full flex items-center gap-2 hover:bg-white transition-all shadow-lg hover:scale-105"
@@ -424,7 +450,7 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
                                         </div>
                                     )}
 
-                                    {/* STT 타이핑 중 문구 */}
+                                    {/* STT 타이핑 중 */}
                                     {Object.keys(partials).length > 0 && (!isFullscreen || showControls) && (
                                         <div className="absolute bottom-36 left-1/2 -translate-x-1/2 w-[90%] max-w-3xl z-35">
                                             {Object.entries(partials).map(([key, data]) => (
@@ -441,14 +467,13 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
                                         </div>
                                     )}
 
-                                    {/* 하단 커스텀 컨트롤 바 */}
+                                    {/* 하단 컨트롤 바 */}
                                     <div
                                         className={`absolute left-0 right-0 bottom-0 flex flex-wrap items-center justify-center bg-gradient-to-t from-black/90 via-black/70 to-transparent px-4 pb-4 pt-6 gap-3 transition-all duration-300 ${
                                             isFullscreen && !showControls ? 'opacity-0 translate-y-full pointer-events-none' : 'opacity-100 translate-y-0'
                                         }`}
                                         style={{ zIndex: 90 }}
                                     >
-                                        {/* 마이크 버튼 */}
                                         <button
                                             onClick={toggleMicrophone}
                                             className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 shadow-lg hover:scale-110 ${
@@ -459,7 +484,6 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
                                             {isMicOn ? <Mic size={20} strokeWidth={2.5} /> : <MicOff size={20} strokeWidth={2.5} />}
                                         </button>
 
-                                        {/* 카메라 버튼 */}
                                         <button
                                             onClick={toggleCamera}
                                             className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 shadow-lg hover:scale-110 ${
@@ -470,7 +494,6 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
                                             {isCameraOn ? <Video size={20} strokeWidth={2.5} /> : <VideoOff size={20} strokeWidth={2.5} />}
                                         </button>
 
-                                        {/* 화면 공유 버튼 */}
                                         <button
                                             onClick={toggleScreenShare}
                                             className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 shadow-lg hover:scale-110 ${
@@ -481,7 +504,6 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
                                             <MonitorUp size={20} strokeWidth={2.5} />
                                         </button>
 
-                                        {/* 전체화면 버튼 */}
                                         <button
                                             onClick={toggleFullscreen}
                                             className="w-12 h-12 rounded-full bg-white text-gray-600 hover:bg-gray-50 flex items-center justify-center transition-all duration-200 shadow-lg hover:scale-110"
@@ -490,7 +512,6 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
                                             {isFullscreen ? <FiMinimize size={20} /> : <FiMaximize size={20} />}
                                         </button>
 
-                                        {/* 링크 복사 버튼 */}
                                         <button
                                             onClick={handleCopyLink}
                                             className="w-12 h-12 rounded-full bg-white text-gray-600 hover:bg-gray-50 flex items-center justify-center transition-all duration-200 shadow-lg hover:scale-110"
@@ -499,7 +520,6 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
                                             <FiCopy size={20} />
                                         </button>
 
-                                        {/* 나가기 버튼 */}
                                         <button
                                             onClick={handleLeaveRoom}
                                             className="w-12 h-12 rounded-full bg-red-500 text-white hover:bg-red-600 flex items-center justify-center transition-all duration-200 shadow-lg hover:scale-110"
@@ -510,7 +530,6 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
                                     </div>
                                 </div>
 
-                                {/* 방 전체 오디오 */}
                                 <RoomAudioRenderer />
                             </div>
                         </div>
@@ -526,13 +545,12 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
                     </div>
                 </div>
 
-                {/* ====== 영상 아래: 정보 카드 ====== */}
-                <div className="w-full max-w-[1800px] mx-auto px-4 pb-10 space-y-6">
-                    {/* 방송 정보 / 액션 카드 */}
-                    <section className="bg-white rounded-3xl shadow-md px-6 py-5 space-y-4">
+                {/* 영상 아래: 정보 카드 (배경 위에 표시) */}
+                <div className="relative z-10 w-full max-w-[1800px] mx-auto px-4 pb-10 space-y-6">
+                    <section className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl px-6 py-5 space-y-4 border border-white/50">
                         <div className="space-y-2">
                             <div className="flex flex-wrap gap-2 text-[11px] font-semibold">
-                                <span className="px-2 py-1 rounded-full bg-slate-900 text-pink-100">KR → EN</span>
+                                <span className="px-2 py-1 rounded-full bg-slate-900 text-pink-100">KR ↔ EN</span>
                                 <span className="px-2 py-1 rounded-full bg-pink-100 text-pink-700">#K-밈</span>
                                 <span className="px-2 py-1 rounded-full bg-violet-100 text-violet-700">리액션</span>
                             </div>
@@ -566,8 +584,7 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
                         </div>
                     </section>
 
-                    {/* 정보 탭 카드 */}
-                    <section className="bg-white rounded-3xl shadow-md">
+                    <section className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50">
                         <div className="flex border-b border-pink-100 px-6 pt-4">
                             <button
                                 onClick={() => setActiveTab('info')}
@@ -610,6 +627,18 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
                                     <div className="bg-pink-50 rounded-xl p-4 border border-pink-100">
                                         <p className="text-xs text-slate-500 mb-1">현재 언어 설정</p>
                                         <p className="font-mono text-pink-600 font-semibold">{userLocale}</p>
+                                    </div>
+                                    <div className="bg-purple-50 rounded-xl p-4 border border-purple-100">
+                                        <p className="text-xs text-slate-500 mb-2">🎨 현재 배경 테마</p>
+                                        <div className="flex items-center gap-2">
+                                            <div
+                                                className="w-12 h-12 rounded-lg shadow-md"
+                                                style={{
+                                                    background: BACKGROUND_THEMES[currentTheme]?.gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                                }}
+                                            />
+                                            <span className="font-semibold text-purple-700">{BACKGROUND_THEMES[currentTheme]?.name || '기본'}</span>
+                                        </div>
                                     </div>
                                 </div>
                             )}

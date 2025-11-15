@@ -76,7 +76,7 @@ const CultureNavs = ({ onLogout }) => {
     const menuItems = [
         { to: '/culture/cultureHome', label: '홈', icon: Home, end: true },
         { to: '/culture/videos', label: '영상 탐색', icon: Compass },
-        { to: '/culture/live', label: '라이브 시작', icon: Radio },
+        { to: '/Culture/LiveStart', label: '라이브 시작', icon: Radio },
         { to: '/culture/friends', label: '친구', icon: Users },
         { to: '/culture/community', label: '커뮤니티', icon: MessagesSquare },
     ];

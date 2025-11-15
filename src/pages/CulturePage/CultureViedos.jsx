@@ -1,6 +1,6 @@
 // src/pages/Culture/CultureVideos.jsx
 import React, { useState, useEffect, useMemo, useContext } from 'react';
-import { Search, SlidersHorizontal } from 'lucide-react';
+import { LogIn, Search, SlidersHorizontal } from 'lucide-react';
 import LiveCard from '../../components/Culture/CultureHome/LiveCard';
 import api from '../../axios';
 import { UserContext } from '../../contexts/UserContext';
@@ -33,6 +33,8 @@ const CultureVideos = () => {
                     },
                 });
                 setMeetings(response.data.items || []);
+                console.log(response.data.items);
+
                 setLoading(false);
             } catch (error) {
                 console.error('Failed to fetch meetings:', error);

@@ -19,6 +19,9 @@ import CultureLayout from '../layouts/CultureLayout';
 import CultureHome from '../pages/CulturePage/CultureHome';
 import CultureViedos from '../pages/CulturePage/CultureViedos';
 import CultureLiveView from '../components/Culture/CultureVideo/CultureLiveView';
+import LiveStartPage from '../pages/CulturePage/LiveStartPage';
+import FriendsPage from '../pages/CulturePage/FriendsPage';
+import CommunityMain from '../pages/CulturePage/Communitymain';
 
 const Approuter = () => {
     return (
@@ -45,6 +48,9 @@ const Approuter = () => {
             <Route element={<CultureLayout />}>
                 <Route path="/Culture/CultureHome" element={<CultureHome />} />
                 <Route path="/Culture/Videos" element={<CultureViedos />} />
+                <Route path="/Culture/LiveStart" element={<LiveStartPage />} />
+                <Route path="/Culture/Friends" element={<FriendsPage />} />
+                <Route path="/Culture/Community" element={<CommunityMain />} />
             </Route>
 
             <Route path="/business/meeting" element={<MeetingPage />} />

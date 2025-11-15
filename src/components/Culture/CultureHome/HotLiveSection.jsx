@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import api from '../../../axios';
 import LiveCard from './LiveCard';
+import { UserContext } from '../../../contexts/UserContext';
+import Swal from 'sweetalert2';
 
 export default function HotLiveSection() {
+    const { user } = useContext(UserContext);
     const [meetings, setMeetings] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -29,8 +32,79 @@ export default function HotLiveSection() {
         }
     };
 
+    // ✅ 문화 모드 전용 참가 함수 (CultureVideos와 동일)
+    const handleJoinCultureMeeting = async (meetingId, meetingTitle, inviteCode, rawStatus) => {
+        // 1) 종료된 회의면 막기
+        if (rawStatus === 'ENDED') {
+            Swal.fire({
+                icon: 'info',
+                title: '종료된 라이브입니다',
+                text: '종료된 라이브는 참여할 수 없고, 첨부 문서만 확인 가능합니다.',
+                timer: 1800,
+                showConfirmButton: false,
+            });
+            return;
+        }
+
+        try {
+            const currentMeeting = meetings.find((m) => m.meetings_id === meetingId);
+
+            // 🔐 게스트 접근 제한
+            if (currentMeeting && currentMeeting.user_role === 'GUEST' && currentMeeting.status !== '진행중') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: '참여 불가',
+                    text: '게스트는 진행중인 라이브만 참여할 수 있습니다.',
+                    timer: 2000,
+                    showConfirmButton: false,
+                });
+                return;
+            }
+
+            // ⏱ 호스트가 '예정' 상태 → 'ONGOING'으로 변경
+            if (currentMeeting && currentMeeting.status === '예정') {
+                const updateData = {
+                    title: meetingTitle,
+                    status: 'ONGOING',
+                    inviteCode,
+                    scheduledAt: new Date().toISOString(),
+                };
+
+                if (currentMeeting.user_role === 'HOST' && user?.userId) {
+                    await api.patch(`/api/users/${user.userId}/meetings/${meetingId}`, updateData);
+                }
+            }
+
+            // ✅ /culture/live로 이동
+            const url = new URL('/culture/live', window.location.origin);
+            url.searchParams.set('id', meetingId);
+            url.searchParams.set('title', meetingTitle);
+            url.searchParams.set('invite', inviteCode);
+
+            window.open(url.toString(), '_blank', 'noopener,noreferrer');
+        } catch (error) {
+            console.error('문화 라이브 참가 중 오류:', error);
+
+            // 상태 업데이트 실패해도 그냥 입장은 시켜줌
+            const url = new URL('/culture/live', window.location.origin);
+            url.searchParams.set('id', meetingId);
+            url.searchParams.set('title', meetingTitle);
+            url.searchParams.set('invite', inviteCode);
+
+            window.open(url.toString(), '_blank', 'noopener,noreferrer');
+
+            Swal.fire({
+                icon: 'warning',
+                title: '상태 업데이트 실패',
+                text: '라이브 상태 업데이트에 실패했지만, 라이브에는 참여할 수 있습니다.',
+                timer: 2000,
+                showConfirmButton: false,
+            });
+        }
+    };
+
     // 랜덤 시청자 수 생성 (실제로는 API에서 받아야 함)
-    const getViewerCount = () => Math.floor(Math.random() * 3000) + 500;
+    const getViewerCount = () => Math.floor(Math.random() * 2) + 1;
 
     // 언어 코드를 표시 형식으로 변환
     const formatLanguage = (lang) => {
@@ -75,28 +149,36 @@ export default function HotLiveSection() {
                     {/* 오른쪽 버튼 영역 */}
                     <button
                         className="
-            w-full sm:w-auto
-            inline-flex items-center justify-center
-            text-sm sm:text-base
-            font-semibold
-            text-pink-600 hover:text-pink-700
-            bg-pink-50 hover:bg-pink-100
-            border border-pink-100
-            rounded-full
-            px-4 py-2
-            transition-colors
-            group
-        "
+                            w-full sm:w-auto
+                            inline-flex items-center justify-center
+                            text-sm sm:text-base
+                            font-semibold
+                            text-pink-600 hover:text-pink-700
+                            bg-pink-50 hover:bg-pink-100
+                            border border-pink-100
+                            rounded-full
+                            px-4 py-2
+                            transition-colors
+                            group
+                        "
                     >
                         전체보기
                         <span className="ml-1 group-hover:translate-x-1 transition-transform">→</span>
                     </button>
                 </div>
 
-                {/* Live Cards - GRID (스크롤 X) */}
-                <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                {/* Live Cards - GRID */}
+                <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-8">
                     {meetings.map((meeting, index) => (
-                        <LiveCard key={meeting.meetings_id} meeting={meeting} viewerCount={getViewerCount()} language={formatLanguage(meeting.default_lang)} index={index} />
+                        <LiveCard
+                            key={meeting.meetings_id}
+                            meeting={meeting}
+                            viewerCount={getViewerCount()}
+                            language={formatLanguage(meeting.default_lang)}
+                            index={index}
+                            // ✅ 클릭 시 라이브 참가 함수 연결
+                            onJoin={() => handleJoinCultureMeeting(meeting.meetings_id, meeting.title, meeting.invite_code, meeting.status)}
+                        />
                     ))}
                 </div>
             </div>

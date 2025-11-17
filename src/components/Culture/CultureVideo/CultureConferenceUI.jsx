@@ -56,10 +56,16 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
         try {
             const textDecoder = new TextDecoder();
             const data = JSON.parse(textDecoder.decode(msg.payload));
+
             if (data.themeId) {
-                // ✨ 애니메이션과 함께 테마 변경
-                setAnimatingTheme(data.themeId);
-                setShowThemeAnimation(true);
+                // showAnimation 플래그가 true면 애니메이션과 함께 변경
+                if (data.showAnimation) {
+                    setAnimatingTheme(data.themeId);
+                    setShowThemeAnimation(true);
+                } else {
+                    // 그냥 테마만 변경 (프리뷰)
+                    setCurrentTheme(data.themeId);
+                }
             }
         } catch (error) {
             console.error('테마 변경 수신 오류:', error);
@@ -72,7 +78,14 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
         setCurrentTheme(themeId);
         if (sendTheme) {
             const textEncoder = new TextEncoder();
-            sendTheme(textEncoder.encode(JSON.stringify({ themeId })));
+            sendTheme(
+                textEncoder.encode(
+                    JSON.stringify({
+                        themeId,
+                        showAnimation: false, // 프리뷰: 애니메이션 없음
+                    }),
+                ),
+            );
         }
     };
 
@@ -82,7 +95,20 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
 
         // 완료 버튼으로 닫혔고 + 테마가 선택된 경우에만 애니메이션
         if (selectedThemeId) {
-            // 짧은 딜레이 후 애니메이션 트리거
+            // 모든 참가자에게 애니메이션과 함께 테마 변경 전송
+            if (sendTheme) {
+                const textEncoder = new TextEncoder();
+                sendTheme(
+                    textEncoder.encode(
+                        JSON.stringify({
+                            themeId: selectedThemeId,
+                            showAnimation: true, // 완료: 애니메이션 있음!
+                        }),
+                    ),
+                );
+            }
+
+            // 짧은 딜레이 후 로컬에서도 애니메이션 트리거
             setTimeout(() => {
                 setAnimatingTheme(selectedThemeId);
                 setShowThemeAnimation(true);

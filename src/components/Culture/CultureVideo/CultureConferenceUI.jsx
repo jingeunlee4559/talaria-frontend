@@ -12,6 +12,7 @@ import CultureLiveChatSidebar from './CultureLiveChatSidebar';
 import SpecialEffectAnimation from '../contents/SpecialEffectAnimation';
 import ThemeBackground from '../contents/ThemeBackground';
 import BackgroundThemeSelector from '../contents/BackgroundThemeSelector';
+import ThemeTransitionAnimation from '../contents/ThemeTransitionAnimation'; // ✨ 새로 추가
 import '../../../css/EnhancedAnimations.css';
 import { BACKGROUND_THEMES } from '../contents/backgroundThemes';
 
@@ -35,6 +36,10 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
 
     const [currentTheme, setCurrentTheme] = useState('default');
 
+    // ✨ 테마 전환 애니메이션 상태 추가
+    const [showThemeAnimation, setShowThemeAnimation] = useState(false);
+    const [animatingTheme, setAnimatingTheme] = useState(null);
+
     const [isMicOn, setIsMicOn] = useState(true);
     const [isCameraOn, setIsCameraOn] = useState(true);
     const [isScreenSharing, setIsScreenSharing] = useState(false);
@@ -52,18 +57,45 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
             const textDecoder = new TextDecoder();
             const data = JSON.parse(textDecoder.decode(msg.payload));
             if (data.themeId) {
-                setCurrentTheme(data.themeId);
+                // ✨ 애니메이션과 함께 테마 변경
+                setAnimatingTheme(data.themeId);
+                setShowThemeAnimation(true);
             }
         } catch (error) {
             console.error('테마 변경 수신 오류:', error);
         }
     });
 
+    // ✨ 테마 변경 핸들러 - 애니메이션 없이 테마만 변경
     const handleThemeChange = (themeId) => {
+        // 실시간으로 테마만 변경 (애니메이션 없음)
         setCurrentTheme(themeId);
         if (sendTheme) {
             const textEncoder = new TextEncoder();
             sendTheme(textEncoder.encode(JSON.stringify({ themeId })));
+        }
+    };
+
+    // ✨ 모달 닫기 핸들러 (완료 버튼용)
+    const handleThemeSelectorClose = (selectedThemeId) => {
+        setShowThemeSelector(false);
+
+        // 완료 버튼으로 닫혔고 + 테마가 선택된 경우에만 애니메이션
+        if (selectedThemeId) {
+            // 짧은 딜레이 후 애니메이션 트리거
+            setTimeout(() => {
+                setAnimatingTheme(selectedThemeId);
+                setShowThemeAnimation(true);
+            }, 300);
+        }
+    };
+
+    // ✨ 애니메이션 완료 핸들러
+    const handleAnimationComplete = () => {
+        setShowThemeAnimation(false);
+        // 실제 테마가 아직 변경되지 않았다면 지금 변경
+        if (animatingTheme && animatingTheme !== currentTheme) {
+            setCurrentTheme(animatingTheme);
         }
     };
 
@@ -367,7 +399,10 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
 
     return (
         <LayoutContextProvider>
-            {showThemeSelector && <BackgroundThemeSelector currentTheme={currentTheme} onThemeChange={handleThemeChange} onClose={() => setShowThemeSelector(false)} />}
+            {showThemeSelector && <BackgroundThemeSelector currentTheme={currentTheme} onThemeChange={handleThemeChange} onClose={handleThemeSelectorClose} />}
+
+            {/* ✨ 테마 전환 애니메이션 추가 */}
+            {showThemeAnimation && animatingTheme && <ThemeTransitionAnimation themeId={animatingTheme} onComplete={handleAnimationComplete} />}
 
             <div data-lk-theme="default" className="w-full min-h-screen relative overflow-hidden">
                 <div className="fixed inset-0 z-0">
@@ -397,7 +432,7 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
                                         <>
                                             <MannerChecker room={room} debug={false} demo={false} />
 
-                                            {/* 🎯 LIVE 뱃지 - 반응형 완벽 */}
+                                            {/* 🎯 LIVE 배지 - 반응형 완벽 */}
                                             <div className="absolute top-2 sm:top-3 left-2 sm:left-3 z-50 bg-gradient-to-r from-pink-600/90 to-purple-600/90 backdrop-blur-sm px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl shadow-2xl border border-white/20 max-w-[calc(100%-8rem)]">
                                                 <div className="flex items-center gap-1.5 sm:gap-2">
                                                     <div className="flex items-center gap-1 flex-shrink-0">

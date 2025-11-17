@@ -74,19 +74,14 @@ const LoginPage = () => {
         }
     };
 
-    // **요청하신 버튼을 컴포넌트 내부에서 함수로 정의 (useNavigate 대신 onClick 사용)**
     const NavLinkButton = ({ to, children }) => {
         const handleClick = (e) => {
             e.preventDefault();
             console.log(`Navigating to ${to}`);
-            // 현재 환경에서 라우팅 역할을 하는 window.location.href 사용 (실제 React Router 사용 시 useNavigate(to)로 대체)
-            // window.location.href = to;
-            // alert(`${to} 페이지로 이동을 시도합니다. (실제 이동은 React Router 설정 필요)`); // alert 사용 금지
             console.log(`${to} 페이지로 이동을 시도합니다. (실제 이동은 React Router 설정 필요)`);
         };
 
         return (
-            // button 대신 a 태그를 사용하여 클릭 가능하게 하고, 스타일은 유지
             <a href={to} onClick={handleClick} className="text-gray-600 hover:text-purple-600 font-medium transition">
                 {children}
             </a>

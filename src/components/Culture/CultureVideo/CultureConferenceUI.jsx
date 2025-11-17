@@ -323,20 +323,15 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
 
                 const username = data.username || getParticipantUsername(data.identity) || data.identity || 'Unknown';
                 const key = data.identity || data.participant_sid || 'unknown';
-                const messageId = `stt-${data.identity || 'unknown'}-${data.text || ''}-${data.ts || ''}`;
+
+                // 🔑 utterance_id를 고유 ID로 사용 (없으면 fallback)
+                const utteranceId = data.utterance_id || data.utteranceId || `stt-${data.identity || 'unknown'}-${data.ts || ''}`;
 
                 if (data.final) {
-                    if (sttSeenRef.current.has(messageId)) {
-                        return;
-                    }
-                    sttSeenRef.current.add(messageId);
-
-                    setTimeout(() => {
-                        sttSeenRef.current.delete(messageId);
-                    }, 10000);
-
+                    // ✅ final 처리: utterance_id 기준으로 find & update
                     const finalMsg = {
-                        id: messageId,
+                        id: utteranceId,
+                        utteranceId, // 나중에 Sidebar에서 사용
                         identity: data.identity,
                         username,
                         text: data.text || '',
@@ -346,34 +341,41 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
                     };
 
                     setFinals((prev) => {
-                        if (prev.some((m) => m.id === messageId)) {
-                            return prev;
+                        const idx = prev.findIndex((m) => m.utteranceId === utteranceId || m.id === utteranceId);
+                        if (idx === -1) {
+                            // 1차 게시: 새 말풍선
+                            return [...prev, finalMsg];
                         }
-                        return [...prev, finalMsg];
+                        // 2차 이후: 같은 utterance 말풍선 내용 덮어쓰기
+                        const next = [...prev];
+                        next[idx] = { ...next[idx], ...finalMsg };
+                        return next;
                     });
 
+                    // (선택) chatMessages 도 utteranceId 기준으로 find & update
                     setChatMessages((prev) => {
-                        if (prev.some((m) => m.id === messageId)) {
-                            return prev;
-                        }
-                        return [
-                            ...prev,
-                            {
-                                id: messageId,
-                                username,
-                                text: data.text,
-                                translations: data.translations,
-                                timestamp: new Date(),
-                            },
-                        ];
+                        const idx = prev.findIndex((m) => m.id === utteranceId);
+                        const base = {
+                            id: utteranceId,
+                            username,
+                            text: data.text,
+                            translations: data.translations,
+                            timestamp: new Date(),
+                        };
+                        if (idx === -1) return [...prev, base];
+                        const next = [...prev];
+                        next[idx] = { ...next[idx], ...base };
+                        return next;
                     });
 
+                    // partial 제거
                     setPartials((prev) => {
                         const next = { ...prev };
                         delete next[key];
                         return next;
                     });
                 } else {
+                    // 🔁 partial (중간 STT) – 필요하면 utteranceId 같이 저장
                     if (sttTimerRef.current) {
                         clearTimeout(sttTimerRef.current);
                     }
@@ -385,9 +387,13 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
                                 text: data.text || '',
                                 username,
                                 identity: data.identity,
+                                locale: data.locale || 'ko-KR',
+                                translations: data.translations || {},
+                                ts: data.ts ?? Date.now(),
+                                utteranceId,
                             },
                         }));
-                    }, 100);
+                    }, 50);
                 }
             } catch (e) {
                 console.error('⚠️ STT 파싱 오류:', e);
@@ -395,7 +401,6 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
         },
         [getParticipantUsername],
     );
-
     useDataChannel('stt', handleSttMessage);
 
     const handleLike = () => {

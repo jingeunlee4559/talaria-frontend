@@ -363,7 +363,10 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
         const myUsername = getParticipantNickname(localParticipant, room);
         const sttUsername = latestSTT.username || latestSTT.identity;
         const isLocal = sttUsername === myUsername || latestSTT.identity === localParticipant.identity;
-        const timestamp = new Date(latestSTT.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const timestamp = new Date(latestSTT.ts * 1000).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+        });
 
         const messageId = `stt-${latestSTT.identity}-${latestSTT.text}-${latestSTT.ts}`;
 

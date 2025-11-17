@@ -367,7 +367,7 @@ const CultureLiveView = () => {
 
                             <div className="space-y-4">
                                 <h1 className="text-3xl sm:text-4xl md:text-5xl font-black bg-gradient-to-r from-pink-600 via-purple-600 to-blue-600 bg-clip-text text-transparent animate-gradient tracking-tight">
-                                    K-밈 라이브 준비중
+                                    문화 라이브 준비중
                                 </h1>
                                 <div className="flex items-center justify-center gap-2">
                                     <div className="w-3 h-3 sm:w-4 sm:h-4 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>

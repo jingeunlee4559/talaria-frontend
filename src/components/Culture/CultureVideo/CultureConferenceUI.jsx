@@ -191,7 +191,7 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
     const handleLeaveRoom = async () => {
         const result = await Swal.fire({
             title: '라이브에서 나가시겠습니까?',
-            text: '나가시면 실시간 번역 연결이 종료됩니다.',
+            // text: '나가시면 실시간 번역 연결이 종료됩니다.',
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#ef4444',

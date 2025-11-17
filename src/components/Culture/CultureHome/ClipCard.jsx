@@ -7,11 +7,10 @@ export default function ClipCard({ clip, language, index }) {
     const [isLiked, setIsLiked] = useState(false);
     const [isBookmarked, setIsBookmarked] = useState(false);
 
-    // 태그
     const tagSets = [
-        ['#모음집', '#베스트', '#추천'],
-        ['#페스티벌', '#현장', '#음악'],
-        ['#제작', '#튜토리얼', '#팁'],
+        ['#K-밈', '#해외밈', '#음악'],
+        ['#게임', '#먹방', '#여행'],
+        ['#브이로그', '#토크', '#공부'],
     ];
     const tags = tagSets[index % tagSets.length];
 

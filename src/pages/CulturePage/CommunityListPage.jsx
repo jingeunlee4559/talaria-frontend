@@ -15,7 +15,7 @@ const CommunityListPage = ({ posts, onPostClick, likedPosts, setLikedPosts, onUp
     });
 
     return (
-        <div className="min-h-screen bg-gray-50 p-4 md:p-6 lg:p-8">
+        <div className="min-h-screen bg-gray-50 p-4 w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] md:p-6 lg:p-8">
             <div className="max-w-6xl mx-auto">
                 {/* 헤더 */}
                 <div className="mb-8">

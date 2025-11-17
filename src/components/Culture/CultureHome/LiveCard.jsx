@@ -9,7 +9,9 @@ const LiveCard = ({ meeting, language, index, onJoin }) => {
     const [isLiked, setIsLiked] = useState(false);
     const [isBookmarked, setIsBookmarked] = useState(false);
 
-    const tags = index === 0 ? ['#K-팝', '#리액션', '#라이브'] : index === 1 ? ['#해외팀', '#실시간', '#영국'] : ['#일본', '#문화', '#여행'];
+    // meeting에서 tags 가져오기 (없으면 빈 배열)
+    const tags = meeting.tags || [];
+    const displayTags = tags.map((tag) => `#${tag}`);
 
     const handleLike = (e) => {
         e.stopPropagation();
@@ -78,7 +80,7 @@ const LiveCard = ({ meeting, language, index, onJoin }) => {
 
                 {/* 태그 */}
                 <div className="flex flex-wrap gap-2 mb-4">
-                    {tags.map((tag, idx) => (
+                    {displayTags.map((tag, idx) => (
                         <span key={idx} className="px-2.5 py-1 bg-violet-50 text-violet-600 text-xs font-semibold rounded-lg hover:bg-violet-100 transition-colors cursor-pointer">
                             {tag}
                         </span>

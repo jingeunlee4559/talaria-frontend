@@ -1,7 +1,8 @@
 // src/pages/Culture/CultureVideos.jsx
 import React, { useState, useEffect, useMemo, useContext } from 'react';
-import { LogIn, Search, SlidersHorizontal } from 'lucide-react';
+import { LogIn, Search, SlidersHorizontal, Filter, X, Sparkles, Flame, TrendingUp, Clock } from 'lucide-react';
 import LiveCard from '../../components/Culture/CultureHome/LiveCard';
+import Pagination from '../../components/Culture/Pagination';
 import api from '../../axios';
 import { UserContext } from '../../contexts/UserContext';
 import Swal from 'sweetalert2';
@@ -14,11 +15,44 @@ const CultureVideos = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedSort, setSelectedSort] = useState('인기순');
     const [selectedLanguage, setSelectedLanguage] = useState('모든 언어');
-    const [activeCategory, setActiveCategory] = useState('전체');
+    const [activeCategories, setActiveCategories] = useState([]); // 다중 선택을 위한 배열
+    const [showFilters, setShowFilters] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
 
-    const categories = ['전체', 'K-팝', '해외팀', '리액션', '드림상영', '라이브쇼', '일본', '영국', '미국'];
+    const ITEMS_PER_PAGE = 8;
+
+    // 카테고리 아이콘 매핑
+    const categoryIcons = {
+        전체: Sparkles,
+        'K-밈': '🤣',
+        해외밈: '😂',
+        음악: '🎵',
+        게임: '🎮',
+        먹방: '🍜',
+        여행: '✈️',
+        브이로그: '📹',
+        토크: '💬',
+        공부: '📚',
+    };
+
+    const categories = ['전체', 'K-밈', '해외밈', '음악', '게임', '먹방', '여행', '브이로그', '토크', '공부'];
     const sortOptions = ['인기순', '최신순', '조회순'];
     const languageOptions = ['모든 언어', 'KR → EN', 'EN → KR', 'JP → KR', 'KR'];
+
+    // 카테고리 토글 함수
+    const toggleCategory = (category) => {
+        if (category === '전체') {
+            setActiveCategories([]);
+        } else {
+            setActiveCategories((prev) => {
+                if (prev.includes(category)) {
+                    return prev.filter((c) => c !== category);
+                } else {
+                    return [...prev, category];
+                }
+            });
+        }
+    };
 
     // ✅ 문화 모드 회의 리스트 불러오기
     useEffect(() => {
@@ -29,11 +63,26 @@ const CultureVideos = () => {
                     params: {
                         mode: 'C',
                         page: 0,
-                        size: 20,
+                        size: 100, // 충분한 데이터 가져오기
                     },
                 });
-                setMeetings(response.data.items || []);
-                console.log(response.data.items);
+
+                // 각 미팅에 랜덤 태그 추가
+                const allTags = ['K-밈', '해외밈', '음악', '게임', '먹방', '여행', '브이로그', '토크', '공부'];
+                const meetingsWithTags = (response.data.items || []).map((meeting) => {
+                    // 각 미팅마다 2-4개의 랜덤 태그 생성
+                    const numTags = Math.floor(Math.random() * 3) + 2; // 2~4개
+                    const shuffled = [...allTags].sort(() => Math.random() - 0.5);
+                    const tags = shuffled.slice(0, numTags);
+
+                    return {
+                        ...meeting,
+                        tags: tags,
+                    };
+                });
+
+                setMeetings(meetingsWithTags);
+                console.log(meetingsWithTags);
 
                 setLoading(false);
             } catch (error) {
@@ -116,7 +165,7 @@ const CultureVideos = () => {
         }
     };
 
-    // 🔎 검색/필터/정렬 (기존 로직 그대로)
+    // 🔎 검색/필터/정렬
     const filteredMeetings = useMemo(() => {
         let filtered = [...meetings];
 
@@ -124,8 +173,12 @@ const CultureVideos = () => {
             filtered = filtered.filter((m) => m.title.toLowerCase().includes(searchQuery.toLowerCase()) || m.host_name.toLowerCase().includes(searchQuery.toLowerCase()));
         }
 
-        if (activeCategory !== '전체') {
-            filtered = filtered.filter((m) => m.title.includes(activeCategory));
+        // 다중 카테고리 필터링 - 태그 기반
+        if (activeCategories.length > 0) {
+            filtered = filtered.filter((m) => {
+                // 선택된 카테고리 중 하나라도 미팅의 태그에 포함되면 true
+                return activeCategories.some((category) => m.tags && m.tags.includes(category));
+            });
         }
 
         if (selectedSort === '최신순') {
@@ -135,10 +188,32 @@ const CultureVideos = () => {
         }
 
         return filtered;
-    }, [meetings, searchQuery, activeCategory, selectedSort]);
+    }, [meetings, searchQuery, activeCategories, selectedSort]);
+
+    // 페이지네이션 계산
+    const totalPages = Math.ceil(filteredMeetings.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    const currentMeetings = filteredMeetings.slice(startIndex, endIndex);
+
+    // 카테고리 변경 시 페이지 초기화
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [activeCategories, searchQuery, selectedSort]);
+
+    // 필터 초기화
+    const resetFilters = () => {
+        setSearchQuery('');
+        setActiveCategories([]);
+        setSelectedSort('인기순');
+        setSelectedLanguage('모든 언어');
+        setCurrentPage(1);
+    };
+
+    const activeFiltersCount = [searchQuery !== '', activeCategories.length > 0, selectedSort !== '인기순', selectedLanguage !== '모든 언어'].filter(Boolean).length;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* Header */}
                 <header className="mb-8">
@@ -146,90 +221,210 @@ const CultureVideos = () => {
                     <p className="text-gray-600 text-lg">다양한 문화 콘텐츠를 탐색하고 즐겨보세요</p>
                 </header>
 
-                {/* Search and Filters */}
-                <div className="bg-white rounded-2xl shadow-sm p-6 mb-8">
-                    {/* Search Bar */}
+                {/* Search and Filters - 개선된 디자인 */}
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-8 transition-all hover:shadow-xl">
+                    {/* Search Bar with Enhanced Design */}
                     <div className="relative mb-6">
-                        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        <div className="absolute left-5 top-1/2 transform -translate-y-1/2 text-gray-400">
+                            <Search className="w-5 h-5" />
+                        </div>
                         <input
                             type="text"
                             placeholder="채널, 크리에이터, 태그 등 검색..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                            className="w-full pl-14 pr-12 py-4 bg-gray-50 border-2 border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-pink-400 focus:bg-white transition-all text-gray-700 placeholder-gray-400"
                         />
-                    </div>
-
-                    {/* Category Tabs */}
-                    <div className="flex items-center gap-3 mb-6 overflow-x-auto pb-2">
-                        {categories.map((category) => (
-                            <button
-                                key={category}
-                                onClick={() => setActiveCategory(category)}
-                                className={`px-5 py-2 rounded-full font-medium whitespace-nowrap transition-all ${
-                                    activeCategory === category ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-md' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                }`}
-                            >
-                                {category}
+                        {searchQuery && (
+                            <button onClick={() => setSearchQuery('')} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                                <X className="w-5 h-5" />
                             </button>
-                        ))}
+                        )}
                     </div>
 
-                    {/* Sort and Language Filter */}
-                    <div className="flex flex-wrap gap-4">
-                        <div className="flex items-center gap-2">
-                            <SlidersHorizontal className="w-4 h-4 text-gray-500" />
-                            <select
-                                value={selectedSort}
-                                onChange={(e) => setSelectedSort(e.target.value)}
-                                className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 cursor-pointer"
-                            >
-                                {sortOptions.map((option) => (
-                                    <option key={option} value={option}>
-                                        {option}
-                                    </option>
-                                ))}
-                            </select>
+                    {/* Category Chips with Modern Design - 다중 선택 가능 */}
+                    <div className="mb-6">
+                        <div className="flex items-center gap-3 mb-4 flex-wrap">
+                            <div className="flex items-center gap-2">
+                                <div className="w-1 h-6 bg-gradient-to-b from-pink-500 to-purple-500 rounded-full"></div>
+                                <span className="text-base font-bold text-gray-800">카테고리</span>
+                                {activeCategories.length > 0 && (
+                                    <span className="px-2.5 py-0.5 bg-gradient-to-r from-pink-500 to-purple-500 text-white text-xs font-bold rounded-full">{activeCategories.length}개 선택</span>
+                                )}
+                            </div>
+                            {activeCategories.length > 0 && (
+                                <button
+                                    onClick={() => setActiveCategories([])}
+                                    className="flex items-center gap-1 px-3 py-1 bg-pink-50 hover:bg-pink-100 text-pink-600 rounded-full text-xs font-semibold transition-all duration-200 hover:shadow-md"
+                                >
+                                    <X className="w-3 h-3" />
+                                    전체 초기화
+                                </button>
+                            )}
+                        </div>
+                        {/* 반응형 그리드 카테고리 */}
+                        <div className="flex flex-wrap gap-2.5">
+                            {categories.map((category) => {
+                                const IconComponent = categoryIcons[category];
+                                const isActive = category === '전체' ? activeCategories.length === 0 : activeCategories.includes(category);
+                                const isEmoji = typeof IconComponent === 'string';
+
+                                return (
+                                    <button
+                                        key={category}
+                                        onClick={() => toggleCategory(category)}
+                                        className={`group relative flex-shrink-0 px-4 py-2.5 rounded-xl font-semibold whitespace-nowrap transition-all duration-300 transform ${
+                                            isActive
+                                                ? 'bg-gradient-to-r from-pink-500 via-purple-500 to-violet-500 text-white shadow-lg shadow-pink-300/50 scale-105'
+                                                : 'bg-white text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 hover:shadow-md hover:scale-105 border-2 border-gray-200 hover:border-pink-300'
+                                        }`}
+                                    >
+                                        {/* 배경 애니메이션 효과 */}
+                                        {isActive && <div className="absolute inset-0 bg-gradient-to-r from-pink-400 to-purple-400 rounded-xl blur-lg opacity-40 -z-10 animate-pulse"></div>}
+
+                                        <div className="flex items-center gap-2">
+                                            {isEmoji ? (
+                                                <span className="text-base">{IconComponent}</span>
+                                            ) : (
+                                                <IconComponent className={`w-4 h-4 ${isActive ? 'text-white' : 'text-pink-500 group-hover:text-purple-500'}`} />
+                                            )}
+                                            <span className="text-sm">{category}</span>
+                                        </div>
+
+                                        {/* 활성 상태 인디케이터 */}
+                                        {isActive && <div className="absolute -bottom-1.5 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-white rounded-full shadow-md"></div>}
+
+                                        {/* 체크마크 아이콘 (전체 제외) */}
+                                        {isActive && category !== '전체' && (
+                                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center shadow-md">
+                                                <svg className="w-3 h-3 text-pink-600" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path
+                                                        fillRule="evenodd"
+                                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                                        clipRule="evenodd"
+                                                    />
+                                                </svg>
+                                            </div>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Filters Section with Toggle */}
+                    <div className="border-t border-gray-100 pt-5">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                                <Filter className="w-4 h-4 text-gray-500" />
+                                <span className="text-sm font-semibold text-gray-700">필터 옵션</span>
+                                {activeFiltersCount > 0 && <span className="px-2 py-0.5 bg-pink-100 text-pink-600 text-xs font-bold rounded-full">{activeFiltersCount}</span>}
+                            </div>
+                            <button onClick={() => setShowFilters(!showFilters)} className="text-sm text-gray-500 hover:text-gray-700 font-medium transition-colors">
+                                {showFilters ? '숨기기' : '펼치기'}
+                            </button>
                         </div>
 
-                        <select
-                            value={selectedLanguage}
-                            onChange={(e) => setSelectedLanguage(e.target.value)}
-                            className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 cursor-pointer"
-                        >
-                            {languageOptions.map((option) => (
-                                <option key={option} value={option}>
-                                    {option}
-                                </option>
-                            ))}
-                        </select>
+                        {/* Collapsible Filter Options */}
+                        <div className={`grid gap-4 transition-all duration-300 ${showFilters ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                            <div className="overflow-hidden">
+                                <div className="flex flex-wrap gap-3">
+                                    {/* Sort Dropdown */}
+                                    <div className="flex-1 min-w-[200px]">
+                                        <label className="block text-xs font-medium text-gray-600 mb-2">정렬 기준</label>
+                                        <div className="relative">
+                                            <SlidersHorizontal className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                            <select
+                                                value={selectedSort}
+                                                onChange={(e) => setSelectedSort(e.target.value)}
+                                                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 border-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-pink-400 cursor-pointer transition-all text-gray-700 appearance-none"
+                                            >
+                                                {sortOptions.map((option) => (
+                                                    <option key={option} value={option}>
+                                                        {option}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
 
-                        <button className="ml-auto px-6 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors font-medium">필터</button>
+                                    {/* Language Dropdown */}
+                                    <div className="flex-1 min-w-[200px]">
+                                        <label className="block text-xs font-medium text-gray-600 mb-2">언어</label>
+                                        <select
+                                            value={selectedLanguage}
+                                            onChange={(e) => setSelectedLanguage(e.target.value)}
+                                            className="w-full px-4 py-2.5 bg-gray-50 border-2 border-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-pink-400 cursor-pointer transition-all text-gray-700 appearance-none"
+                                        >
+                                            {languageOptions.map((option) => (
+                                                <option key={option} value={option}>
+                                                    {option}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Reset Button */}
+                                    {activeFiltersCount > 0 && (
+                                        <div className="flex items-end">
+                                            <button
+                                                onClick={resetFilters}
+                                                className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-all duration-200 hover:shadow-md flex items-center gap-2"
+                                            >
+                                                <X className="w-4 h-4" />
+                                                초기화
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
+
+                {/* 결과 개수 표시 */}
+                {!loading && filteredMeetings.length > 0 && (
+                    <div className="mb-4 flex items-center justify-between">
+                        <p className="text-gray-600">
+                            총 <span className="font-bold text-pink-600">{filteredMeetings.length}</span>개의 라이브
+                        </p>
+                        {filteredMeetings.length > ITEMS_PER_PAGE && (
+                            <p className="text-sm text-gray-500">
+                                {startIndex + 1}-{Math.min(endIndex, filteredMeetings.length)} 표시 중
+                            </p>
+                        )}
+                    </div>
+                )}
 
                 {/* Loading State */}
                 {loading && (
                     <div className="flex justify-center items-center py-20">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600"></div>
+                        <div className="relative">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600"></div>
+                            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                                <div className="w-8 h-8 bg-gradient-to-r from-pink-500 to-purple-500 rounded-full opacity-20"></div>
+                            </div>
+                        </div>
                     </div>
                 )}
 
                 {/* Live Cards Grid */}
                 {!loading && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {filteredMeetings.map((meeting, index) => (
+                        {currentMeetings.map((meeting, index) => (
                             <LiveCard
                                 key={meeting.meetings_id}
                                 meeting={meeting}
                                 language={meeting.default_lang === 'ko' ? 'KR' : meeting.default_lang.toUpperCase()}
                                 index={index}
-                                // ✅ 여기서 문화 모드 참가 함수 연결
                                 onJoin={() => handleJoinCultureMeeting(meeting.meetings_id, meeting.title, meeting.invite_code, meeting.status)}
                             />
                         ))}
                     </div>
                 )}
+
+                {/* Pagination - 8개 이상일 때만 표시 */}
+                {!loading && filteredMeetings.length > ITEMS_PER_PAGE && <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />}
 
                 {/* Empty State */}
                 {!loading && filteredMeetings.length === 0 && (
@@ -249,6 +444,16 @@ const CultureVideos = () => {
                     </div>
                 )}
             </div>
+
+            <style jsx>{`
+                .scrollbar-hide::-webkit-scrollbar {
+                    display: none;
+                }
+                .scrollbar-hide {
+                    -ms-overflow-style: none;
+                    scrollbar-width: none;
+                }
+            `}</style>
         </div>
     );
 };

@@ -140,7 +140,7 @@ const LiveStartPage = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50 p-4 md:p-8">
+        <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50 p-4 w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] md:p-8">
             <div className="max-w-4xl mx-auto">
                 {/* 헤더 섹션 */}
                 <div className="text-center mb-10">

@@ -417,7 +417,7 @@ const CultureVideos = () => {
                                 meeting={meeting}
                                 language={meeting.default_lang === 'ko' ? 'KR' : meeting.default_lang.toUpperCase()}
                                 index={index}
-                                onJoin={() => handleJoinCultureMeeting(meeting.meetings_id, meeting.title, meeting.invite_code, meeting.status)}
+                                onJoin={() => handleJoinCultureMeeting(meeting.meetings_id, meeting.title, meeting.invite_code, meeting.status, meeting.culture_desc)}
                             />
                         ))}
                     </div>

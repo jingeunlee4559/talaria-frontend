@@ -77,6 +77,7 @@ const CultureLiveView = () => {
                     defaultLang: meeting.default_lang || 'ko',
                     status: meeting.status,
                     scheduledAt: meeting.scheduled_at,
+                    cultureDesc: meeting.culture_desc,
                 });
 
                 setLoading(false);
@@ -93,6 +94,8 @@ const CultureLiveView = () => {
     const handleLeave = () => {
         navigate('/culture/videos');
     };
+
+    console.log(meetingData, 'SDfdsfsdfdsfds');
 
     // 🎯 K-밈 로딩 화면 (meetingData 로딩 중에만 표시)
     if (loading) {
@@ -416,6 +419,7 @@ const CultureLiveView = () => {
                     onLeave={handleLeave}
                     meetingId={meetingData.id}
                     meetingTitle={meetingData.title}
+                    meetingDesc={meetingData.cultureDesc}
                     isCultureMode={true}
                     onConnected={handleVideoConnected}
                 />

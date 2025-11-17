@@ -7,7 +7,6 @@ import { Users, MessageCircle, Info, Mic, MicOff, Video, VideoOff, MonitorUp, Ph
 import CultureSubtitleOverlay from './CultureSubtitleOverlay';
 import { UserContext } from '../../../contexts/UserContext';
 import CustomVideoGrid from '../../dashboard/dashvideo/CustomVideoGrid';
-import MannerChecker from '../../dashboard/dashvideo/MannerChecker';
 import CultureLiveChatSidebar from './CultureLiveChatSidebar';
 import SpecialEffectAnimation from '../contents/SpecialEffectAnimation';
 import ThemeBackground from '../contents/ThemeBackground';
@@ -15,8 +14,9 @@ import BackgroundThemeSelector from '../contents/BackgroundThemeSelector';
 import ThemeTransitionAnimation from '../contents/ThemeTransitionAnimation'; // ✨ 새로 추가
 import '../../../css/EnhancedAnimations.css';
 import { BACKGROUND_THEMES } from '../contents/backgroundThemes';
+import CultureAlert from './CultureAlert';
 
-const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
+const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meetingDesc }) => {
     const room = useRoomContext();
     const participants = useParticipants();
     const participantCount = participants.length;
@@ -466,7 +466,7 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
 
                                     {(!isFullscreen || showControls) && (
                                         <>
-                                            <MannerChecker room={room} debug={false} demo={false} />
+                                            <CultureAlert room={room} debug={false} demo={false} displayMs={8000} />
 
                                             {/* 🎯 LIVE 배지 - 반응형 완벽 */}
                                             <div className="absolute top-2 sm:top-3 left-2 sm:left-3 z-50 bg-gradient-to-r from-pink-600/90 to-purple-600/90 backdrop-blur-sm px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl shadow-2xl border border-white/20 max-w-[calc(100%-8rem)]">
@@ -694,7 +694,7 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
 
                             {activeTab === 'info' && (
                                 <div className="text-xs sm:text-sm text-slate-700 space-y-3">
-                                    <p className="leading-relaxed">문화/밈 전용 실시간 번역 라이브입니다.</p>
+                                    <p className="leading-relaxed">{meetingDesc}</p>
                                     <div className="bg-pink-50 rounded-xl p-3 sm:p-4 border border-pink-100">
                                         <p className="text-[10px] sm:text-xs text-slate-500 mb-1">현재 언어 설정</p>
                                         <p className="font-mono text-pink-600 font-semibold text-xs">{userLocale}</p>

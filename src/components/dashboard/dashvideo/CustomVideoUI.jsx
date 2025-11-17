@@ -14,6 +14,7 @@ export default function CustomVideoConference({
     onLeave,
     meetingId,
     meetingTitle,
+    meetingDesc,
     isCultureMode = false,
     onConnected, // 🔥 새로운 prop
 }) {
@@ -176,7 +177,7 @@ export default function CustomVideoConference({
                 </div>
             )}
             {isCultureMode ? (
-                <CultureConferenceUI onLeave={onLeave} meetingTitle={meetingTitle} userLocale={userLocale} />
+                <CultureConferenceUI onLeave={onLeave} meetingTitle={meetingTitle} userLocale={userLocale} meetingDesc={meetingDesc} />
             ) : (
                 <ConferenceUI onLeave={onLeave} meetingTitle={meetingTitle} userLocale={userLocale} />
             )}

@@ -31,6 +31,9 @@ const LiveStartPage = () => {
 
     const tags = ['K-팝', '해외팬', '리액션', '드림설명', '라이브쳇', '일본', '영국', '미국', '교육', '엔터'];
 
+    // ==========================
+    // 공통 인풋 핸들러
+    // ==========================
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData((prev) => ({
@@ -39,6 +42,9 @@ const LiveStartPage = () => {
         }));
     };
 
+    // ==========================
+    // 태그 선택
+    // ==========================
     const handleTagClick = (tag) => {
         setSelectedTags((prev) => {
             if (prev.includes(tag)) {
@@ -48,17 +54,50 @@ const LiveStartPage = () => {
         });
     };
 
+    // ==========================
+    // 파일 선택 (업로드 X, 상태만 저장)
+    // ==========================
     const handleFileChange = (e) => {
         const file = e.target.files[0];
-        if (file) {
-            setThumbnailFile(file);
-            setFormData((prev) => ({
-                ...prev,
-                culture_thumb_rel_path: `/img/${file.name}`,
-            }));
-        }
+        if (!file) return;
+
+        setThumbnailFile(file);
+
+        // 실제 저장 경로는 업로드 후 백엔드에서 받은 relPath 사용
+        setFormData((prev) => ({
+            ...prev,
+            culture_thumb_rel_path: '',
+        }));
     };
 
+    // ==========================
+    // 썸네일 업로드 API 호출
+    // POST /api/assets/culture
+    // 응답: { "relPath": "...", "url": "..." }
+    // ==========================
+    const uploadThumbnail = async () => {
+        if (!thumbnailFile) return null;
+
+        const fd = new FormData();
+        // 백엔드에서 기대하는 필드 이름에 맞춰야 함 (예: "file")
+        fd.append('file', thumbnailFile);
+
+        const res = await api.post('/api/assets/api/assets/culture-thumb', fd, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+
+        console.log('📁 썸네일 업로드 응답:', res.data);
+        // { relPath: "/img/1763358662530_picachu.png", url: "//img/..." }
+        return res.data?.relPath || null;
+    };
+
+    // ==========================
+    // 라이브 생성
+    // 1) 썸네일 있으면 업로드 → relPath 확보
+    // 2) 미팅 생성 API 호출
+    // ==========================
     const handleSubmit = async () => {
         if (!formData.title.trim()) {
             Swal.fire({
@@ -71,35 +110,56 @@ const LiveStartPage = () => {
             return;
         }
 
+        if (!user?.userId) {
+            Swal.fire({
+                icon: 'error',
+                title: '로그인이 필요합니다',
+                text: '먼저 로그인해주세요.',
+                confirmButtonText: '확인',
+                confirmButtonColor: '#a855f7',
+            });
+            return;
+        }
+
         setIsSubmitting(true);
+
         try {
-            if (!user?.userId) {
-                Swal.fire({
-                    icon: 'error',
-                    title: '로그인이 필요합니다',
-                    text: '먼저 로그인해주세요.',
-                    confirmButtonText: '확인',
-                    confirmButtonColor: '#a855f7',
-                });
-                setIsSubmitting(false);
-                return;
+            // 1️⃣ 썸네일 업로드 (있는 경우)
+            let cultureThumbRelPath = formData.culture_thumb_rel_path;
+
+            if (thumbnailFile) {
+                try {
+                    const relPath = await uploadThumbnail();
+                    cultureThumbRelPath = relPath || '';
+                } catch (e) {
+                    console.error('❌ 썸네일 업로드 실패:', e);
+                    await Swal.fire({
+                        icon: 'error',
+                        title: '썸네일 업로드 실패',
+                        text: '이미지 업로드에 실패했습니다. 다시 시도해주세요.',
+                        confirmButtonText: '확인',
+                        confirmButtonColor: '#a855f7',
+                    });
+                    setIsSubmitting(false);
+                    return;
+                }
             }
 
+            // 2️⃣ 미팅 생성에 사용할 최종 데이터
             const submitData = {
                 title: formData.title,
                 meetingMode: formData.meeting_mode,
                 defaultLang: formData.default_lang,
                 cultureDesc: formData.culture_desc || selectedTags.join(', '),
-                cultureThumbRelPath: formData.culture_thumb_rel_path,
+                cultureThumbRelPath, // 업로드한 relPath
                 status: 'ONGOING',
             };
 
             console.log('🚀 전송할 데이터:', submitData);
-            console.log('📝 현재 formData:', formData);
 
             const response = await api.post(`/api/users/${user.userId}/meetings`, submitData);
 
-            console.log('✅ 성공:', response.data);
+            console.log('✅ 라이브 생성 성공:', response.data);
 
             await Swal.fire({
                 icon: 'success',
@@ -111,10 +171,10 @@ const LiveStartPage = () => {
                 timerProgressBar: true,
             });
 
-            // 페이지 이동
-            navigate('/Culture/Videos');
+            // 라우팅: 실제 라우트에 맞춰 소문자로 이동
+            navigate('/culture/videos');
         } catch (error) {
-            console.error('❌ 에러:', error);
+            console.error('❌ 라이브 시작 에러:', error);
             Swal.fire({
                 icon: 'error',
                 title: '라이브 시작 실패',
@@ -127,6 +187,9 @@ const LiveStartPage = () => {
         }
     };
 
+    // ==========================
+    // 초기화
+    // ==========================
     const handleReset = () => {
         setFormData({
             title: '',
@@ -139,6 +202,9 @@ const LiveStartPage = () => {
         setThumbnailFile(null);
     };
 
+    // ==========================
+    // JSX
+    // ==========================
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50 p-4 w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] md:p-8">
             <div className="max-w-4xl mx-auto">

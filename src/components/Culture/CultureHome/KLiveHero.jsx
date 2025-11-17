@@ -61,19 +61,19 @@ export default function KLiveHero() {
                     <div className="space-y-8">
                         {/* Main Heading with Gradient */}
                         <h1 className="text-6xl font-bold leading-tight">
-                            <span className="bg-gradient-to-r from-orange-400 via-pink-500 to-purple-600 bg-clip-text text-transparent">실시간으로 즐기는</span>
+                            <span className="bg-gradient-to-r from-orange-400 via-pink-500 to-purple-600 bg-clip-text text-transparent">언어는 달라도</span>
                             <br />
-                            <span className="bg-gradient-to-r from-pink-500 via-purple-500 to-purple-600 bg-clip-text text-transparent">K-팝 & 글로벌 라이브</span>
+                            <span className="bg-gradient-to-r from-pink-500 via-purple-500 to-purple-600 bg-clip-text text-transparent">문화는 같이 느낀다</span>
                         </h1>
 
                         {/* Description */}
                         <div className="space-y-3 text-lg">
                             <p className="text-gray-700 flex items-center gap-2">
-                                <span>해외 팀도, 한국 팀도</span>
+                                <span>전 세계 문화와 일상을 라이브로 나누고 </span>
                                 <span className="text-2xl">🌍</span>
                             </p>
                             <p className="text-gray-700 flex items-center gap-2">
-                                <span>시청자와 함께 이해하는 따뜻한 라이브 공간이에요</span>
+                                <span>실시간 번역으로 서로의 문화를 바로 이해하는 공간이에요 </span>
                                 <span className="text-2xl">💕</span>
                             </p>
                         </div>

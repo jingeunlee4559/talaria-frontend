@@ -3,9 +3,11 @@ import api from '../../../axios';
 import LiveCard from './LiveCard';
 import { UserContext } from '../../../contexts/UserContext';
 import Swal from 'sweetalert2';
+import { useNavigate } from 'react-router-dom';
 
 export default function HotLiveSection() {
     const { user } = useContext(UserContext);
+    const navigate = useNavigate();
     const [meetings, setMeetings] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -161,6 +163,7 @@ export default function HotLiveSection() {
                             transition-colors
                             group
                         "
+                        onClick={() => navigate('/culture/videos')}
                     >
                         전체보기
                         <span className="ml-1 group-hover:translate-x-1 transition-transform">→</span>
@@ -169,7 +172,7 @@ export default function HotLiveSection() {
 
                 {/* Live Cards - GRID */}
                 <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-8">
-                    {meetings.map((meeting, index) => (
+                    {meetings.slice(0, 3).map((meeting, index) => (
                         <LiveCard
                             key={meeting.meetings_id}
                             meeting={meeting}

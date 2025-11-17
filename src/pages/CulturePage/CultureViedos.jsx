@@ -1,4 +1,3 @@
-// src/pages/Culture/CultureVideos.jsx
 import React, { useState, useEffect, useMemo, useContext } from 'react';
 import { LogIn, Search, SlidersHorizontal, Filter, X, Sparkles, Flame, TrendingUp, Clock } from 'lucide-react';
 import LiveCard from '../../components/Culture/CultureHome/LiveCard';
@@ -9,19 +8,18 @@ import Swal from 'sweetalert2';
 
 const CultureVideos = () => {
     const { user } = useContext(UserContext);
-
     const [meetings, setMeetings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedSort, setSelectedSort] = useState('인기순');
     const [selectedLanguage, setSelectedLanguage] = useState('모든 언어');
-    const [activeCategories, setActiveCategories] = useState([]); // 다중 선택을 위한 배열
+    const [activeCategories, setActiveCategories] = useState([]);
     const [showFilters, setShowFilters] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
+    const [categories, setCategories] = useState(['전체']);
+    const [allTags, setAllTags] = useState([]);
+    const ITEMS_PER_PAGE = 6;
 
-    const ITEMS_PER_PAGE = 8;
-
-    // 카테고리 아이콘 매핑
     const categoryIcons = {
         전체: Sparkles,
         'K-밈': '🤣',
@@ -35,11 +33,34 @@ const CultureVideos = () => {
         공부: '📚',
     };
 
-    const categories = ['전체', 'K-밈', '해외밈', '음악', '게임', '먹방', '여행', '브이로그', '토크', '공부'];
     const sortOptions = ['인기순', '최신순', '조회순'];
     const languageOptions = ['모든 언어', 'KR → EN', 'EN → KR', 'JP → KR', 'KR'];
 
-    // 카테고리 토글 함수
+    // 전체 태그 목록을 가져오는 함수
+    const fetchAllTags = async () => {
+        try {
+            const response = await api.get('/api/tags');
+            const tags = response.data || [];
+
+            // display_order로 정렬
+            const sortedTags = tags.filter((tag) => tag.is_active).sort((a, b) => a.display_order - b.display_order);
+
+            setAllTags(sortedTags);
+
+            // 카테고리 목록 생성 (전체 + 태그 이름들)
+            const categoryNames = sortedTags.map((tag) => tag.tag_name);
+            setCategories(['전체', ...categoryNames]);
+
+            console.log('Fetched tags from API:', sortedTags);
+            return sortedTags;
+        } catch (error) {
+            console.error('Failed to fetch tags:', error);
+            // API 실패 시 기본 카테고리 사용
+            setCategories(['전체', 'K-밈', '해외밈', '음악', '게임', '먹방', '여행', '브이로그', '토크', '공부']);
+            return [];
+        }
+    };
+
     const toggleCategory = (category) => {
         if (category === '전체') {
             setActiveCategories([]);
@@ -54,7 +75,23 @@ const CultureVideos = () => {
         }
     };
 
-    // ✅ 문화 모드 회의 리스트 불러오기
+    // 각 미팅의 태그를 API에서 가져오는 함수
+    const fetchTagsForMeeting = async (userId, meetingId) => {
+        try {
+            const response = await api.get(`/api/users/${userId}/meetings/${meetingId}/tags`);
+            return response.data.map((tag) => tag.tag_name);
+        } catch (error) {
+            console.error(`Failed to fetch tags for meeting ${meetingId}:`, error);
+            return [];
+        }
+    };
+
+    // 태그 목록 불러오기 (컴포넌트 마운트 시 한 번만)
+    useEffect(() => {
+        fetchAllTags();
+    }, []);
+
+    // 문화 모드 회의 리스트 불러오기 + 태그 가져오기
     useEffect(() => {
         const fetchMeetings = async () => {
             setLoading(true);
@@ -63,27 +100,27 @@ const CultureVideos = () => {
                     params: {
                         mode: 'C',
                         page: 0,
-                        size: 100, // 충분한 데이터 가져오기
+                        size: 100,
                     },
                 });
 
-                // 각 미팅에 랜덤 태그 추가
-                const allTags = ['K-밈', '해외밈', '음악', '게임', '먹방', '여행', '브이로그', '토크', '공부'];
-                const meetingsWithTags = (response.data.items || []).map((meeting) => {
-                    // 각 미팅마다 2-4개의 랜덤 태그 생성
-                    const numTags = Math.floor(Math.random() * 3) + 2; // 2~4개
-                    const shuffled = [...allTags].sort(() => Math.random() - 0.5);
-                    const tags = shuffled.slice(0, numTags);
+                const meetingItems = response.data.items || [];
 
-                    return {
-                        ...meeting,
-                        tags: tags,
-                    };
-                });
+                // 각 미팅에 대해 태그 API 호출
+                const meetingsWithTags = await Promise.all(
+                    meetingItems.map(async (meeting) => {
+                        const userId = user?.userId || meeting.host_id;
+                        const tags = await fetchTagsForMeeting(userId, meeting.meetings_id);
+
+                        return {
+                            ...meeting,
+                            tags: tags,
+                        };
+                    }),
+                );
 
                 setMeetings(meetingsWithTags);
-                console.log(meetingsWithTags);
-
+                console.log('Meetings with tags:', meetingsWithTags);
                 setLoading(false);
             } catch (error) {
                 console.error('Failed to fetch meetings:', error);
@@ -92,11 +129,9 @@ const CultureVideos = () => {
         };
 
         fetchMeetings();
-    }, []);
+    }, [user]);
 
-    // ✅ 공통: 상태/권한 체크 + 문화모드 전용 참가 함수
     const handleJoinCultureMeeting = async (meetingId, meetingTitle, inviteCode, rawStatus) => {
-        // 1) 종료된 회의면 막기 (비즈니스와 동일)
         if (rawStatus === 'ENDED') {
             Swal.fire({
                 icon: 'info',
@@ -111,7 +146,6 @@ const CultureVideos = () => {
         try {
             const currentMeeting = meetings.find((m) => m.meetings_id === meetingId);
 
-            // 🔐 게스트 접근 제한 (원하면 비즈니스와 동일하게 적용)
             if (currentMeeting && currentMeeting.user_role === 'GUEST' && currentMeeting.status !== '진행중') {
                 Swal.fire({
                     icon: 'warning',
@@ -123,7 +157,6 @@ const CultureVideos = () => {
                 return;
             }
 
-            // ⏱ 호스트가 '예정' 상태 → 'ONGOING'으로 변경
             if (currentMeeting && currentMeeting.status === '예정') {
                 const updateData = {
                     title: meetingTitle,
@@ -137,22 +170,17 @@ const CultureVideos = () => {
                 }
             }
 
-            // ✅ 여기서 비즈니스와 갈라짐: /business/meeting → /culture/live
             const url = new URL('/culture/live', window.location.origin);
             url.searchParams.set('id', meetingId);
             url.searchParams.set('title', meetingTitle);
             url.searchParams.set('invite', inviteCode);
-
             window.open(url.toString(), '_blank', 'noopener,noreferrer');
         } catch (error) {
             console.error('문화 라이브 참가 중 오류:', error);
-
-            // 상태 업데이트 실패해도 그냥 입장은 시켜줌
             const url = new URL('/culture/live', window.location.origin);
             url.searchParams.set('id', meetingId);
             url.searchParams.set('title', meetingTitle);
             url.searchParams.set('invite', inviteCode);
-
             window.open(url.toString(), '_blank', 'noopener,noreferrer');
 
             Swal.fire({
@@ -165,7 +193,6 @@ const CultureVideos = () => {
         }
     };
 
-    // 🔎 검색/필터/정렬
     const filteredMeetings = useMemo(() => {
         let filtered = [...meetings];
 
@@ -173,10 +200,8 @@ const CultureVideos = () => {
             filtered = filtered.filter((m) => m.title.toLowerCase().includes(searchQuery.toLowerCase()) || m.host_name.toLowerCase().includes(searchQuery.toLowerCase()));
         }
 
-        // 다중 카테고리 필터링 - 태그 기반
         if (activeCategories.length > 0) {
             filtered = filtered.filter((m) => {
-                // 선택된 카테고리 중 하나라도 미팅의 태그에 포함되면 true
                 return activeCategories.some((category) => m.tags && m.tags.includes(category));
             });
         }
@@ -190,18 +215,15 @@ const CultureVideos = () => {
         return filtered;
     }, [meetings, searchQuery, activeCategories, selectedSort]);
 
-    // 페이지네이션 계산
     const totalPages = Math.ceil(filteredMeetings.length / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
     const currentMeetings = filteredMeetings.slice(startIndex, endIndex);
 
-    // 카테고리 변경 시 페이지 초기화
     useEffect(() => {
         setCurrentPage(1);
     }, [activeCategories, searchQuery, selectedSort]);
 
-    // 필터 초기화
     const resetFilters = () => {
         setSearchQuery('');
         setActiveCategories([]);
@@ -212,18 +234,38 @@ const CultureVideos = () => {
 
     const activeFiltersCount = [searchQuery !== '', activeCategories.length > 0, selectedSort !== '인기순', selectedLanguage !== '모든 언어'].filter(Boolean).length;
 
+    // 태그의 color_code 가져오기
+    const getTagColorCode = (tagName) => {
+        const tag = allTags.find((t) => t.tag_name === tagName);
+        return tag?.color_code || '#9333EA';
+    };
+
+    // hex to rgb 변환 함수
+    const hexToRgb = (hex) => {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result
+            ? {
+                  r: parseInt(result[1], 16),
+                  g: parseInt(result[2], 16),
+                  b: parseInt(result[3], 16),
+              }
+            : { r: 147, g: 51, b: 234 };
+    };
+
+    // 아이콘이 없는 카테고리는 기본 이모지 사용
+    const getCategoryIcon = (category) => {
+        return categoryIcons[category] || '🏷️';
+    };
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {/* Header */}
                 <header className="mb-8">
                     <h1 className="text-4xl font-extrabold text-gray-900 mb-2">영상 탐색</h1>
                     <p className="text-gray-600 text-lg">다양한 문화 콘텐츠를 탐색하고 즐겨보세요</p>
                 </header>
 
-                {/* Search and Filters - 개선된 디자인 */}
                 <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-8 transition-all hover:shadow-xl">
-                    {/* Search Bar with Enhanced Design */}
                     <div className="relative mb-6">
                         <div className="absolute left-5 top-1/2 transform -translate-y-1/2 text-gray-400">
                             <Search className="w-5 h-5" />
@@ -242,7 +284,6 @@ const CultureVideos = () => {
                         )}
                     </div>
 
-                    {/* Category Chips with Modern Design - 다중 선택 가능 */}
                     <div className="mb-6">
                         <div className="flex items-center gap-3 mb-4 flex-wrap">
                             <div className="flex items-center gap-2">
@@ -262,42 +303,50 @@ const CultureVideos = () => {
                                 </button>
                             )}
                         </div>
-                        {/* 반응형 그리드 카테고리 */}
+
                         <div className="flex flex-wrap gap-2.5">
                             {categories.map((category) => {
-                                const IconComponent = categoryIcons[category];
+                                const IconComponent = getCategoryIcon(category);
                                 const isActive = category === '전체' ? activeCategories.length === 0 : activeCategories.includes(category);
                                 const isEmoji = typeof IconComponent === 'string';
+
+                                // 각 카테고리의 색상 코드 가져오기
+                                const colorCode = category === '전체' ? '#9333EA' : getTagColorCode(category);
+                                const rgb = hexToRgb(colorCode);
 
                                 return (
                                     <button
                                         key={category}
                                         onClick={() => toggleCategory(category)}
-                                        className={`group relative flex-shrink-0 px-4 py-2.5 rounded-xl font-semibold whitespace-nowrap transition-all duration-300 transform ${
+                                        style={
                                             isActive
-                                                ? 'bg-gradient-to-r from-pink-500 via-purple-500 to-violet-500 text-white shadow-lg shadow-pink-300/50 scale-105'
-                                                : 'bg-white text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 hover:shadow-md hover:scale-105 border-2 border-gray-200 hover:border-pink-300'
+                                                ? {
+                                                      backgroundColor: colorCode,
+                                                      boxShadow: `0 8px 20px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4)`,
+                                                  }
+                                                : {}
+                                        }
+                                        className={`group relative flex-shrink-0 px-4 py-2.5 rounded-xl font-semibold whitespace-nowrap transition-all duration-300 transform ${
+                                            isActive ? 'text-white scale-105' : 'bg-white text-gray-700 hover:bg-gray-50 hover:shadow-md hover:scale-105 border-2 border-gray-200'
                                         }`}
                                     >
-                                        {/* 배경 애니메이션 효과 */}
-                                        {isActive && <div className="absolute inset-0 bg-gradient-to-r from-pink-400 to-purple-400 rounded-xl blur-lg opacity-40 -z-10 animate-pulse"></div>}
-
+                                        {isActive && (
+                                            <div
+                                                style={{
+                                                    backgroundColor: colorCode,
+                                                    opacity: 0.4,
+                                                }}
+                                                className="absolute inset-0 rounded-xl blur-lg -z-10 animate-pulse"
+                                            ></div>
+                                        )}
                                         <div className="flex items-center gap-2">
-                                            {isEmoji ? (
-                                                <span className="text-base">{IconComponent}</span>
-                                            ) : (
-                                                <IconComponent className={`w-4 h-4 ${isActive ? 'text-white' : 'text-pink-500 group-hover:text-purple-500'}`} />
-                                            )}
+                                            {isEmoji ? <span className="text-base">{IconComponent}</span> : <IconComponent className={`w-4 h-4 ${isActive ? 'text-white' : 'text-gray-500'}`} />}
                                             <span className="text-sm">{category}</span>
                                         </div>
-
-                                        {/* 활성 상태 인디케이터 */}
                                         {isActive && <div className="absolute -bottom-1.5 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-white rounded-full shadow-md"></div>}
-
-                                        {/* 체크마크 아이콘 (전체 제외) */}
                                         {isActive && category !== '전체' && (
                                             <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center shadow-md">
-                                                <svg className="w-3 h-3 text-pink-600" fill="currentColor" viewBox="0 0 20 20">
+                                                <svg className="w-3 h-3" style={{ color: colorCode }} fill="currentColor" viewBox="0 0 20 20">
                                                     <path
                                                         fillRule="evenodd"
                                                         d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
@@ -312,7 +361,6 @@ const CultureVideos = () => {
                         </div>
                     </div>
 
-                    {/* Filters Section with Toggle */}
                     <div className="border-t border-gray-100 pt-5">
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2">
@@ -325,11 +373,9 @@ const CultureVideos = () => {
                             </button>
                         </div>
 
-                        {/* Collapsible Filter Options */}
                         <div className={`grid gap-4 transition-all duration-300 ${showFilters ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
                             <div className="overflow-hidden">
                                 <div className="flex flex-wrap gap-3">
-                                    {/* Sort Dropdown */}
                                     <div className="flex-1 min-w-[200px]">
                                         <label className="block text-xs font-medium text-gray-600 mb-2">정렬 기준</label>
                                         <div className="relative">
@@ -348,7 +394,6 @@ const CultureVideos = () => {
                                         </div>
                                     </div>
 
-                                    {/* Language Dropdown */}
                                     <div className="flex-1 min-w-[200px]">
                                         <label className="block text-xs font-medium text-gray-600 mb-2">언어</label>
                                         <select
@@ -364,7 +409,6 @@ const CultureVideos = () => {
                                         </select>
                                     </div>
 
-                                    {/* Reset Button */}
                                     {activeFiltersCount > 0 && (
                                         <div className="flex items-end">
                                             <button
@@ -382,7 +426,6 @@ const CultureVideos = () => {
                     </div>
                 </div>
 
-                {/* 결과 개수 표시 */}
                 {!loading && filteredMeetings.length > 0 && (
                     <div className="mb-4 flex items-center justify-between">
                         <p className="text-gray-600">
@@ -396,7 +439,6 @@ const CultureVideos = () => {
                     </div>
                 )}
 
-                {/* Loading State */}
                 {loading && (
                     <div className="flex justify-center items-center py-20">
                         <div className="relative">
@@ -408,12 +450,12 @@ const CultureVideos = () => {
                     </div>
                 )}
 
-                {/* Live Cards Grid */}
                 {!loading && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
                         {currentMeetings.map((meeting, index) => (
                             <LiveCard
                                 key={meeting.meetings_id}
+                                allTags={allTags}
                                 meeting={meeting}
                                 language={meeting.default_lang === 'ko' ? 'KR' : meeting.default_lang.toUpperCase()}
                                 index={index}
@@ -423,10 +465,8 @@ const CultureVideos = () => {
                     </div>
                 )}
 
-                {/* Pagination - 8개 이상일 때만 표시 */}
                 {!loading && filteredMeetings.length > ITEMS_PER_PAGE && <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />}
 
-                {/* Empty State */}
                 {!loading && filteredMeetings.length === 0 && (
                     <div className="text-center py-20">
                         <div className="text-gray-400 mb-4">

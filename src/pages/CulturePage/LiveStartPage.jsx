@@ -1,3 +1,4 @@
+// src/pages/LiveStartPage.jsx (또는 실제 경로에 맞게)
 import React, { useState, useContext, useEffect } from 'react';
 import { UserContext } from '../../contexts/UserContext';
 import { useNavigate } from 'react-router-dom';
@@ -8,6 +9,9 @@ const LiveStartPage = () => {
     const { user } = useContext(UserContext);
     const navigate = useNavigate();
 
+    // ==========================
+    // 기본 폼 상태
+    // ==========================
     const [formData, setFormData] = useState({
         title: '',
         meeting_mode: 'C',
@@ -25,11 +29,59 @@ const LiveStartPage = () => {
         }
     }, [user]);
 
-    const [selectedTags, setSelectedTags] = useState([]);
+    // ==========================
+    // 태그 관련 상태
+    // /api/tags 응답 기반
+    // ==========================
+    const [tagOptions, setTagOptions] = useState([]); // [{ id, name, color, order, isActive }, ...]
+    const [selectedTagIds, setSelectedTagIds] = useState([]); // [1,2,3]
+
+    // ==========================
+    // 썸네일/전송 상태
+    // ==========================
     const [thumbnailFile, setThumbnailFile] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const tags = ['K-팝', '해외팬', '리액션', '드림설명', '라이브쳇', '일본', '영국', '미국', '교육', '엔터'];
+    // ==========================
+    // 태그 목록 로딩
+    // GET /api/tags
+    // 응답 예:
+    // {
+    //   "is_active": true,
+    //   "updated_at": "...",
+    //   "tag_name": "K-밈",
+    //   "display_order": 10,
+    //   "tag_id": 1,
+    //   "created_at": "...",
+    //   "color_code": "#E91E63"
+    // }
+    // ==========================
+    useEffect(() => {
+        const fetchTags = async () => {
+            try {
+                const res = await api.get('/api/tags');
+                const raw = res.data || [];
+
+                const normalized = raw
+                    .map((t) => ({
+                        id: t.tag_id,
+                        name: t.tag_name,
+                        color: t.color_code,
+                        order: t.display_order,
+                        isActive: t.is_active,
+                    }))
+                    .filter((t) => t.isActive)
+                    .sort((a, b) => a.order - b.order);
+
+                setTagOptions(normalized);
+            } catch (e) {
+                console.error('❌ 태그 목록 조회 실패:', e);
+                // 실패해도 라이브 생성 자체는 가능하게 둠
+            }
+        };
+
+        fetchTags();
+    }, []);
 
     // ==========================
     // 공통 인풋 핸들러
@@ -43,14 +95,14 @@ const LiveStartPage = () => {
     };
 
     // ==========================
-    // 태그 선택
+    // 태그 선택 토글
     // ==========================
-    const handleTagClick = (tag) => {
-        setSelectedTags((prev) => {
-            if (prev.includes(tag)) {
-                return prev.filter((t) => t !== tag);
+    const handleTagClick = (tagId) => {
+        setSelectedTagIds((prev) => {
+            if (prev.includes(tagId)) {
+                return prev.filter((id) => id !== tagId);
             }
-            return [...prev, tag];
+            return [...prev, tagId];
         });
     };
 
@@ -72,14 +124,13 @@ const LiveStartPage = () => {
 
     // ==========================
     // 썸네일 업로드 API 호출
-    // POST /api/assets/culture
+    // POST /api/assets/culture-thumb (사용자 코드 기준)
     // 응답: { "relPath": "...", "url": "..." }
     // ==========================
     const uploadThumbnail = async () => {
         if (!thumbnailFile) return null;
 
         const fd = new FormData();
-        // 백엔드에서 기대하는 필드 이름에 맞춰야 함 (예: "file")
         fd.append('file', thumbnailFile);
 
         const res = await api.post('/api/assets/api/assets/culture-thumb', fd, {
@@ -89,14 +140,50 @@ const LiveStartPage = () => {
         });
 
         console.log('📁 썸네일 업로드 응답:', res.data);
-        // { relPath: "/img/1763358662530_picachu.png", url: "//img/..." }
         return res.data?.relPath || null;
+    };
+
+    // ==========================
+    // 태그 저장 API 호출
+    // PUT /api/users/{userId}/meetings/{meetingId}/tags
+    // body: { tagIds: [1,2,3] }
+    // ==========================
+    const saveMeetingTags = async (meetingId) => {
+        if (!user?.userId) return;
+        if (!meetingId) return;
+        if (!selectedTagIds.length) return;
+
+        try {
+            const body = {
+                tagIds: selectedTagIds,
+            };
+
+            console.log('🏷️ 태그 저장 요청:', {
+                userId: user.userId,
+                meetingId,
+                body,
+            });
+
+            await api.put(`/api/users/${user.userId}/meetings/${meetingId}/tags`, body);
+
+            console.log('✅ 태그 저장 성공');
+        } catch (e) {
+            console.error('❌ 태그 저장 실패:', e);
+            Swal.fire({
+                icon: 'warning',
+                title: '태그 저장 실패',
+                text: '라이브는 생성되었지만 태그 저장에 실패했습니다.',
+                confirmButtonText: '확인',
+                confirmButtonColor: '#a855f7',
+            });
+        }
     };
 
     // ==========================
     // 라이브 생성
     // 1) 썸네일 있으면 업로드 → relPath 확보
     // 2) 미팅 생성 API 호출
+    // 3) 태그 저장 API 호출 (PUT)
     // ==========================
     const handleSubmit = async () => {
         if (!formData.title.trim()) {
@@ -145,13 +232,18 @@ const LiveStartPage = () => {
                 }
             }
 
-            // 2️⃣ 미팅 생성에 사용할 최종 데이터
+            // 2️⃣ culture_desc이 비어 있으면, 선택된 태그 이름으로 대체
+            const selectedTagNames = tagOptions.filter((t) => selectedTagIds.includes(t.id)).map((t) => t.name);
+
+            const cultureDescFinal = formData.culture_desc && formData.culture_desc.trim().length > 0 ? formData.culture_desc : selectedTagNames.join(', ');
+
+            // 3️⃣ 미팅 생성에 사용할 최종 데이터
             const submitData = {
                 title: formData.title,
                 meetingMode: formData.meeting_mode,
                 defaultLang: formData.default_lang,
-                cultureDesc: formData.culture_desc || selectedTags.join(', '),
-                cultureThumbRelPath, // 업로드한 relPath
+                cultureDesc: cultureDescFinal,
+                cultureThumbRelPath,
                 status: 'ONGOING',
             };
 
@@ -160,6 +252,17 @@ const LiveStartPage = () => {
             const response = await api.post(`/api/users/${user.userId}/meetings`, submitData);
 
             console.log('✅ 라이브 생성 성공:', response.data);
+
+            // 4️⃣ 응답에서 meetingId 추출 (필드명 변형 대응)
+            const createdMeeting = response.data || {};
+            const meetingId = createdMeeting.meetings_id ?? createdMeeting.meetingId ?? createdMeeting.id ?? null;
+
+            if (!meetingId) {
+                console.warn('⚠️ meetingId를 응답에서 찾을 수 없습니다. 태그 저장은 스킵됩니다.');
+            } else {
+                // 5️⃣ 태그 저장 API 호출
+                await saveMeetingTags(meetingId);
+            }
 
             await Swal.fire({
                 icon: 'success',
@@ -171,7 +274,6 @@ const LiveStartPage = () => {
                 timerProgressBar: true,
             });
 
-            // 라우팅: 실제 라우트에 맞춰 소문자로 이동
             navigate('/culture/videos');
         } catch (error) {
             console.error('❌ 라이브 시작 에러:', error);
@@ -198,7 +300,7 @@ const LiveStartPage = () => {
             culture_desc: '',
             culture_thumb_rel_path: '',
         });
-        setSelectedTags([]);
+        setSelectedTagIds([]);
         setThumbnailFile(null);
     };
 
@@ -233,7 +335,7 @@ const LiveStartPage = () => {
                             name="title"
                             value={formData.title}
                             onChange={handleInputChange}
-                            placeholder="예) 실시간 K-팝 리액션 🔥 해외 친구들과 함께하는 밈 파티"
+                            placeholder="예) 실시간 K-밈 리액션 🔥 해외 친구들과 함께하는 밈 파티"
                             className="w-full px-5 py-4 text-lg border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 outline-none transition-all"
                         />
                     </div>
@@ -254,7 +356,7 @@ const LiveStartPage = () => {
                         />
                     </div>
 
-                    {/* 태그 선택 */}
+                    {/* 태그 선택 (DB 태그 기반) */}
                     <div className="mb-8">
                         <label className="flex items-center gap-2 text-lg font-bold text-gray-800 mb-4">
                             <span className="text-2xl">🏷️</span>
@@ -262,20 +364,24 @@ const LiveStartPage = () => {
                         </label>
                         <p className="text-sm text-gray-500 mb-4">관심사를 태그로 표현하세요!</p>
                         <div className="flex flex-wrap gap-2.5">
-                            {tags.map((tag) => (
-                                <button
-                                    key={tag}
-                                    type="button"
-                                    onClick={() => handleTagClick(tag)}
-                                    className={`px-5 py-2.5 rounded-full text-sm font-bold transition-all transform hover:scale-105 ${
-                                        selectedTags.includes(tag)
-                                            ? 'bg-gradient-to-r from-pink-500 via-purple-500 to-orange-400 text-white shadow-lg shadow-purple-300'
-                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                    }`}
-                                >
-                                    {tag}
-                                </button>
-                            ))}
+                            {tagOptions.length === 0 && <p className="text-sm text-gray-400">사용 가능한 태그가 없습니다. (관리자에서 tl_tags를 설정해주세요)</p>}
+
+                            {tagOptions.map((tag) => {
+                                const isSelected = selectedTagIds.includes(tag.id);
+                                return (
+                                    <button
+                                        key={tag.id}
+                                        type="button"
+                                        onClick={() => handleTagClick(tag.id)}
+                                        className={`px-5 py-2.5 rounded-full text-sm font-bold transition-all transform hover:scale-105 ${
+                                            isSelected ? 'text-white shadow-lg shadow-purple-300' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                        }`}
+                                        style={isSelected ? { background: tag.color } : { borderColor: tag.color, borderWidth: 1 }}
+                                    >
+                                        {tag.name}
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
 

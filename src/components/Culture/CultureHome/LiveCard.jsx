@@ -1,15 +1,15 @@
 // src/components/Culture/CultureHome/LiveCard.jsx
 import { useState } from 'react';
 
-const MAX_TAGS = 3; // 한 카드에서 보여줄 최대 태그 수
+const MAX_TAGS = 4; // 한 카드에서 보여줄 최대 태그 수
 
-const LiveCard = ({ meeting, language, index, onJoin }) => {
+const LiveCard = ({ meeting, language, index, onJoin, allTags = [] }) => {
     const [likes, setLikes] = useState(Math.floor(Math.random() * 2000) + 500);
     const [comments] = useState(Math.floor(Math.random() * 500) + 50);
     const [isLiked, setIsLiked] = useState(false);
     const [isBookmarked, setIsBookmarked] = useState(false);
 
-    // meeting에서 tags 가져오기 (없으면 빈 배열)
+    // meeting에서 tags 가져오기 (API에서 가져온 실제 태그)
     const tags = meeting.tags || [];
     const displayTags = tags.map((tag) => `#${tag}`);
 
@@ -17,8 +17,28 @@ const LiveCard = ({ meeting, language, index, onJoin }) => {
     const shownTags = displayTags.slice(0, MAX_TAGS);
     const extraTagCount = displayTags.length - shownTags.length;
 
-    // 설명 텍스트 (필요한 필드 우선순위대로 사용)
+    // 설명 텍스트
     const description = meeting.cultureDesc || meeting.description || meeting.cultureDescShort || meeting.cultureDescription || '';
+
+    // 태그의 color_code 가져오기
+    const getTagColorCode = (tagName) => {
+        // '#' 제거
+        const cleanTagName = tagName.replace('#', '');
+        const tag = allTags.find((t) => t.tag_name === cleanTagName);
+        return tag?.color_code || '#9333EA'; // 기본값: violet-600
+    };
+
+    // hex to rgb 변환 함수
+    const hexToRgb = (hex) => {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result
+            ? {
+                  r: parseInt(result[1], 16),
+                  g: parseInt(result[2], 16),
+                  b: parseInt(result[3], 16),
+              }
+            : { r: 147, g: 51, b: 234 }; // 기본값
+    };
 
     const handleLike = (e) => {
         e.stopPropagation();
@@ -36,13 +56,7 @@ const LiveCard = ({ meeting, language, index, onJoin }) => {
 
     return (
         <div
-            className="
-                group flex flex-col h-full
-                bg-white rounded-2xl overflow-hidden
-                shadow-md hover:shadow-2xl
-                border border-gray-100 hover:border-violet-300
-                transition-all duration-300 cursor-pointer
-            "
+            className="group flex flex-col h-full bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-2xl border border-gray-100 hover:border-violet-300 transition-all duration-300 cursor-pointer"
             onClick={onJoin}
         >
             {/* 썸네일 영역 */}
@@ -77,12 +91,7 @@ const LiveCard = ({ meeting, language, index, onJoin }) => {
                         e.target.src = '/img/content1.webp';
                     }}
                     alt={meeting.title}
-                    className="
-                        absolute inset-0 w-full h-full
-                        object-cover
-                        group-hover:scale-110
-                        transition-transform duration-500
-                    "
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                 />
 
                 {/* 그라데이션 오버레이 */}
@@ -93,32 +102,13 @@ const LiveCard = ({ meeting, language, index, onJoin }) => {
             <div className="flex flex-col flex-1 px-4 pt-3 pb-3.5 sm:pt-4 sm:pb-4">
                 {/* 상단 정보 블록 */}
                 <div className="flex-1 flex flex-col gap-2">
-                    {/* 제목 (최대 2줄, 그 이상은 …) */}
-                    <h3
-                        className="
-                            font-bold text-[15px] sm:text-base text-gray-900
-                            line-clamp-2
-                            group-hover:text-violet-600
-                            transition-colors
-                        "
-                    >
-                        {meeting.title}
-                    </h3>
+                    {/* 제목 (최대 2줄) */}
+                    <h3 className="font-bold text-[15px] sm:text-base text-gray-900 line-clamp-2 group-hover:text-violet-600 transition-colors">{meeting.title}</h3>
 
-                    {/* 설명 / 내용 (최대 2줄, 그 이상은 …) */}
-                    {description && (
-                        <p
-                            className="
-                                text-gray-600 text-xs sm:text-sm
-                                leading-snug
-                                line-clamp-2
-                            "
-                        >
-                            {description}
-                        </p>
-                    )}
+                    {/* 설명 (최대 2줄) */}
+                    {description && <p className="text-gray-600 text-xs sm:text-sm leading-snug line-clamp-2">{description}</p>}
 
-                    {/* 호스트 이름 영역 (고정 높이 느낌을 주고 싶으면 min-h 추가 가능) */}
+                    {/* 호스트 이름 */}
                     <div className="flex items-center gap-2 mt-1">
                         <div className="w-7 h-7 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center text-xs font-semibold">{meeting.host_name?.[0] || 'H'}</div>
                         <div className="flex flex-col">
@@ -127,36 +117,29 @@ const LiveCard = ({ meeting, language, index, onJoin }) => {
                         </div>
                     </div>
 
-                    {/* 태그 (최대 MAX_TAGS + 남은 개수 표시) */}
+                    {/* 태그 (API에서 가져온 실제 태그 + 중앙 정렬) */}
                     {shownTags.length > 0 && (
-                        <div className="mt-1.5 flex flex-wrap gap-1.5">
-                            {shownTags.map((tag, idx) => (
-                                <span
-                                    key={idx}
-                                    className="
-                                        inline-flex items-center
-                                        px-2.5 py-1
-                                        bg-violet-50 text-violet-600
-                                        text-[11px] sm:text-xs font-semibold
-                                        rounded-full
-                                        hover:bg-violet-100
-                                        transition-colors
-                                    "
-                                >
-                                    {tag}
-                                </span>
-                            ))}
+                        <div className="mt-1.5 flex flex-wrap justify-center gap-1.5">
+                            {shownTags.map((tag, idx) => {
+                                const colorCode = getTagColorCode(tag);
+                                const rgb = hexToRgb(colorCode);
 
+                                return (
+                                    <span
+                                        key={idx}
+                                        style={{
+                                            backgroundColor: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.1)`,
+                                            color: colorCode,
+                                            borderColor: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.3)`,
+                                        }}
+                                        className="inline-flex items-center px-2.5 py-1 text-[11px] sm:text-xs font-semibold rounded-full border hover:opacity-80 transition-all"
+                                    >
+                                        {tag}
+                                    </span>
+                                );
+                            })}
                             {extraTagCount > 0 && (
-                                <span
-                                    className="
-                                        inline-flex items-center
-                                        px-2.5 py-1
-                                        bg-gray-100 text-gray-500
-                                        text-[11px] sm:text-xs font-medium
-                                        rounded-full
-                                    "
-                                >
+                                <span className="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-500 text-[11px] sm:text-xs font-medium rounded-full border border-gray-200">
                                     +{extraTagCount}개
                                 </span>
                             )}
@@ -168,15 +151,7 @@ const LiveCard = ({ meeting, language, index, onJoin }) => {
                 <div className="flex items-center justify-between pt-3 mt-3 border-t border-gray-100">
                     <div className="flex items-center gap-4 text-gray-600 text-xs sm:text-sm">
                         {/* 좋아요 */}
-                        <button
-                            onClick={handleLike}
-                            className={`
-                                flex items-center gap-1.5
-                                hover:text-pink-600
-                                transition-colors
-                                ${isLiked ? 'text-pink-600' : ''}
-                            `}
-                        >
+                        <button onClick={handleLike} className={`flex items-center gap-1.5 hover:text-pink-600 transition-colors ${isLiked ? 'text-pink-600' : ''}`}>
                             <svg className={`w-5 h-5 ${isLiked ? 'fill-pink-600' : 'fill-none'}`} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                                 <path
                                     strokeLinecap="round"
@@ -203,10 +178,7 @@ const LiveCard = ({ meeting, language, index, onJoin }) => {
                     {/* 북마크 */}
                     <button onClick={handleBookmark} className="hover:scale-110 transition-transform">
                         <svg
-                            className={`
-                                w-5 h-5
-                                ${isBookmarked ? 'fill-violet-600 text-violet-600' : 'fill-none text-gray-400 hover:text-violet-600'}
-                            `}
+                            className={`w-5 h-5 ${isBookmarked ? 'fill-violet-600 text-violet-600' : 'fill-none text-gray-400 hover:text-violet-600'}`}
                             stroke="currentColor"
                             strokeWidth={2}
                             viewBox="0 0 24 24"

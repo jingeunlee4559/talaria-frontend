@@ -6,6 +6,7 @@ import 'aos/dist/aos.css';
 import { UserProvider } from './contexts/UserContext';
 import { TranslationProvider } from './contexts/TranslationProvider';
 import GlobalTranslatorHUD from './components/dashboard/dashDoc/translation/GlobalTranslatorHUD';
+import ScrollToTop from './components/ScrollToTop ';
 
 function App() {
     useEffect(() => {
@@ -19,6 +20,7 @@ function App() {
     return (
         <UserProvider>
             <TranslationProvider>
+                <ScrollToTop />
                 <Approuter />
                 <GlobalTranslatorHUD />
             </TranslationProvider>

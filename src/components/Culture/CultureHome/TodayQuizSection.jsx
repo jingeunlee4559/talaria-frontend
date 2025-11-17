@@ -1,225 +1,223 @@
 // src/components/Culture/CultureHome/TodayQuizSection.jsx
 import React, { useState, useEffect } from 'react';
 import QuizCard from './QuizCard';
+import { cultureQuizData } from '../../../data/cultureQuizData'; // ✅ 새 파일 import
 
-// ✅ 실제 이미지와 정확한 정보로 업데이트된 퀴즈 데이터
-const quizData = [
-    {
-        id: 1,
-        question: '2024년 K-POP 씬을 뒤흔든 술게임 콘셉트 노래의 제목은?',
-        image: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=1200&q=80',
-        options: ['APT.', 'Supernova', 'Magnetic', 'Love wins all'],
-        correctAnswer: 0,
-        explanation: "로제와 브루노 마스의 'APT.'는 술게임 감성과 중독적인 후렴으로 전 세계 밈과 챌린지를 만들어냈어요.",
-        difficulty: '쉬움',
-        category: 'K-POP',
-    },
-    {
-        id: 2,
-        question: "'나 혼자만 레벨업' 초반부에서 성진우가 붙었던 별명은?",
-        image: 'https://images.unsplash.com/photo-1618519764620-7403abdbdfe9?w=1200&q=80',
-        options: ['인류 최약병기', '그림자 군주', '헌터의 왕', '블랙 헌터'],
-        correctAnswer: 0,
-        explanation: '성진우는 E급 헌터 시절 실력 부족으로 인해 "인류 최약병기"라는 불명예스러운 별명으로 불렸어요.',
-        difficulty: '보통',
-        category: '웹툰',
-    },
-    {
-        id: 3,
-        question: '2024년 강아지 짤과 함께 특히 많이 쓰인 감정 표현 밈은?',
-        image: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=1200&q=80',
-        options: ['광광', '삐끼삐끼', '~노?', '물어봐요'],
-        correctAnswer: 0,
-        explanation: '강아지가 울먹이는 듯한 표정 짤과 함께 "광광"이라는 의성어가 2024년 SNS에서 크게 유행했어요.',
-        difficulty: '쉬움',
-        category: '밈',
-    },
-    {
-        id: 4,
-        question: "넷플릭스 예능 '흑백요리사'에서 백수저 팀을 이끈 셰프는?",
-        image: 'https://images.unsplash.com/photo-1600565193348-f74bd3c7ccdf?w=1200&q=80',
-        options: ['안성재', '백종원', '최현석', '에드워드 리'],
-        correctAnswer: 0,
-        explanation: '미슐랭 3스타 셰프 안성재가 백수저 팀 리더로 등장해 화제가 되었어요.',
-        difficulty: '보통',
-        category: '예능',
-    },
-    {
-        id: 5,
-        question: '2024 파리 올림픽에서 대한민국 첫 금메달이 나온 종목은?',
-        image: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=1200&q=80',
-        options: ['사격', '양궁', '펜싱', '유도'],
-        correctAnswer: 0,
-        explanation: '사격 종목에서 공기소총 10m 혼성 단체전 금메달이 나오며 대한민국의 첫 금메달을 장식했어요.',
-        difficulty: '어려움',
-        category: '스포츠',
-    },
-    {
-        id: 6,
-        question: '2024년 전 세계 스트리밍 플랫폼에서 큰 인기를 얻은 한국 드라마는?',
-        image: 'https://images.unsplash.com/photo-1522869635100-9f4c5e86aa37?w=1200&q=80',
-        options: ['눈물의 여왕', '선재 업고 튀어', '이태원 클라쓰', '더 글로리'],
-        correctAnswer: 0,
-        explanation: '김수현·김지원 주연의 "눈물의 여왕"은 고급스러운 영상미와 서사로 글로벌 팬들의 호평을 받았어요.',
-        difficulty: '보통',
-        category: '드라마',
-    },
-    {
-        id: 7,
-        question: 'aespa의 2024년 활동 곡 중 강렬한 사운드와 후렴으로 큰 인기를 얻은 곡은?',
-        image: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=1200&q=80',
-        options: ['Supernova', 'Armageddon', 'Drama', 'Spicy'],
-        correctAnswer: 0,
-        explanation: '"Supernova"는 강렬한 비트와 중독적인 훅으로 많은 챌린지와 밈을 만들어낸 곡이에요.',
-        difficulty: '쉬움',
-        category: 'K-POP',
-    },
-    {
-        id: 8,
-        question: '공포·미스터리 영화 "파묘"의 연출을 맡은 감독은?',
-        image: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1200&q=80',
-        options: ['장재현', '봉준호', '박찬욱', '나홍진'],
-        correctAnswer: 0,
-        explanation: '"파묘"는 "검은 사제들", "사바하"로 잘 알려진 장재현 감독의 작품이에요.',
-        difficulty: '어려움',
-        category: '영화',
-    },
-];
+// 세트/랜덤 관련 상수
+const QUESTIONS_PER_SET = 10;
+const MAX_SETS = 4;
 
-// ✅ 결과 카드 (좀 더 컴팩트하고 정리된 스타일)
-const ResultCard = ({ score, total, onRestart, onNext }) => {
+// 점수에 따라 뱃지/색 정하는 함수 (기존 코드 그대로 사용하면 됨)
+function getGrade(score, total) {
     const percentage = (score / total) * 100;
 
-    const getGrade = () => {
-        if (percentage === 100)
-            return {
-                emoji: '🏆',
-                title: '완벽해요!',
-                message: '밈 마스터 등극! 당신은 진정한 트렌드 세터!',
-                gradient: 'from-amber-400 via-yellow-400 to-orange-500',
-                textColor: 'text-amber-600',
-            };
-        if (percentage >= 75)
-            return {
-                emoji: '🎉',
-                title: '대단해요!',
-                message: '밈 고수 인정! 요즘 것들 감각이 가득하네요.',
-                gradient: 'from-emerald-400 via-green-400 to-teal-500',
-                textColor: 'text-emerald-600',
-            };
-        if (percentage >= 50)
-            return {
-                emoji: '👍',
-                title: '잘했어요!',
-                message: '꽤 괜찮은데요? 조금만 더 파면 진짜 밈 장인이 될 수 있어요.',
-                gradient: 'from-sky-400 via-blue-400 to-indigo-500',
-                textColor: 'text-sky-600',
-            };
+    if (percentage >= 90) {
         return {
-            emoji: '💪',
-            title: '아쉬워요!',
-            message: '오늘은 워밍업! 다음 세트에서 진짜 실력 보여주세요.',
-            gradient: 'from-purple-400 via-fuchsia-400 to-rose-500',
-            textColor: 'text-purple-600',
+            title: '✨ 밈 마스터 ✨',
+            message: '요즘 트렌드는 이미 당신 머릿속에 다 있어요!',
+            emoji: '👑',
+            gradient: 'from-yellow-400 via-orange-500 to-pink-500',
+            bgGradient: 'from-yellow-100 via-orange-100 to-pink-100',
         };
+    }
+    if (percentage >= 70) {
+        return {
+            title: '🔥 트렌드 리더',
+            message: '웬만한 밈은 다 아는 핵인싸 감각!',
+            emoji: '🔥',
+            gradient: 'from-orange-400 via-pink-500 to-purple-500',
+            bgGradient: 'from-orange-100 via-pink-100 to-purple-100',
+        };
+    }
+    if (percentage >= 50) {
+        return {
+            title: '🌈 밈 중급자',
+            message: '감 좋네요! 조금만 더 보면 밈 마스터 가능!',
+            emoji: '🌈',
+            gradient: 'from-purple-400 via-indigo-500 to-blue-500',
+            bgGradient: 'from-purple-100 via-indigo-100 to-blue-100',
+        };
+    }
+    return {
+        title: '🌱 밈 초보자',
+        message: '천천히 가도 괜찮아요! 같이 밈 공부해요 😎',
+        emoji: '🌱',
+        gradient: 'from-emerald-400 via-teal-500 to-cyan-500',
+        bgGradient: 'from-emerald-100 via-teal-100 to-cyan-100',
     };
+}
 
-    const grade = getGrade();
+// ✅ 주어진 문제 풀에서, 아직 안 쓴 id 기준으로 랜덤 세트 뽑기
+function getRandomSet(allQuestions, usedIds, count) {
+    const available = allQuestions.filter((q) => !usedIds.includes(q.id));
+
+    if (available.length === 0) return [];
+
+    const shuffled = [...available].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, Math.min(count, shuffled.length));
+}
+
+// ===================== ResultCard =====================
+const ResultCard = ({ score, total, onRestart, onNext, setNumber, isLastSet }) => {
+    const percentage = (score / total) * 100;
+    const grade = getGrade(score, total);
 
     return (
-        <div className="w-full max-w-xl bg-white/90 backdrop-blur-xl border border-slate-100 rounded-3xl shadow-[0_18px_45px_rgba(15,23,42,0.16)] p-6 md:p-7 animate-scale-in">
-            {/* 상단: 점수/퍼센트 */}
-            <div className="flex flex-col items-center text-center mb-6">
-                <div className="flex items-center justify-center w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-gradient-to-br from-violet-100 via-purple-100 to-pink-100 mb-3">
-                    <span className="text-4xl md:text-5xl">{grade.emoji}</span>
-                </div>
-                <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight mb-1">{grade.title}</h2>
-                <p className="text-sm md:text-[15px] text-slate-600 max-w-sm">{grade.message}</p>
-            </div>
+        <div className="w-full animate-fade-in">
+            <div className="relative">
+                <div className={`absolute -inset-2 bg-gradient-to-r ${grade.gradient} rounded-3xl blur-xl opacity-20`} />
+                <div className="relative bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
+                    {/* 헤더 */}
+                    <div className={`bg-gradient-to-r ${grade.bgGradient} p-8 border-b border-gray-100`}>
+                        <div className="text-center">
+                            <div className="inline-flex items-center justify-center w-28 h-28 bg-white rounded-3xl shadow-xl mb-6">
+                                <span className="text-7xl animate-bounce-gentle">{grade.emoji}</span>
+                            </div>
+                            <h2 className={`text-4xl font-black mb-3 bg-gradient-to-r ${grade.gradient} bg-clip-text text-transparent`}>{grade.title}</h2>
+                            <p className="text-lg text-gray-700 font-medium">{grade.message}</p>
+                        </div>
+                    </div>
 
-            <div className="flex items-center justify-center gap-4 mb-6">
-                <div className="flex flex-col items-center">
-                    <p className="text-xs text-slate-500 font-medium mb-1">정답 개수</p>
-                    <p className={`text-2xl md:text-3xl font-black ${grade.textColor}`}>
-                        {score}/{total}
-                    </p>
-                </div>
-                <div className="h-10 w-px bg-slate-200" />
-                <div className="flex flex-col items-center">
-                    <p className="text-xs text-slate-500 font-medium mb-1">정확도</p>
-                    <p className="text-2xl md:text-3xl font-black bg-gradient-to-r from-violet-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">{percentage.toFixed(0)}%</p>
-                </div>
-            </div>
+                    {/* 점수 */}
+                    <div className="p-8">
+                        <div className="grid grid-cols-2 gap-6 mb-8">
+                            <div className="text-center">
+                                <p className="text-sm text-gray-500 mb-3 font-semibold uppercase tracking-wide">정답 수</p>
+                                <div className={`text-6xl font-black bg-gradient-to-r ${grade.gradient} bg-clip-text text-transparent`}>
+                                    {score}/{total}
+                                </div>
+                            </div>
+                            <div className="text-center">
+                                <p className="text-sm text-gray-500 mb-3 font-semibold uppercase tracking-wide">정확도</p>
+                                <div className={`text-6xl font-black bg-gradient-to-r ${grade.gradient} bg-clip-text text-transparent`}>{Number.isNaN(percentage) ? 0 : percentage.toFixed(0)}%</div>
+                            </div>
+                        </div>
 
-            {/* 진행 바 */}
-            <div className="mb-6">
-                <div className="w-full h-3 rounded-full bg-slate-100 overflow-hidden">
-                    <div className={`h-full rounded-full bg-gradient-to-r ${grade.gradient} relative overflow-hidden transition-all duration-700`} style={{ width: `${Math.max(8, percentage)}%` }}>
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer" />
+                        {/* 프로그레스 바 */}
+                        <div className="mb-8">
+                            <div className="flex items-center justify-between text-xs text-gray-500 mb-2 font-semibold">
+                                <span>퀴즈 완료</span>
+                                <span>{Number.isNaN(percentage) ? 0 : percentage.toFixed(0)}%</span>
+                            </div>
+                            <div className="relative h-4 bg-gray-100 rounded-full overflow-hidden">
+                                <div
+                                    className={`h-full bg-gradient-to-r ${grade.gradient} rounded-full transition-all duration-1000 relative overflow-hidden`}
+                                    style={{ width: `${Number.isNaN(percentage) ? 0 : percentage}%` }}
+                                >
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer" />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 통계 */}
+                        <div className="grid grid-cols-3 gap-4 mb-8">
+                            <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-5 text-center border-2 border-emerald-100">
+                                <p className="text-xs text-gray-600 mb-2 font-bold uppercase">정답</p>
+                                <p className="text-3xl font-black text-emerald-600">{score}</p>
+                            </div>
+                            <div className="bg-gradient-to-br from-rose-50 to-pink-50 rounded-2xl p-5 text-center border-2 border-rose-100">
+                                <p className="text-xs text-gray-600 mb-2 font-bold uppercase">오답</p>
+                                <p className="text-3xl font-black text-rose-600">{total - score}</p>
+                            </div>
+                            <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-2xl p-5 text-center border-2 border-purple-100">
+                                <p className="text-xs text-gray-600 mb-2 font-bold uppercase">세트</p>
+                                <p className="text-3xl font-black text-purple-600">{setNumber}</p>
+                            </div>
+                        </div>
+
+                        {/* 버튼 */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <button onClick={onRestart} className="relative group overflow-hidden">
+                                <div className={`absolute inset-0 bg-gradient-to-r ${grade.gradient} rounded-2xl`} />
+                                <div className="relative bg-gradient-to-r from-white/20 to-transparent text-white font-bold py-5 rounded-2xl shadow-xl hover:shadow-2xl transform hover:scale-105 active:scale-95 transition-all">
+                                    <span className="relative z-10">🔄 이 세트 다시 도전하기</span>
+                                </div>
+                            </button>
+
+                            {!isLastSet && (
+                                <button
+                                    onClick={onNext}
+                                    className="bg-white text-gray-700 font-bold py-5 rounded-2xl border-2 border-gray-200 hover:border-purple-300 hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 transition-all"
+                                >
+                                    ➡️ 다음 퀴즈 세트
+                                </button>
+                            )}
+                        </div>
+
+                        {isLastSet && <p className="mt-4 text-center text-sm text-gray-500 font-medium">🎉 4세트 모두 완료했어요! 처음부터 다시 도전해볼까요?</p>}
                     </div>
                 </div>
             </div>
 
-            {/* 통계 3개 */}
-            <div className="grid grid-cols-3 gap-3 mb-6 text-center text-xs md:text-[11px]">
-                <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 px-2 py-3">
-                    <p className="text-slate-500 mb-1">정답</p>
-                    <p className="text-lg font-extrabold text-emerald-600">{score}개</p>
-                </div>
-                <div className="rounded-2xl border border-rose-100 bg-rose-50/60 px-2 py-3">
-                    <p className="text-slate-500 mb-1">오답</p>
-                    <p className="text-lg font-extrabold text-rose-600">{total - score}개</p>
-                </div>
-                <div className="rounded-2xl border border-violet-100 bg-violet-50/60 px-2 py-3">
-                    <p className="text-slate-500 mb-1">세트 번호</p>
-                    <p className="text-lg font-extrabold text-violet-600">1</p>
-                </div>
-            </div>
-
-            {/* 버튼 */}
-            <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                    onClick={onRestart}
-                    className={`flex-1 bg-gradient-to-r ${grade.gradient} text-white text-sm md:text-[15px] font-semibold py-3 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-[2px] active:translate-y-0 transition-all`}
-                >
-                    다시 도전하기
-                </button>
-                <button
-                    onClick={onNext}
-                    className="flex-1 border border-violet-500/70 text-violet-700 text-sm md:text-[15px] font-semibold py-3 rounded-xl bg-white hover:bg-violet-50 hover:-translate-y-[2px] active:translate-y-0 transition-all"
-                >
-                    다음 퀴즈 세트
-                </button>
-            </div>
-
-            <p className="mt-3 text-[11px] text-slate-400 text-center">* 점수는 이 페이지 안에서만 사용됩니다.</p>
+            <style>{`
+                @keyframes shimmer {
+                    0% { transform: translateX(-100%); }
+                    100% { transform: translateX(100%); }
+                }
+                @keyframes bounce-gentle {
+                    0%, 100% { transform: translateY(0) scale(1); }
+                    50% { transform: translateY(-12px) scale(1.05); }
+                }
+                @keyframes fade-in {
+                    from { opacity: 0; transform: translateY(20px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .animate-shimmer {
+                    animation: shimmer 2s infinite;
+                }
+                .animate-bounce-gentle {
+                    animation: bounce-gentle 2.5s ease-in-out infinite;
+                }
+                .animate-fade-in {
+                    animation: fade-in 0.6s ease-out;
+                }
+            `}</style>
         </div>
     );
 };
 
+// ===================== TodayQuizSection 본체 =====================
 export default function TodayQuizSection() {
     const [currentQuizIndex, setCurrentQuizIndex] = useState(0);
     const [score, setScore] = useState(0);
     const [isFinished, setIsFinished] = useState(false);
     const [answeredQuizzes, setAnsweredQuizzes] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [quizSet, setQuizSet] = useState(0); // 퀴즈 세트 추적
 
+    const [quizSet, setQuizSet] = useState(0); // 0~3 (표시는 +1)
+    const [usedIds, setUsedIds] = useState([]); // ✅ 이미 출제된 문제 id
+    const [currentSetQuestions, setCurrentSetQuestions] = useState([]); // ✅ 현재 세트 10문제
+
+    // 최초 로딩
     useEffect(() => {
-        const timer = setTimeout(() => {
-            setLoading(false);
-        }, 600);
+        const timer = setTimeout(() => setLoading(false), 600);
         return () => clearTimeout(timer);
     }, []);
 
+    // ✅ 세트 변경 시마다 새로운 10문제 구성 (이미 나온 문제 제외)
+    useEffect(() => {
+        if (loading) return;
+
+        const newSet = getRandomSet(cultureQuizData, usedIds, QUESTIONS_PER_SET);
+
+        setCurrentSetQuestions(newSet);
+        setCurrentQuizIndex(0);
+        setScore(0);
+        setIsFinished(false);
+        setAnsweredQuizzes([]);
+
+        // 이미 사용한 문제 id 업데이트
+        setUsedIds((prev) => [...prev, ...newSet.map((q) => q.id)]);
+    }, [loading, quizSet]); // quizSet 바뀔 때마다 새 세트
+
+    const totalInSet = currentSetQuestions.length || QUESTIONS_PER_SET;
+
     const handleAnswer = (isCorrect) => {
-        if (isCorrect) {
-            setScore((prev) => prev + 1);
-        }
+        if (isCorrect) setScore((prev) => prev + 1);
         setAnsweredQuizzes((prev) => [...prev, currentQuizIndex]);
 
         setTimeout(() => {
-            if (currentQuizIndex < quizData.length - 1) {
+            if (currentQuizIndex < totalInSet - 1) {
                 setCurrentQuizIndex((prev) => prev + 1);
             } else {
                 setIsFinished(true);
@@ -227,6 +225,7 @@ export default function TodayQuizSection() {
         }, 2500);
     };
 
+    // ✅ 같은 세트 다시 풀기 (문제 구성 그대로)
     const handleRestart = () => {
         setCurrentQuizIndex(0);
         setScore(0);
@@ -234,151 +233,151 @@ export default function TodayQuizSection() {
         setAnsweredQuizzes([]);
     };
 
+    // ✅ 다음 세트 (최대 4세트, 문제 중복 없음)
     const handleNext = () => {
+        const currentSetNumber = quizSet + 1;
+
+        // 이미 4세트 끝이거나, 문제를 다 쓴 경우 더 이상 진행 안 함
+        if (currentSetNumber >= MAX_SETS || usedIds.length >= cultureQuizData.length) {
+            return;
+        }
+
         setQuizSet((prev) => prev + 1);
-        handleRestart();
     };
 
-    if (loading) {
+    if (loading || currentSetQuestions.length === 0) {
         return (
-            <section className="relative overflow-hidden bg-gradient-to-br from-slate-50 via-violet-50 to-pink-50 py-16 px-4 sm:px-6 lg:px-8">
-                <div className="max-w-6xl mx-auto flex justify-center items-center py-16">
-                    <div className="relative">
-                        <div className="animate-spin rounded-full h-14 w-14 border-t-4 border-b-4 border-violet-500" />
-                        <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="w-8 h-8 bg-gradient-to-r from-violet-500 to-pink-500 rounded-full opacity-30 animate-pulse" />
-                        </div>
+            <section className="relative py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-white via-purple-50/30 to-pink-50/30 min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                    <div className="relative inline-block">
+                        <div className="absolute inset-0 bg-gradient-to-r from-orange-400 to-purple-500 rounded-full blur-xl opacity-30 animate-pulse" />
+                        <div className="relative w-20 h-20 border-4 border-gray-200 border-t-purple-500 rounded-full animate-spin" />
                     </div>
+                    <p className="mt-6 text-gray-600 font-semibold">퀴즈를 불러오는 중...</p>
                 </div>
             </section>
         );
     }
 
-    const progressPercent = Math.round(((currentQuizIndex + 1) / quizData.length) * 100);
+    const progressPercent = Math.round(((currentQuizIndex + 1) / totalInSet) * 100);
+    const currentSetNumber = quizSet + 1;
+    const isLastSet = currentSetNumber >= MAX_SETS || usedIds.length >= cultureQuizData.length;
 
     return (
-        <section className="relative overflow-hidden bg-gradient-to-br from-slate-50 via-violet-50/40 to-pink-50 py-14 md:py-18 px-4 sm:px-6 lg:px-8">
-            {/* 배경 라이트 */}
-            <div className="pointer-events-none absolute -top-24 -right-24 w-72 h-72 rounded-full bg-pink-300/30 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-24 -left-24 w-72 h-72 rounded-full bg-violet-300/30 blur-3xl" />
-
-            <div className="max-w-6xl mx-auto relative z-10">
-                {/* 상단 헤더 + 전체 진행도 */}
-                <div className="mb-10">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/80 border border-violet-100 text-[11px] text-violet-700 font-semibold shadow-sm">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span>오늘의 밈 감도 체크 · 세트 {quizSet + 1}</span>
+        <section className="relative py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-white via-purple-50/30 to-pink-50/30 min-h-screen">
+            <div className="max-w-7xl mx-auto">
+                {/* 헤더 */}
+                <div className="text-center mb-16">
+                    <div className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-white border-2 border-purple-200 shadow-lg mb-8">
+                        <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-orange-400 to-purple-500 animate-pulse" />
+                        <span className="text-sm font-bold bg-gradient-to-r from-orange-500 via-pink-500 to-purple-600 bg-clip-text text-transparent uppercase tracking-wide">
+                            Meme Quiz Challenge · Set {currentSetNumber}
+                        </span>
                     </div>
 
-                    <div className="mt-4 flex flex-col md:flex-row md:items-end md:justify-between gap-3">
-                        <div>
-                            <h2 className="text-3xl md:text-4xl font-black tracking-tight bg-gradient-to-r from-slate-900 via-violet-700 to-pink-600 bg-clip-text text-transparent">오늘의 밈 퀴즈</h2>
-                            <p className="mt-2 text-sm md:text-[15px] text-slate-600 max-w-xl">
-                                K-POP, 웹툰, 예능, 스포츠, 드라마, 영화까지
-                                <span className="font-semibold text-violet-700"> 요즘 밈 감각</span>이 어느 정도인지 가볍게 점검해 보세요.
-                            </p>
-                        </div>
-                        <div className="md:w-64">
-                            <p className="text-[11px] text-slate-500 mb-1">
-                                전체 진행도 · {currentQuizIndex + 1}/{quizData.length}
-                            </p>
-                            <div className="w-full h-2 rounded-full bg-white/70 border border-slate-100 overflow-hidden">
+                    <h1 className="text-6xl md:text-7xl font-black mb-6 leading-tight">
+                        <span className="bg-gradient-to-r from-orange-500 via-pink-500 to-purple-600 bg-clip-text text-transparent">오늘의 밈 퀴즈</span>
+                    </h1>
+                    <p className="text-xl text-gray-600 max-w-2xl mx-auto font-medium leading-relaxed">
+                        K-POP, 웹툰, 예능, 영화까지 <span className="text-purple-600 font-bold">요즘 트렌드</span>를 얼마나 알고 있나요? 🎯
+                    </p>
+
+                    {/* 전체 프로그레스 (세트 내 진행도) */}
+                    <div className="max-w-2xl mx-auto mt-10">
+                        <div className="bg-white rounded-2xl p-6 shadow-xl border border-gray-100">
+                            <div className="flex items-center justify-between text-sm text-gray-600 mb-3 font-semibold">
+                                <span>이번 세트 진행도</span>
+                                <span className="text-purple-600">
+                                    {currentQuizIndex + 1} / {totalInSet}
+                                </span>
+                            </div>
+                            <div className="relative h-3 bg-gray-100 rounded-full overflow-hidden">
                                 <div
-                                    className="h-full rounded-full bg-gradient-to-r from-violet-500 via-purple-500 to-pink-500 transition-all duration-500 relative overflow-hidden"
+                                    className="h-full bg-gradient-to-r from-orange-400 via-pink-400 to-purple-500 rounded-full transition-all duration-500 relative overflow-hidden"
                                     style={{ width: `${progressPercent}%` }}
                                 >
-                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer" />
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
                                 </div>
                             </div>
+                            <p className="text-center mt-3 text-lg font-bold text-purple-600">{progressPercent}%</p>
                         </div>
                     </div>
                 </div>
 
-                {/* 메인 레이아웃: 좌측 정보, 우측 퀴즈/결과 */}
-                <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
-                    {/* 좌측: 설명/통계 패널 */}
-                    <div className="lg:col-span-2">
-                        <div className="h-full bg-white/85 backdrop-blur-xl border border-slate-100 rounded-3xl shadow-[0_14px_40px_rgba(15,23,42,0.12)] p-5 md:p-6 flex flex-col gap-5">
+                {/* 메인 레이아웃 */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                    {/* 사이드바 */}
+                    <div className="lg:col-span-3">
+                        <div className="sticky top-8 space-y-6">
                             {/* 현재 상태 */}
-                            <div>
-                                <p className="text-xs font-semibold text-slate-500 mb-1">현재 상태</p>
-                                <div className="flex items-center gap-3">
-                                    <div className="w-9 h-9 rounded-2xl bg-violet-100 flex items-center justify-center text-lg">🎯</div>
-                                    <div>
-                                        <p className="text-sm font-semibold text-slate-800">{isFinished ? '세트 완료!' : '퀴즈 진행 중'}</p>
-                                        <p className="text-xs text-slate-500">
-                                            {isFinished ? '결과를 확인하고, 원하면 다음 세트로 바로 이어갈 수 있어요.' : `문제 ${currentQuizIndex + 1} / ${quizData.length} 을(를) 풀고 있어요.`}
+                            <div className="bg-white rounded-3xl p-6 shadow-xl border border-gray-100 hover:shadow-2xl transition-shadow">
+                                <div className="flex items-center gap-4 mb-5">
+                                    <div className="relative">
+                                        <div className="absolute inset-0 bg-gradient-to-r from-orange-400 to-pink-500 rounded-2xl blur-md opacity-50" />
+                                        <div className="relative w-16 h-16 bg-gradient-to-br from-orange-400 to-pink-500 rounded-2xl flex items-center justify-center text-3xl shadow-xl">🎯</div>
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="font-black text-gray-900 text-lg">{isFinished ? '세트 완료!' : '진행 중'}</p>
+                                        <p className="text-sm text-gray-500 font-medium">{isFinished ? `Set ${currentSetNumber} 결과를 확인하세요` : `문제 ${currentQuizIndex + 1} / ${totalInSet}`}</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-2xl p-4 text-center border-2 border-purple-100">
+                                        <p className="text-xs text-gray-600 mb-1 font-bold uppercase">점수</p>
+                                        <p className="text-3xl font-black text-purple-600">{score}</p>
+                                    </div>
+                                    <div className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-2xl p-4 text-center border-2 border-pink-100">
+                                        <p className="text-xs text-gray-600 mb-1 font-bold uppercase">세트</p>
+                                        <p className="text-3xl font-black text-pink-600">
+                                            {currentSetNumber} / {MAX_SETS}
                                         </p>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* 점수/진행 요약 */}
-                            <div className="grid grid-cols-3 gap-3 text-center text-xs">
-                                <div className="rounded-2xl border border-violet-100 bg-violet-50/60 px-2 py-3">
-                                    <p className="text-slate-500 mb-1">점수</p>
-                                    <p className="text-xl font-extrabold text-violet-700">{score}점</p>
+                            {/* 카테고리 */}
+                            <div className="bg-white rounded-3xl p-6 shadow-xl border border-gray-100">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <span className="text-2xl">📂</span>
+                                    <p className="font-black text-gray-900">카테고리</p>
                                 </div>
-                                <div className="rounded-2xl border border-slate-100 bg-slate-50/80 px-2 py-3">
-                                    <p className="text-slate-500 mb-1">진행률</p>
-                                    <p className="text-xl font-extrabold text-slate-800">{progressPercent}%</p>
-                                </div>
-                                <div className="rounded-2xl border border-pink-100 bg-pink-50/70 px-2 py-3">
-                                    <p className="text-slate-500 mb-1">참여자</p>
-                                    <p className="text-xl font-extrabold text-pink-600">2,847명</p>
-                                </div>
-                            </div>
-
-                            {/* 카테고리 리스트 */}
-                            <div>
-                                <p className="text-xs font-semibold text-slate-500 mb-2">오늘 포함된 카테고리</p>
-                                <div className="flex flex-wrap gap-2 text-[11px]">
+                                <div className="flex flex-wrap gap-2">
                                     {['K-POP', '웹툰', '밈', '예능', '스포츠', '드라마', '영화'].map((cat) => (
-                                        <span key={cat} className="px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200 text-slate-600">
+                                        <span
+                                            key={cat}
+                                            className="px-3 py-2 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl text-xs text-purple-700 font-bold border border-purple-200 hover:scale-105 transition-transform cursor-default"
+                                        >
                                             #{cat}
                                         </span>
                                     ))}
                                 </div>
                             </div>
 
-                            {/* 안내 텍스트 */}
-                            <div className="mt-auto pt-2 border-t border-slate-100">
-                                <p className="text-[11px] text-slate-500 leading-relaxed">
-                                    보기 중 하나를 선택하면 정답 여부가 표시되고,
-                                    <br />
-                                    <span className="font-semibold text-violet-600">약간의 연출 후 자동으로 다음 문제</span>로 넘어갑니다.
-                                </p>
+                            {/* 참여자 (더미 데이터) */}
+                            <div className="bg-gradient-to-br from-orange-50 via-pink-50 to-purple-50 rounded-3xl p-6 shadow-xl border-2 border-purple-100">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs text-gray-600 mb-2 font-bold uppercase">참여자</p>
+                                        <p className="text-4xl font-black bg-gradient-to-r from-orange-500 to-pink-500 bg-clip-text text-transparent">2,847</p>
+                                        <p className="text-xs text-gray-500 mt-1 font-medium">명이 도전했어요</p>
+                                    </div>
+                                    <div className="text-5xl">👥</div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* 우측: 퀴즈 카드 / 결과 카드 */}
-                    <div className="lg:col-span-3 flex justify-center">
+                    {/* 퀴즈 / 결과 영역 */}
+                    <div className="lg:col-span-9">
                         {!isFinished ? (
-                            <QuizCard quiz={quizData[currentQuizIndex]} onAnswer={handleAnswer} currentIndex={currentQuizIndex} totalQuizzes={quizData.length} />
+                            <QuizCard quiz={currentSetQuestions[currentQuizIndex]} onAnswer={handleAnswer} currentIndex={currentQuizIndex} totalQuizzes={totalInSet} />
                         ) : (
-                            <ResultCard score={score} total={quizData.length} onRestart={handleRestart} onNext={handleNext} />
+                            <ResultCard score={score} total={totalInSet} onRestart={handleRestart} onNext={handleNext} setNumber={currentSetNumber} isLastSet={isLastSet} />
                         )}
                     </div>
                 </div>
             </div>
-
-            <style>{`
-                @keyframes scale-in {
-                    from { opacity: 0; transform: scale(0.96) translateY(10px); }
-                    to { opacity: 1; transform: scale(1) translateY(0); }
-                }
-                @keyframes shimmer {
-                    0% { transform: translateX(-100%); }
-                    100% { transform: translateX(100%); }
-                }
-                .animate-scale-in {
-                    animation: scale-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-                }
-                .animate-shimmer {
-                    animation: shimmer 2s infinite;
-                }
-            `}</style>
         </section>
     );
 }

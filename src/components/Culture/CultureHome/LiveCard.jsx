@@ -44,7 +44,7 @@ const LiveCard = ({ meeting, language, index, onJoin }) => {
                 {/* 썸네일 이미지 */}
                 <img
                     src={thumbnailImage}
-                    onError={(e) => (e.target.src = '/img/hermes_logo.jpg')}
+                    onError={(e) => (e.target.src = '/img/content1.webp')}
                     alt={meeting.title}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                 />

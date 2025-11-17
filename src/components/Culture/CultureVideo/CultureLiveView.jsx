@@ -18,7 +18,6 @@ const CultureLiveView = () => {
     const meetingId = searchParams.get('id');
 
     useEffect(() => {
-        // 1) id 없음
         if (!meetingId) {
             setError('회의 ID가 없습니다.');
             setLoading(false);
@@ -34,19 +33,15 @@ const CultureLiveView = () => {
 
         const fetchMeetingData = async () => {
             try {
-                // 2) 문화 모드 회의 목록에서 가져오기
                 const response = await api.get('/api/meetings/by-mode', {
                     params: {
                         mode: 'C',
                         page: 0,
-                        size: 100, // 필요에 따라 조정
+                        size: 100,
                     },
                 });
 
-                // 서버 응답 구조에 따라 items 또는 content 사용
                 const list = response.data.items || response.data.content || [];
-
-                // 3) 리스트에서 해당 회의 찾기
                 const meeting = list.find((m) => m.meetings_id === numericMeetingId);
 
                 if (!meeting) {
@@ -55,14 +50,12 @@ const CultureLiveView = () => {
                     return;
                 }
 
-                // 4) 모드 확인 (안전하게 한 번 더 체크)
                 if (meeting.meeting_mode !== 'C') {
                     setError('이 회의는 문화 모드가 아닙니다.');
                     setLoading(false);
                     return;
                 }
 
-                // 5) 화면/영상 컴포넌트에서 쓸 데이터 세팅
                 setMeetingData({
                     id: meeting.meetings_id,
                     title: meeting.title,
@@ -89,32 +82,31 @@ const CultureLiveView = () => {
         navigate('/culture/videos');
     };
 
-    // 로딩 화면
+    // 🎯 로딩 화면 - 반응형 개선
     if (loading) {
         return (
-            <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-b from-white via-blue-50 to-blue-100">
-                <div className="w-16 h-16 border-4 border-blue-400 border-t-transparent rounded-full animate-spin shadow-md mb-6"></div>
-                <h1 className="text-3xl font-extrabold text-gray-800 text-center tracking-wide animate-pulse">라이브 로딩 중</h1>
-                <p className="mt-2 text-gray-500 text-center text-lg">잠시만 기다려주세요...</p>
+            <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-b from-white via-blue-50 to-blue-100 px-4">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 border-4 border-blue-400 border-t-transparent rounded-full animate-spin shadow-md mb-4 sm:mb-6"></div>
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-800 text-center tracking-wide animate-pulse">라이브 로딩 중</h1>
+                <p className="mt-2 text-gray-500 text-center text-base sm:text-lg">잠시만 기다려주세요...</p>
             </div>
         );
     }
 
-    // 에러 화면
+    // 🎯 에러 화면 - 반응형 개선
     if (error) {
         return (
-            <div className="flex flex-col items-center justify-center h-screen bg-gray-50">
-                <div className="text-red-500 text-6xl mb-4">⚠️</div>
-                <h1 className="text-2xl font-bold text-gray-800 mb-2">오류 발생</h1>
-                <p className="text-gray-600 mb-6">{error}</p>
-                <button onClick={() => navigate('/culture/videos')} className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            <div className="flex flex-col items-center justify-center h-screen bg-gray-50 px-4">
+                <div className="text-red-500 text-5xl sm:text-6xl mb-4">⚠️</div>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2 text-center">오류 발생</h1>
+                <p className="text-gray-600 mb-4 sm:mb-6 text-center text-sm sm:text-base">{error}</p>
+                <button onClick={() => navigate('/culture/videos')} className="px-4 sm:px-6 py-2.5 sm:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base">
                     목록으로 돌아가기
                 </button>
             </div>
         );
     }
 
-    // meetingData가 없으면 아무 것도 렌더링하지 않음
     if (!meetingData) {
         return null;
     }

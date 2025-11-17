@@ -40,7 +40,7 @@ const LoginPage = () => {
                     text: `${response.data.name}님 환영합니다!`,
                     icon: 'success',
                     confirmButtonColor: '#8B5CF6',
-                    confirmButtonText: '대시보드로 이동',
+                    confirmButtonText: '확인',
                 });
 
                 // 로그인 성공 후 대시보드 이동

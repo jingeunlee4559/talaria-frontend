@@ -50,19 +50,20 @@ const findTranslation = (translations, targetLocale) => {
     return null;
 };
 
-// ==================== 애니메이션 리스트 사이드바 (오른쪽에서 슬라이드) ====================
+// ==================== 애니메이션 리스트 사이드바 ====================
 const AnimationListSidebar = ({ isOpen, onClose, onSelectEffect }) => {
     const [selectedCategory, setSelectedCategory] = useState('celebration');
 
+    // 🎯 isOpen이 false면 렌더링하지 않음
+    if (!isOpen) return null;
+
     return (
         <>
-            {/* 반투명 배경 (optional - 클릭 시 닫힌다) */}
-            {isOpen && <div className="fixed inset-0 bg-black/20 z-[9998] transition-opacity duration-300" onClick={onClose} />}
+            {/* 반투명 배경 */}
+            <div className="fixed inset-0 bg-black/30 z-[9998] transition-opacity duration-300" onClick={onClose} />
 
             {/* 사이드바 */}
-            <div
-                className={`fixed top-0 right-0 h-full w-[400px] bg-white shadow-2xl z-[9999] transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
-            >
+            <div className="fixed top-0 right-0 h-full w-full sm:w-[400px] bg-white shadow-2xl z-[9999] animate-slide-in-right">
                 <div className="h-full flex flex-col">
                     {/* Header */}
                     <div className="flex-shrink-0 bg-gradient-to-r from-pink-500 to-purple-600 text-white p-4 shadow-lg">
@@ -72,7 +73,7 @@ const AnimationListSidebar = ({ isOpen, onClose, onSelectEffect }) => {
                                 <h2 className="text-lg font-bold">애니메이션 효과</h2>
                             </div>
                             <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors">
-                                <ChevronRight className="w-5 h-5" />
+                                <X className="w-5 h-5" />
                             </button>
                         </div>
                         <p className="text-sm text-white/90">채팅에 이모지를 입력하면 멋진 애니메이션이 실행됩니다! ✨</p>
@@ -96,7 +97,7 @@ const AnimationListSidebar = ({ isOpen, onClose, onSelectEffect }) => {
                         </div>
                     </div>
 
-                    {/* Animation List */}
+                    {/* Animation List - 스크롤 영역 */}
                     <div className="flex-1 overflow-y-auto p-4">
                         <div className="grid grid-cols-2 gap-3">
                             {ANIMATION_CATEGORIES[selectedCategory].effects.map((emoji) => {
@@ -132,29 +133,28 @@ const AnimationListSidebar = ({ isOpen, onClose, onSelectEffect }) => {
 };
 
 // ==================== Message Bubble Component ====================
-const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger }) => {
+const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger, triggeredMessages }) => {
     const isLocal = msg.isLocal;
     const myLocale = normalizeLocale(userLocale);
     const translatedText = msg.text;
     const originalText = msg.originalText || msg.text;
     const [liked, setLiked] = useState(false);
 
-    // 🎯 메시지 고유 ID 생성 (한 번만 실행되도록)
-    const messageIdRef = useRef(`${msg.sender}-${msg.time}-${originalText}`);
-    const hasTriggeredRef = useRef(false);
+    const messageId = msg.id || `${msg.sender}-${msg.time}-${originalText}`;
 
     const textEffectClass = TEXT_EFFECT_MAP[msg.textEffect || 'none']?.className || '';
 
-    // 특수 효과 감지 및 트리거
     useEffect(() => {
-        if (hasTriggeredRef.current) return; // 이미 실행한 적 있으면 무시
+        // 🎯 이미 트리거된 메시지인지 확인
+        if (triggeredMessages.current.has(messageId)) return;
 
         const effect = detectSpecialEffect(originalText);
         if (effect && onEffectTrigger) {
             onEffectTrigger(effect);
-            hasTriggeredRef.current = true; // 다시는 안 쏘게 플래그 세팅
+            // 🎯 트리거된 메시지 ID 저장 (탭 전환 후에도 유지됨)
+            triggeredMessages.current.add(messageId);
         }
-    }, [messageIdRef.current]); // originalText 대신 messageIdRef 사용
+    }, [messageId, originalText, onEffectTrigger, triggeredMessages]);
 
     const handleLike = () => {
         setLiked(true);
@@ -162,7 +162,6 @@ const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger }) => {
         setTimeout(() => setLiked(false), 1000);
     };
 
-    // 폰트 스타일 적용
     const fontStyle = msg.fontStyle || FONT_STYLES[0].style;
 
     return (
@@ -199,21 +198,18 @@ const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger }) => {
                                 : 'bg-white text-gray-800 border border-gray-200'
                         } ${isLocal ? 'rounded-br-sm' : 'rounded-bl-sm'}`}
                     >
-                        {/* Translated Message */}
                         {msg.isTranslated && originalText !== translatedText ? (
                             <div className="space-y-2">
-                                {/* Original Text */}
                                 <div className="flex items-start gap-2 pb-2 border-b border-white/20">
                                     <Globe className="w-3 h-3 mt-0.5 flex-shrink-0" />
                                     <div className="flex-1">
                                         <p className="text-[10px] font-semibold mb-1 opacity-80">원문 ({msg.sourceLocale})</p>
-                                        <p className="text-xs opacity-70 italic" style={fontStyle}>
+                                        <p className="text-xs opacity-70 italic break-words" style={fontStyle}>
                                             {originalText}
                                         </p>
                                     </div>
                                 </div>
 
-                                {/* Translated Text */}
                                 <div className="flex items-start gap-2">
                                     <Sparkles className="w-3 h-3 mt-0.5 flex-shrink-0" />
                                     <div className="flex-1">
@@ -225,7 +221,6 @@ const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger }) => {
                                 </div>
                             </div>
                         ) : (
-                            /* Original Only */
                             <p className={`text-sm break-words ${textEffectClass}`} style={fontStyle}>
                                 {originalText}
                             </p>
@@ -262,13 +257,13 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
     const [selectedEffect, setSelectedEffect] = useState(TEXT_EFFECTS[0]);
     const [showTextEffectPicker, setShowTextEffectPicker] = useState(false);
 
-    // 🎯 이모지 효과 트리거 추적 (STT 메시지 ID별로)
+    // 🎯 STT 메시지 애니메이션 트리거 관리 (기존)
     const triggeredEffectsRef = useRef(new Set());
 
-    // 🎯 useMemo로 ref 안정화 (재마운트 시에도 유지)
-    const processedSttMessagesRef = useMemo(() => ({ current: new Set() }), []);
+    // 🎯 채팅 메시지 애니메이션 트리거 관리 (신규 - 전역으로 관리)
+    const triggeredChatMessagesRef = useRef(new Set());
 
-    // 🎯 마지막 STT ID 추적
+    const processedSttMessagesRef = useMemo(() => ({ current: new Set() }), []);
     const lastProcessedIdRef = useRef(null);
 
     const chatEndRef = useRef(null);
@@ -286,14 +281,12 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
         const container = messagesContainerRef.current;
         if (!container) return;
 
-        // 🔥 채팅 사이드바(메시지 영역)만 부드럽게 아래로 스크롤
         container.scrollTo({
             top: container.scrollHeight,
             behavior: 'smooth',
         });
     }, [messages.length, activeTab]);
 
-    // 🔥 Chat Message Receiver
     const onMessage = useCallback(
         (message) => {
             if (message.from) {
@@ -303,12 +296,11 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                     const senderName = msgData.username || getParticipantNickname(message.from, room);
                     const isLocal = message.from.isLocal;
 
-                    // 폰트 스타일 파싱
                     const fontStyle = msgData.fontStyle || FONT_STYLES[0].style;
                     const textEffect = msgData.textEffect || 'none';
 
-                    // 🎯 메시지 고유 ID 생성
-                    const messageId = `${senderName}-${msgData.time}-${msgData.text}`;
+                    // 🎯 서버에서 받은 고유 ID 사용, 없으면 생성
+                    const messageId = msgData.messageId || `${senderName}-${msgData.time}-${msgData.text}-${Date.now()}`;
 
                     if (msgData.translations && typeof msgData.translations === 'object') {
                         const sourceLocale = normalizeLocale(msgData.locale || 'ko-KR');
@@ -316,7 +308,7 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
 
                         if (translated) {
                             const translatedMessage = {
-                                id: messageId, // 🎯 고유 ID 추가
+                                id: messageId,
                                 type: 'chat',
                                 text: translated,
                                 originalText: msgData.text,
@@ -330,7 +322,7 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                                 textEffect: textEffect,
                             };
                             setMessages((prev) => {
-                                // 🎯 중복 메시지 방지
+                                // 🎯 같은 ID가 이미 있으면 추가하지 않음 (진짜 중복 방지)
                                 if (prev.some((m) => m.id === messageId)) return prev;
                                 return [...prev, translatedMessage];
                             });
@@ -339,7 +331,7 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                     }
 
                     const originalMessage = {
-                        id: messageId, // 🎯 고유 ID 추가
+                        id: messageId,
                         type: 'chat',
                         text: msgData.text,
                         sender: senderName,
@@ -350,7 +342,7 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                         textEffect: textEffect,
                     };
                     setMessages((prev) => {
-                        // 🎯 중복 메시지 방지
+                        // 🎯 같은 ID가 이미 있으면 추가하지 않음 (진짜 중복 방지)
                         if (prev.some((m) => m.id === messageId)) return prev;
                         return [...prev, originalMessage];
                     });
@@ -364,7 +356,6 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
 
     useDataChannel('chat_messages', onMessage);
 
-    // 🔥 STT Finals Handler
     useEffect(() => {
         if (sttFinals.length === 0 || !localParticipant) return;
 
@@ -374,33 +365,20 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
         const isLocal = sttUsername === myUsername || latestSTT.identity === localParticipant.identity;
         const timestamp = new Date(latestSTT.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-        // 🎯 고유 메시지 ID 생성 (중복 방지용)
         const messageId = `stt-${latestSTT.identity}-${latestSTT.text}-${latestSTT.ts}`;
 
-        // 🎯 이미 처리한 메시지면 바로 리턴
         if (lastProcessedIdRef.current === messageId) {
-            console.log('⏭️ 이미 처리한 메시지 - 스킵:', messageId);
             return;
         }
 
-        console.log('📨 사이드바 STT 처리:', {
-            messageId,
-            text: latestSTT.text?.substring(0, 30),
-            이미처리됨: processedSttMessagesRef.current.has(messageId),
-            전체목록크기: processedSttMessagesRef.current.size,
-        });
-
         if (processedSttMessagesRef.current.has(messageId)) {
-            console.log('❌ 사이드바 중복 감지 - 무시:', messageId);
             lastProcessedIdRef.current = messageId;
             return;
         }
 
-        // 🎯 처리 완료 표시
         processedSttMessagesRef.current.add(messageId);
         lastProcessedIdRef.current = messageId;
 
-        // 🎯 10초 후 추적 목록에서 제거 (메모리 관리)
         setTimeout(() => {
             processedSttMessagesRef.current.delete(messageId);
         }, 10000);
@@ -424,18 +402,14 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                 };
 
                 setMessages((prev) => {
-                    // 🎯 ID로 중복 체크
                     if (prev.some((msg) => msg.id === messageId)) {
-                        console.log('⚠️ setMessages 중복 방지:', messageId);
                         return prev;
                     }
 
-                    // 🎯 이 메시지에서 이미 효과를 트리거했는지 확인
                     if (!triggeredEffectsRef.current.has(messageId)) {
                         const sttText = latestSTT.text || '';
                         const detectedEffect = detectSpecialEffect(sttText);
 
-                        // 번역된 텍스트에서도 이모지 감지 (우선순위: 번역 > 원본)
                         let effectToTrigger = detectedEffect;
                         if (translated) {
                             const translatedEffect = detectSpecialEffect(translated);
@@ -444,12 +418,10 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                             }
                         }
 
-                        // 효과 트리거 (처음 한 번만)
                         if (effectToTrigger && onEffectTrigger) {
                             onEffectTrigger(effectToTrigger);
                             triggeredEffectsRef.current.add(messageId);
 
-                            // 10초 후 추적 목록에서 제거 (메모리 관리)
                             setTimeout(() => {
                                 triggeredEffectsRef.current.delete(messageId);
                             }, 10000);
@@ -473,13 +445,10 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
         };
 
         setMessages((prev) => {
-            // 🎯 ID로 중복 체크
             if (prev.some((msg) => msg.id === messageId)) {
-                console.log('⚠️ setMessages 중복 방지:', messageId);
                 return prev;
             }
 
-            // 🎯 이 메시지에서 이미 효과를 트리거했는지 확인
             if (!triggeredEffectsRef.current.has(messageId)) {
                 const sttText = latestSTT.text || '';
                 const detectedEffect = detectSpecialEffect(sttText);
@@ -488,7 +457,6 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                     onEffectTrigger(detectedEffect);
                     triggeredEffectsRef.current.add(messageId);
 
-                    // 10초 후 추적 목록에서 제거 (메모리 관리)
                     setTimeout(() => {
                         triggeredEffectsRef.current.delete(messageId);
                     }, 10000);
@@ -499,12 +467,14 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
         });
     }, [sttFinals.length, localParticipant?.identity, myLocale]);
 
-    // Send Message
     const handleSendMessage = useCallback(() => {
         if (!chatInput.trim() || !sendChat || !localParticipant) return;
 
         const myUsername = getParticipantNickname(localParticipant, room);
         const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        // 🎯 고유 ID 생성 (밀리초 타임스탬프 + 랜덤 값)
+        const uniqueId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
         const messagePayload = {
             type: 'chat',
@@ -514,15 +484,15 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
             time: currentTime,
             fontStyle: selectedFont.style,
             textEffect: selectedEffect.id,
+            messageId: uniqueId, // 🎯 고유 ID 추가
         };
 
         const textEncoder = new TextEncoder();
         sendChat(textEncoder.encode(JSON.stringify(messagePayload)));
 
-        // 🎯 로컬 메시지에 고유 ID 추가
         const localMessage = {
             ...messagePayload,
-            id: `${myUsername}-${currentTime}-${chatInput}`, // 고유 ID
+            id: uniqueId, // 🎯 고유 ID 사용
             sender: myUsername,
             isLocal: true,
             isTranslated: false,
@@ -532,6 +502,7 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
         setChatInput('');
         setShowEmojiPicker(false);
         setShowFontPicker(false);
+        setShowTextEffectPicker(false);
     }, [chatInput, sendChat, localParticipant, room, myLocale, selectedFont, selectedEffect]);
 
     const handleKeyPress = useCallback(
@@ -546,40 +517,32 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
 
     const handleEmojiClick = (emoji) => {
         setChatInput((prev) => prev + emoji);
+        setShowEmojiPicker(false);
     };
 
     const handleLike = () => {
         setLikeCount((prev) => prev + 1);
     };
 
-    // 입력창에서 사용할 안전한 스타일 가져오기
     const getInputStyle = () => {
-        // 1) 기본으로 가져올 스타일 (inputSafe 이면 style, 아니면 inputStyle)
         const baseStyle = selectedFont.inputSafe ? selectedFont.style : selectedFont.inputStyle || {};
 
-        // 2) 인풋용으로 안전하게 정제
         return {
-            // 폰트 계열/굵기 정도만 유지
             fontFamily: baseStyle.fontFamily,
             fontWeight: baseStyle.fontWeight,
             fontStyle: baseStyle.fontStyle,
             letterSpacing: baseStyle.letterSpacing,
-
-            // 🎯 항상 잘 보이는 진한 색
             color: '#111827',
             WebkitTextFillColor: '#111827',
-
-            // 그라데이션 / 클리핑 강제 제거
             background: 'transparent',
             WebkitBackgroundClip: 'initial',
             backgroundClip: 'initial',
-            textShadow: baseStyle.textShadow && 'none', // 글로우/아웃라인도 인풋에선 제거(원하면 남겨도 됨)
         };
     };
 
     return (
         <div className="w-full h-full bg-gradient-to-b from-pink-50 to-purple-50 flex flex-col rounded-3xl shadow-2xl overflow-hidden border border-pink-100 relative">
-            {/* 애니메이션 리스트 사이드바 */}
+            {/* 🎯 애니메이션 리스트 사이드바 - isOpen이 true일 때만 렌더링 */}
             <AnimationListSidebar isOpen={showAnimationList} onClose={() => setShowAnimationList(false)} onSelectEffect={handleEmojiClick} />
 
             {/* Header */}
@@ -639,6 +602,7 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                                         userLocale={userLocale}
                                         onLike={handleLike}
                                         onEffectTrigger={onEffectTrigger}
+                                        triggeredMessages={triggeredChatMessagesRef}
                                     />
                                 ))
                             )}
@@ -648,12 +612,12 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                         {/* 이모지 피커 */}
                         {showEmojiPicker && (
                             <div className="flex-shrink-0 p-3 bg-white border-t border-pink-100">
-                                <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
+                                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
                                     {QUICK_EMOJIS.map((emoji) => (
                                         <button
                                             key={emoji}
                                             onClick={() => handleEmojiClick(emoji)}
-                                            className="w-10 h-10 rounded-lg bg-pink-50 hover:bg-pink-100 flex items-center justify-center text-xl transition-colors hover:scale-110 transform"
+                                            className="w-10 h-10 rounded-lg bg-pink-50 hover:bg-pink-100 flex items-center justify-center text-xl transition-colors hover:scale-110 transform flex-shrink-0"
                                         >
                                             {emoji}
                                         </button>
@@ -664,8 +628,8 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
 
                         {/* 폰트 피커 */}
                         {showFontPicker && (
-                            <div className="flex-shrink-0 p-3 bg-white border-t border-pink-100 max-h-48 overflow-y-auto">
-                                <div className="grid grid-cols-2 gap-2">
+                            <div className="flex-shrink-0 p-3 bg-white border-t border-pink-100">
+                                <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto">
                                     {FONT_STYLES.map((font) => (
                                         <button
                                             key={font.id}
@@ -684,9 +648,10 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                             </div>
                         )}
 
+                        {/* 텍스트 효과 피커 */}
                         {showTextEffectPicker && (
                             <div className="flex-shrink-0 p-3 bg-white border-t border-pink-100">
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto">
                                     {TEXT_EFFECTS.map((effect) => (
                                         <button
                                             key={effect.id}
@@ -717,7 +682,7 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                         {/* Input */}
                         <div className="flex-shrink-0 p-4 bg-white border-t border-pink-100">
                             {/* 툴바 */}
-                            <div className="flex items-center gap-2 mb-2">
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
                                 <button
                                     onClick={() => {
                                         setShowEmojiPicker(!showEmojiPicker);
@@ -752,6 +717,7 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                                     <Sparkles className="w-5 h-5" />
                                 </button>
 
+                                {/* 🎯 애니메이션 목록 버튼 - 클릭시 모달 열기 */}
                                 <button
                                     onClick={() => setShowAnimationList(true)}
                                     className="p-2 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-600 transition-colors"
@@ -759,11 +725,16 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                                 >
                                     <Info className="w-5 h-5" />
                                 </button>
+
+                                {/* 선택된 폰트 태그 */}
                                 {selectedFont.id !== 'default' && (
                                     <span className="text-xs px-2 py-1 rounded-full bg-pink-100 text-pink-600" style={selectedFont.style}>
                                         {selectedFont.name}
                                     </span>
                                 )}
+
+                                {/* 🎯 선택된 텍스트 애니메이션 태그 */}
+                                {selectedEffect.id !== 'none' && <span className="text-xs px-2 py-1 rounded-full bg-purple-100 text-purple-600">{selectedEffect.name}</span>}
                             </div>
 
                             <div className="flex items-center gap-2">
@@ -779,7 +750,7 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                                 <button
                                     onClick={handleSendMessage}
                                     disabled={!chatInput.trim()}
-                                    className="w-10 h-10 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 text-white flex items-center justify-center hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105"
+                                    className="w-10 h-10 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 text-white flex items-center justify-center hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 flex-shrink-0"
                                 >
                                     <Send className="w-5 h-5" />
                                 </button>
@@ -790,27 +761,25 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
 
                 {activeTab === 'participants' && (
                     <div className="h-full overflow-y-auto p-4 space-y-3">
-                        {/* Local Participant */}
                         <div className="flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-pink-100">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white font-bold">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white font-bold flex-shrink-0">
                                 {localParticipant?.name?.charAt(0).toUpperCase() || 'Y'}
                             </div>
-                            <div className="flex-1">
-                                <p className="font-semibold text-gray-800">
+                            <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-gray-800 truncate">
                                     {getParticipantNickname(localParticipant, room)} <span className="text-xs text-pink-600">(나)</span>
                                 </p>
                                 <p className="text-xs text-gray-500">호스트</p>
                             </div>
                         </div>
 
-                        {/* Remote Participants */}
                         {remoteParticipants.map((p) => (
                             <div key={p.identity} className="flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-purple-100">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center text-white font-bold">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center text-white font-bold flex-shrink-0">
                                     {p.name?.charAt(0).toUpperCase() || 'G'}
                                 </div>
-                                <div className="flex-1">
-                                    <p className="font-semibold text-gray-800">{getParticipantNickname(p, room)}</p>
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-semibold text-gray-800 truncate">{getParticipantNickname(p, room)}</p>
                                     <p className="text-xs text-gray-500">게스트</p>
                                 </div>
                             </div>
@@ -819,12 +788,26 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                 )}
             </div>
 
-            {/* Like Counter (optional) */}
+            {/* Like Counter */}
             {likeCount > 0 && (
                 <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-pink-500 text-white px-4 py-2 rounded-full shadow-lg animate-bounce">
                     <Heart className="w-4 h-4 inline mr-1 fill-current" />+{likeCount}
                 </div>
             )}
+
+            <style>{`
+                @keyframes slide-in-right {
+                    from {
+                        transform: translateX(100%);
+                    }
+                    to {
+                        transform: translateX(0);
+                    }
+                }
+                .animate-slide-in-right {
+                    animation: slide-in-right 0.3s ease-out;
+                }
+            `}</style>
         </div>
     );
 };

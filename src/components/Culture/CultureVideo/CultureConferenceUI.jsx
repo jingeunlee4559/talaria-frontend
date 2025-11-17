@@ -33,10 +33,8 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
     const [showChatSidebar, setShowChatSidebar] = useState(true);
     const [showThemeSelector, setShowThemeSelector] = useState(false);
 
-    // 🎨 배경 테마 상태 (DataChannel로 동기화)
     const [currentTheme, setCurrentTheme] = useState('default');
 
-    // 미디어 상태
     const [isMicOn, setIsMicOn] = useState(true);
     const [isCameraOn, setIsCameraOn] = useState(true);
     const [isScreenSharing, setIsScreenSharing] = useState(false);
@@ -46,11 +44,9 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
     const [activeEffects, setActiveEffects] = useState([]);
     const sttSeenRef = useRef(new Set());
     const sttTimerRef = useRef(null);
-    console.log('showThemeSelector:', showThemeSelector);
-    // 🎨 테마 변경 DataChannel
+
     const { send: sendTheme } = useDataChannel('theme_change');
 
-    // 🎨 테마 변경 수신
     useDataChannel('theme_change', (msg) => {
         try {
             const textDecoder = new TextDecoder();
@@ -63,11 +59,8 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
         }
     });
 
-    // 🎨 테마 변경 핸들러 (모든 참가자에게 전송)
     const handleThemeChange = (themeId) => {
         setCurrentTheme(themeId);
-
-        // 다른 참가자들에게 테마 변경 알림
         if (sendTheme) {
             const textEncoder = new TextEncoder();
             sendTheme(textEncoder.encode(JSON.stringify({ themeId })));
@@ -83,7 +76,6 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
         setActiveEffects((prev) => prev.filter((e) => e.id !== id));
     };
 
-    // 미디어 상태 동기화
     useEffect(() => {
         if (!localParticipant) return;
 
@@ -375,91 +367,95 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
 
     return (
         <LayoutContextProvider>
-            {/* 🎨 테마 선택기 모달 */}
             {showThemeSelector && <BackgroundThemeSelector currentTheme={currentTheme} onThemeChange={handleThemeChange} onClose={() => setShowThemeSelector(false)} />}
 
             <div data-lk-theme="default" className="w-full min-h-screen relative overflow-hidden">
-                {/* 🎨 배경 테마 레이어 */}
                 <div className="fixed inset-0 z-0">
                     <ThemeBackground themeId={currentTheme} />
                 </div>
 
-                {/* 메인 컨텐츠 (배경 위에 표시) */}
-                <div className="relative z-10 w-full max-w-[1800px] mx-auto px-4 py-6">
-                    <div className={`flex gap-4 ${isFullscreen ? 'flex-col' : 'flex-col lg:flex-row'}`}>
-                        {/* 왼쪽: 영상 영역 */}
-                        <div className={`${isFullscreen ? 'w-full' : 'flex-1 lg:flex-[2]'}`}>
+                {/* 🎯 메인 컨텐츠 - 완벽한 반응형 레이아웃 */}
+                <div className="relative z-10 w-full h-screen flex flex-col">
+                    <div className="flex-1 flex flex-col lg:flex-row p-2 sm:p-4 gap-2 sm:gap-4 overflow-hidden">
+                        {/* 🎯 영상 영역 - flex로 비율 조정 */}
+                        <div className={`flex-1 ${showChatSidebar && !isFullscreen ? 'lg:flex-[2]' : ''} transition-all duration-300`}>
                             <div
                                 ref={mainContainerRef}
-                                className="rounded-3xl overflow-hidden bg-black shadow-[0_18px_45px_rgba(15,23,42,0.4)] relative"
+                                className="h-full rounded-2xl sm:rounded-3xl overflow-hidden bg-black shadow-xl sm:shadow-2xl relative"
                                 style={{ cursor: isFullscreen && !showControls ? 'none' : 'default' }}
                             >
-                                <div className="relative w-full aspect-[16/9] bg-black">
-                                    {/* 이펙트 오버레이 */}
+                                <div className="relative w-full h-full flex items-center justify-center bg-black">
                                     {activeEffects.map((effect) => (
                                         <SpecialEffectAnimation key={effect.id} effect={effect} onComplete={() => handleEffectComplete(effect.id)} />
                                     ))}
 
-                                    {/* 비디오 그리드 */}
-                                    <CustomVideoGrid />
+                                    <div className="absolute inset-0">
+                                        <CustomVideoGrid />
+                                    </div>
 
-                                    {/* 매너체커 + LIVE 오버레이 */}
                                     {(!isFullscreen || showControls) && (
                                         <>
                                             <MannerChecker room={room} debug={false} demo={false} />
 
-                                            <div className="absolute top-4 left-4 z-50 bg-gradient-to-r from-pink-600/80 to-purple-600/80 backdrop-blur-sm px-4 py-2 rounded-xl text-white shadow-lg border border-white/15">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                                                    <span className="text-xs font-bold">LIVE</span>
-                                                    <span className="flex items-center text-[11px] text-white/80 ml-2">
-                                                        <Users className="w-3 h-3 mr-1" />
-                                                        {participantCount}명 시청 중
-                                                    </span>
+                                            {/* 🎯 LIVE 뱃지 - 반응형 완벽 */}
+                                            <div className="absolute top-2 sm:top-3 left-2 sm:left-3 z-50 bg-gradient-to-r from-pink-600/90 to-purple-600/90 backdrop-blur-sm px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl shadow-2xl border border-white/20 max-w-[calc(100%-8rem)]">
+                                                <div className="flex items-center gap-1.5 sm:gap-2">
+                                                    <div className="flex items-center gap-1 flex-shrink-0">
+                                                        <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-white rounded-full animate-pulse" />
+                                                        <span className="text-[10px] sm:text-xs font-bold text-white">LIVE</span>
+                                                    </div>
+
+                                                    <div className="h-3 w-px bg-white/30 flex-shrink-0" />
+
+                                                    <div className="flex items-center gap-1 flex-shrink-0">
+                                                        <Users className="w-3 h-3 text-white/90" />
+                                                        <span className="text-[10px] sm:text-xs font-semibold text-white">{participantCount}명</span>
+                                                    </div>
+
+                                                    <div className="hidden sm:flex items-center gap-2 min-w-0">
+                                                        <div className="h-3 w-px bg-white/30" />
+                                                        <p className="font-bold text-xs text-white truncate">{meetingTitle || '문화 라이브'}</p>
+                                                    </div>
                                                 </div>
-                                                <p className="font-bold text-base">{meetingTitle || '문화 라이브'}</p>
                                             </div>
 
-                                            <div className="absolute top-4 right-4 z-50 flex gap-2">
-                                                {/* 테마 변경 버튼 */}
+                                            <div className="absolute top-2 sm:top-3 right-2 sm:right-3 z-50 flex gap-1.5 sm:gap-2">
                                                 <button
                                                     onClick={() => setShowThemeSelector(true)}
-                                                    className="bg-white/90 backdrop-blur-sm p-2.5 rounded-full hover:bg-white transition-all shadow-lg hover:scale-105"
-                                                    title="배경 테마 변경"
+                                                    className="bg-white/95 p-2 rounded-full hover:bg-white transition-all shadow-lg hover:scale-110 active:scale-95"
+                                                    title="배경 테마"
                                                 >
-                                                    <Palette className="w-5 h-5 text-purple-600" />
+                                                    <Palette className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
                                                 </button>
 
                                                 <button
                                                     onClick={handleLike}
-                                                    className="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full flex items-center gap-2 hover:bg-white transition-all shadow-lg hover:scale-105"
+                                                    className="bg-white/95 px-2 sm:px-3 py-2 rounded-full flex items-center gap-1 hover:bg-white transition-all shadow-lg hover:scale-110 active:scale-95"
                                                 >
-                                                    <FiHeart className="text-pink-500" size={20} />
-                                                    <span className="text-gray-800 font-bold">{likes.toLocaleString()}</span>
+                                                    <FiHeart className="text-pink-500 w-4 h-4" />
+                                                    <span className="text-gray-800 font-bold text-xs hidden sm:inline">{likes.toLocaleString()}</span>
                                                 </button>
                                             </div>
                                         </>
                                     )}
 
-                                    {/* 자막 오버레이 */}
                                     {(!isFullscreen || showControls) && (
-                                        <div className="absolute bottom-24 left-0 right-0 z-[80] pointer-events-none">
+                                        <div className="absolute bottom-20 sm:bottom-24 left-0 right-0 z-[80] pointer-events-none px-2 sm:px-4">
                                             <div className="flex justify-center">
                                                 <CultureSubtitleOverlay userLocale={userLocale} />
                                             </div>
                                         </div>
                                     )}
 
-                                    {/* STT 타이핑 중 */}
                                     {Object.keys(partials).length > 0 && (!isFullscreen || showControls) && (
-                                        <div className="absolute bottom-36 left-1/2 -translate-x-1/2 w-[90%] max-w-3xl z-35">
+                                        <div className="absolute bottom-28 sm:bottom-36 left-1/2 -translate-x-1/2 w-[95%] sm:w-[90%] max-w-3xl z-35">
                                             {Object.entries(partials).map(([key, data]) => (
-                                                <div key={key} className="bg-pink-500/20 backdrop-blur-md border-2 border-pink-400/50 text-white rounded-xl px-4 py-2 mb-2 shadow-lg animate-pulse">
+                                                <div key={key} className="bg-pink-500/25 backdrop-blur-lg border-2 border-pink-400/60 text-white rounded-2xl px-4 py-2.5 mb-2 shadow-2xl animate-pulse">
                                                     <div className="text-center">
-                                                        <span className="text-xs font-bold text-pink-300 mr-2">🎙️ {data.username} (입력 중...)</span>
-                                                        <p className="text-base leading-6 mt-1">
+                                                        <span className="text-xs sm:text-sm font-bold text-pink-200">🎙️ {data.username} (입력 중...)</span>
+                                                        <p className="text-sm sm:text-base leading-6 mt-1.5 font-medium">
                                                             {data.text}
-                                                            <span className="inline-block w-2 h-4 bg-pink-400 ml-1 animate-blink" />
+                                                            <span className="inline-block w-2 h-4 bg-pink-300 ml-1.5 animate-blink rounded-sm" />
                                                         </p>
                                                     </div>
                                                 </div>
@@ -467,66 +463,70 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
                                         </div>
                                     )}
 
-                                    {/* 하단 컨트롤 바 */}
                                     <div
-                                        className={`absolute left-0 right-0 bottom-0 flex flex-wrap items-center justify-center bg-gradient-to-t from-black/90 via-black/70 to-transparent px-4 pb-4 pt-6 gap-3 transition-all duration-300 ${
+                                        className={`absolute left-0 right-0 bottom-0 bg-gradient-to-t from-black/95 via-black/80 to-transparent transition-all duration-300 ${
                                             isFullscreen && !showControls ? 'opacity-0 translate-y-full pointer-events-none' : 'opacity-100 translate-y-0'
                                         }`}
                                         style={{ zIndex: 90 }}
                                     >
-                                        <button
-                                            onClick={toggleMicrophone}
-                                            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 shadow-lg hover:scale-110 ${
-                                                isMicOn ? 'bg-white text-green-600 hover:bg-green-50' : 'bg-white text-red-600 hover:bg-red-50'
-                                            }`}
-                                            title={isMicOn ? '마이크 끄기' : '마이크 켜기'}
-                                        >
-                                            {isMicOn ? <Mic size={20} strokeWidth={2.5} /> : <MicOff size={20} strokeWidth={2.5} />}
-                                        </button>
+                                        <div className="flex flex-wrap items-center justify-center px-2 sm:px-4 pb-3 sm:pb-4 pt-4 sm:pt-6 gap-1.5 sm:gap-2">
+                                            <button
+                                                onClick={toggleMicrophone}
+                                                className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95 ${
+                                                    isMicOn ? 'bg-white text-green-600' : 'bg-white text-red-600'
+                                                }`}
+                                            >
+                                                {isMicOn ? <Mic size={18} className="sm:w-5 sm:h-5" /> : <MicOff size={18} className="sm:w-5 sm:h-5" />}
+                                            </button>
 
-                                        <button
-                                            onClick={toggleCamera}
-                                            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 shadow-lg hover:scale-110 ${
-                                                isCameraOn ? 'bg-white text-green-600 hover:bg-green-50' : 'bg-white text-red-600 hover:bg-red-50'
-                                            }`}
-                                            title={isCameraOn ? '카메라 끄기' : '카메라 켜기'}
-                                        >
-                                            {isCameraOn ? <Video size={20} strokeWidth={2.5} /> : <VideoOff size={20} strokeWidth={2.5} />}
-                                        </button>
+                                            <button
+                                                onClick={toggleCamera}
+                                                className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95 ${
+                                                    isCameraOn ? 'bg-white text-green-600' : 'bg-white text-red-600'
+                                                }`}
+                                            >
+                                                {isCameraOn ? <Video size={18} className="sm:w-5 sm:h-5" /> : <VideoOff size={18} className="sm:w-5 sm:h-5" />}
+                                            </button>
 
-                                        <button
-                                            onClick={toggleScreenShare}
-                                            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 shadow-lg hover:scale-110 ${
-                                                isScreenSharing ? 'bg-white text-green-600 hover:bg-green-50' : 'bg-white text-gray-600 hover:bg-gray-50'
-                                            }`}
-                                            title={isScreenSharing ? '화면 공유 중지' : '화면 공유'}
-                                        >
-                                            <MonitorUp size={20} strokeWidth={2.5} />
-                                        </button>
+                                            <button
+                                                onClick={toggleScreenShare}
+                                                className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95 ${
+                                                    isScreenSharing ? 'bg-white text-green-600' : 'bg-white text-gray-600'
+                                                }`}
+                                            >
+                                                <MonitorUp size={18} className="sm:w-5 sm:h-5" />
+                                            </button>
 
-                                        <button
-                                            onClick={toggleFullscreen}
-                                            className="w-12 h-12 rounded-full bg-white text-gray-600 hover:bg-gray-50 flex items-center justify-center transition-all duration-200 shadow-lg hover:scale-110"
-                                            title={isFullscreen ? '전체화면 종료' : '전체화면'}
-                                        >
-                                            {isFullscreen ? <FiMinimize size={20} /> : <FiMaximize size={20} />}
-                                        </button>
+                                            <button
+                                                onClick={() => setShowChatSidebar(!showChatSidebar)}
+                                                className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95 ${
+                                                    showChatSidebar ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white' : 'bg-white text-gray-600'
+                                                }`}
+                                            >
+                                                <MessageCircle size={18} className="sm:w-5 sm:h-5" />
+                                            </button>
 
-                                        <button
-                                            onClick={handleCopyLink}
-                                            className="w-12 h-12 rounded-full bg-white text-gray-600 hover:bg-gray-50 flex items-center justify-center transition-all duration-200 shadow-lg hover:scale-110"
-                                            title="라이브 주소 복사"
-                                        >
-                                            <FiCopy size={20} />
-                                        </button>
+                                            <button
+                                                onClick={toggleFullscreen}
+                                                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white text-gray-600 flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95"
+                                            >
+                                                {isFullscreen ? <FiMinimize size={18} /> : <FiMaximize size={18} />}
+                                            </button>
 
-                                        <button
-                                            onClick={handleLeaveRoom}
-                                            className="w-12 h-12 rounded-full bg-red-500 text-white hover:bg-red-600 flex items-center justify-center transition-all duration-200 shadow-lg hover:scale-110"
-                                            title="라이브 나가기"
-                                        >
-                                            <PhoneOff size={20} strokeWidth={2.5} />
-                                        </button>
+                                            <button
+                                                onClick={handleCopyLink}
+                                                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white text-gray-600 flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95"
+                                            >
+                                                <FiCopy size={18} />
+                                            </button>
+
+                                            <button
+                                                onClick={handleLeaveRoom}
+                                                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-500 text-white flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95"
+                                            >
+                                                <PhoneOff size={18} className="sm:w-5 sm:h-5" />
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -534,10 +534,10 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
                             </div>
                         </div>
 
-                        {/* 오른쪽: 채팅 사이드바 */}
+                        {/* 🎯 채팅 사이드바 - flex로 비율 조정 */}
                         {showChatSidebar && !isFullscreen && (
-                            <div className="w-full lg:w-[420px] lg:flex-shrink-0">
-                                <div className="sticky top-6" style={{ height: 'calc(100vh - 3rem)', maxHeight: '800px' }}>
+                            <div className="flex-1 lg:flex-[1] lg:max-w-[400px] xl:max-w-[500px] transition-all duration-300">
+                                <div className="h-full">
                                     <CultureLiveChatSidebar userLocale={userLocale} sttFinals={finals} onClose={() => setShowChatSidebar(false)} onEffectTrigger={handleEffectTrigger} />
                                 </div>
                             </div>
@@ -545,99 +545,99 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
                     </div>
                 </div>
 
-                {/* 영상 아래: 정보 카드 (배경 위에 표시) */}
-                <div className="relative z-10 w-full max-w-[1800px] mx-auto px-4 pb-10 space-y-6">
-                    <section className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl px-6 py-5 space-y-4 border border-white/50">
+                {/* 영상 아래 정보 카드 */}
+                <div className="relative z-10 w-full max-w-[1800px] mx-auto px-2 sm:px-4 pb-6 sm:pb-10 space-y-4 sm:space-y-6">
+                    <section className="bg-white/95 backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-xl px-4 sm:px-6 py-4 sm:py-5 space-y-3 border border-white/50">
                         <div className="space-y-2">
-                            <div className="flex flex-wrap gap-2 text-[11px] font-semibold">
+                            <div className="flex flex-wrap gap-1.5 text-[10px] sm:text-[11px] font-semibold">
                                 <span className="px-2 py-1 rounded-full bg-slate-900 text-pink-100">KR ↔ EN</span>
                                 <span className="px-2 py-1 rounded-full bg-pink-100 text-pink-700">#K-밈</span>
                                 <span className="px-2 py-1 rounded-full bg-violet-100 text-violet-700">리액션</span>
                             </div>
-                            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900">{meetingTitle || '실시간 K-밈 리액션 🔥 해외 친구들과 함께하는 밈 파티'}</h1>
+                            <h1 className="text-base sm:text-xl lg:text-2xl font-extrabold text-slate-900">{meetingTitle || '실시간 K-밈 리액션 🔥'}</h1>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-slate-600">
                             <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-400 to-violet-500" />
+                                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-pink-400 to-violet-500" />
                                 <div className="flex flex-col">
-                                    <span className="font-semibold text-slate-900">{user?.name || '밈마스터'}</span>
-                                    <span className="text-xs text-slate-500">{participantCount}명 시청 중</span>
+                                    <span className="font-semibold text-slate-900 text-xs sm:text-sm">{user?.name || '밈마스터'}</span>
+                                    <span className="text-[10px] sm:text-xs text-slate-500">{participantCount}명 시청 중</span>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-3 pt-1 border-t border-slate-100 mt-2">
+                        <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
                             <button
                                 onClick={handleLike}
-                                className="flex-1 min-w-[120px] flex items-center justify-center gap-2 px-4 py-2 rounded-full border border-pink-200 text-pink-600 font-semibold text-sm hover:bg-pink-50 transition-colors"
+                                className="flex-1 min-w-[100px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-full border border-pink-200 text-pink-600 font-semibold text-xs sm:text-sm hover:bg-pink-50 transition-all hover:scale-105"
                             >
-                                <FiHeart className="w-4 h-4" />
+                                <FiHeart className="w-3.5 h-3.5" />
                                 좋아요 {likes.toLocaleString()}
                             </button>
-                            <button className="flex-1 min-w-[120px] flex items-center justify-center gap-2 px-4 py-2 rounded-full border border-pink-200 text-slate-700 font-semibold text-sm hover:bg-pink-50 transition-colors">
+                            <button className="flex-1 min-w-[100px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-full border border-pink-200 text-slate-700 font-semibold text-xs sm:text-sm hover:bg-pink-50 transition-all hover:scale-105">
                                 공유
                             </button>
-                            <button className="flex-1 min-w-[120px] flex items-center justify-center gap-2 px-4 py-2 rounded-full border border-pink-200 text-slate-700 font-semibold text-sm hover:bg-pink-50 transition-colors">
+                            <button className="flex-1 min-w-[100px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-full border border-pink-200 text-slate-700 font-semibold text-xs sm:text-sm hover:bg-pink-50 transition-all hover:scale-105">
                                 저장
                             </button>
                         </div>
                     </section>
 
-                    <section className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50">
-                        <div className="flex border-b border-pink-100 px-6 pt-4">
+                    <section className="bg-white/95 backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-xl border border-white/50">
+                        <div className="flex border-b border-pink-100 px-4 sm:px-6 pt-3 sm:pt-4">
                             <button
                                 onClick={() => setActiveTab('info')}
-                                className={`flex items-center gap-2 pb-3 mr-6 text-sm font-semibold ${
+                                className={`flex items-center gap-1.5 pb-2 sm:pb-3 mr-4 sm:mr-6 text-xs sm:text-sm font-semibold transition-all ${
                                     activeTab === 'info' ? 'text-pink-600 border-b-2 border-pink-500' : 'text-slate-400 hover:text-slate-600'
                                 }`}
                             >
-                                <Info className="w-4 h-4" />
+                                <Info className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                 정보
                             </button>
                             <button
                                 onClick={() => setActiveTab('members')}
-                                className={`flex items-center gap-2 pb-3 text-sm font-semibold ${
+                                className={`flex items-center gap-1.5 pb-2 sm:pb-3 text-xs sm:text-sm font-semibold transition-all ${
                                     activeTab === 'members' ? 'text-pink-600 border-b-2 border-pink-500' : 'text-slate-400 hover:text-slate-600'
                                 }`}
                             >
-                                <Users className="w-4 h-4" />
+                                <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                 참여자
                             </button>
                         </div>
 
-                        <div className="px-6 py-5">
+                        <div className="px-4 sm:px-6 py-4 sm:py-5">
                             {activeTab === 'members' && (
-                                <div className="space-y-2 text-sm">
-                                    <div className="text-xs text-slate-400 mb-3">현재 참여자 {participants.length}명</div>
+                                <div className="space-y-2 text-xs sm:text-sm">
+                                    <div className="text-[10px] sm:text-xs text-slate-400 mb-3">현재 참여자 {participants.length}명</div>
                                     {participants.map((p) => (
-                                        <div key={p.identity} className="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
-                                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white font-bold text-sm">
+                                        <div key={p.identity} className="flex items-center gap-2 sm:gap-3 py-2 border-b border-slate-50 last:border-0">
+                                            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
                                                 {(p.name || p.identity).charAt(0).toUpperCase()}
                                             </div>
-                                            <span className="text-slate-800 font-medium">{p.name || p.identity}</span>
+                                            <span className="text-slate-800 font-medium text-xs sm:text-sm truncate">{p.name || p.identity}</span>
                                         </div>
                                     ))}
                                 </div>
                             )}
 
                             {activeTab === 'info' && (
-                                <div className="text-sm text-slate-700 space-y-3">
-                                    <p className="leading-relaxed">문화/밈 전용 실시간 번역 라이브입니다. 카메라/음성/화면공유를 통해 방송하고, 번역 자막은 상단 영상 아래에 버블 형태로 노출됩니다.</p>
-                                    <div className="bg-pink-50 rounded-xl p-4 border border-pink-100">
-                                        <p className="text-xs text-slate-500 mb-1">현재 언어 설정</p>
-                                        <p className="font-mono text-pink-600 font-semibold">{userLocale}</p>
+                                <div className="text-xs sm:text-sm text-slate-700 space-y-3">
+                                    <p className="leading-relaxed">문화/밈 전용 실시간 번역 라이브입니다.</p>
+                                    <div className="bg-pink-50 rounded-xl p-3 sm:p-4 border border-pink-100">
+                                        <p className="text-[10px] sm:text-xs text-slate-500 mb-1">현재 언어 설정</p>
+                                        <p className="font-mono text-pink-600 font-semibold text-xs">{userLocale}</p>
                                     </div>
-                                    <div className="bg-purple-50 rounded-xl p-4 border border-purple-100">
-                                        <p className="text-xs text-slate-500 mb-2">🎨 현재 배경 테마</p>
+                                    <div className="bg-purple-50 rounded-xl p-3 sm:p-4 border border-purple-100">
+                                        <p className="text-[10px] sm:text-xs text-slate-500 mb-2">🎨 현재 배경 테마</p>
                                         <div className="flex items-center gap-2">
                                             <div
-                                                className="w-12 h-12 rounded-lg shadow-md"
+                                                className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg shadow-md"
                                                 style={{
                                                     background: BACKGROUND_THEMES[currentTheme]?.gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                                                 }}
                                             />
-                                            <span className="font-semibold text-purple-700">{BACKGROUND_THEMES[currentTheme]?.name || '기본'}</span>
+                                            <span className="font-semibold text-purple-700 text-xs sm:text-sm">{BACKGROUND_THEMES[currentTheme]?.name || '기본'}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -647,8 +647,14 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
                 </div>
 
                 <style>{`
-                @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
-                @keyframes floatUp { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-100px) scale(1.5); } }
+                @keyframes blink { 
+                    0%, 50% { opacity: 1; } 
+                    51%, 100% { opacity: 0; } 
+                }
+                @keyframes floatUp { 
+                    0% { opacity: 1; transform: translateY(0) scale(1); } 
+                    100% { opacity: 0; transform: translateY(-100px) scale(1.5); } 
+                }
                 .animate-blink { animation: blink 1s infinite; }
             `}</style>
             </div>

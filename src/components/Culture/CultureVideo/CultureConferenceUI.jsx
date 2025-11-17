@@ -200,7 +200,6 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
             cancelButtonText: '취소',
             reverseButtons: true,
         });
-
         if (result.isConfirmed) {
             try {
                 await room.disconnect();
@@ -208,6 +207,17 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) =>
                 console.error('⚠️ Error disconnecting:', error);
             }
             onLeave && onLeave();
+
+            // 🚪 창 닫기
+            window.close();
+
+            // 만약 window.close()가 작동하지 않으면 (새 탭이 아닌 경우)
+            // 이전 페이지로 이동하거나 홈으로 이동
+            setTimeout(() => {
+                if (!window.closed) {
+                    window.history.back();
+                }
+            }, 100);
         }
     };
 

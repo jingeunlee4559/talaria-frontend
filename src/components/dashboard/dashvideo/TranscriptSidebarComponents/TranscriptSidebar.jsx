@@ -98,7 +98,10 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose, userLocale
             const sttUsername = latestSTT.username || latestSTT.identity;
 
             const isLocal = sttUsername === myUsername || latestSTT.identity === localParticipant.identity;
-            const timestamp = new Date(latestSTT.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const timestamp = new Date(latestSTT.ts * 1000).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+            });
 
             // 🔥 번역이 있는 경우
             if (latestSTT.translations && typeof latestSTT.translations === 'object') {

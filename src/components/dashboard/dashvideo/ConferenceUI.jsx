@@ -30,7 +30,7 @@ const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
     const mainContainerRef = useRef(null);
     const controlsTimeoutRef = useRef(null);
 
-    const sttSeenRef = useRef(new Set());
+    // ❌ sttSeenRef 제거 - finals 배열에서 직접 관리
     const sttTimerRef = useRef(null);
 
     // 🔥 사이드바 "자료" 탭에 뿌릴 회의 문서 목록
@@ -58,16 +58,12 @@ const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
                 const items = Array.isArray(res.data?.items) ? res.data.items : [];
 
                 const mapped = items.map((d) => {
-                    // 번역 여부: trans_doc_id 존재 or doc_type === 'TRANSLATION'
                     const isTrans = !!d.trans_doc_id || d.doc_type === 'TRANSLATION';
-
                     const docId = isTrans ? d.trans_doc_id : d.doc_id;
                     const bytes = Number(isTrans ? d.trans_size_bytes ?? d.size : d.size) || 0;
                     const size = bytes > 0 ? `${(bytes / 1024 / 1024).toFixed(2)} MB` : '';
-
                     const name = d.original_name || d.title || '제목 없는 문서';
 
-                    // 🔥 DocumentsTab에서 쓰는 메타 정보들까지 모두 세팅
                     return {
                         id: docId,
                         trans_doc_id: d.trans_doc_id ?? null,
@@ -76,10 +72,8 @@ const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
                         original_name: d.original_name,
                         size,
                         rel_path: d.rel_path || d.filepath,
-                        // 언어 정보 (KO→EN 표시용)
                         source_lang: d.source_lang || d.original_lang,
                         target_language: d.target_language,
-                        // 실제 다운로드 URL (8080 백엔드 라우트 그대로)
                         url: isTrans
                             ? `/api/users/${user.userId}/meetings/${meetingId}/documents/translations/${docId}/download`
                             : `/api/users/${user.userId}/meetings/${meetingId}/documents/${docId}/download`,
@@ -209,49 +203,49 @@ const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
                 text: data.text?.substring(0, 30) + '...',
                 locale: data.locale,
                 translations: data.translations,
+                utteranceId: data.utteranceId || data.utterance_id,
             });
 
             const username = data.username || getParticipantUsername(data.identity) || data.identity || 'Unknown';
             const key = data.identity || data.participant_sid || 'unknown';
 
-            // 🔑 최종 STT 메시지 고유 ID
-            const messageId = `stt-${data.identity || 'unknown'}-${data.text || ''}-${data.ts || ''}`;
+            // 🔑 utteranceId 우선 사용
+            const utteranceId = data.utteranceId || data.utterance_id || `stt-${data.identity || 'unknown'}-${data.ts || Date.now()}`;
+            const messageId = utteranceId;
 
             if (data.final) {
-                // ✅ 이미 처리한 STT면 무시
-                if (sttSeenRef.current.has(messageId)) {
-                    console.log('🔄 STT 중복 감지 - 무시:', messageId);
-                    return;
-                }
-
-                console.log('✅ 새 STT Final:', messageId);
-                sttSeenRef.current.add(messageId);
-
-                // 🎯 10초 후 추적 목록에서 제거 (메모리 관리)
-                setTimeout(() => {
-                    sttSeenRef.current.delete(messageId);
-                }, 10000);
-
-                // 🔥 Final STT - translations 객체와 함께 저장
+                // ✅ finals 배열에서 직접 업데이트 (sttSeenRef 제거)
                 setFinals((prev) => {
-                    // 🎯 한 번 더 중복 체크
-                    if (prev.some((m) => m.id === messageId)) {
-                        return prev;
+                    const existingIndex = prev.findIndex((m) => m.id === messageId);
+
+                    const newMessage = {
+                        id: messageId,
+                        utteranceId: utteranceId,
+                        identity: data.identity,
+                        username,
+                        text: data.text || '',
+                        locale: data.locale || 'ko-KR',
+                        translations: data.translations || {},
+                        ts: data.ts ?? Date.now(),
+                    };
+
+                    if (existingIndex !== -1) {
+                        // ✅ 기존 메시지 업데이트
+                        console.log('🔄 STT 업데이트:', messageId, {
+                            기존: prev[existingIndex].text?.substring(0, 30),
+                            신규: newMessage.text?.substring(0, 30),
+                        });
+                        const updated = [...prev];
+                        updated[existingIndex] = newMessage;
+                        return updated;
+                    } else {
+                        // ✅ 새 메시지 추가
+                        console.log('➕ 새 STT 추가:', messageId);
+                        return [...prev, newMessage];
                     }
-                    return [
-                        ...prev,
-                        {
-                            id: messageId,
-                            identity: data.identity,
-                            username,
-                            text: data.text || '',
-                            locale: data.locale || 'ko-KR',
-                            translations: data.translations || {},
-                            ts: data.ts ?? Date.now(),
-                        },
-                    ];
                 });
 
+                // Partial 제거
                 setPartials((prev) => {
                     const next = { ...prev };
                     delete next[key];
@@ -259,7 +253,6 @@ const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
                 });
             } else {
                 // Partial STT (타이핑 중)
-                // 🎯 디바운싱: 너무 자주 업데이트되지 않도록
                 if (sttTimerRef.current) {
                     clearTimeout(sttTimerRef.current);
                 }
@@ -273,7 +266,7 @@ const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
                             identity: data.identity,
                         },
                     }));
-                }, 100); // 100ms 디바운싱
+                }, 100);
             }
         } catch (e) {
             console.error('❌ STT 파싱 오류:', e);

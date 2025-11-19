@@ -1,5 +1,5 @@
 // src/components/dashboard/dashvideo/TranscriptSidebarComponents/TranscriptSidebar.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useDataChannel, useLocalParticipant, useRemoteParticipants, useRoomContext } from '@livekit/components-react';
 
 // Tabs
@@ -36,6 +36,9 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose, userLocale
 
     const myLocale = normalizeLocale(userLocale);
 
+    // 🎯 STT 메시지 애니메이션 트리거 관리
+    const triggeredEffectsRef = useRef(new Set());
+
     console.log('🌍 TranscriptSidebar userLocale:', userLocale, '-> normalized:', myLocale);
 
     // 🔥 채팅 메시지 수신
@@ -48,6 +51,9 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose, userLocale
                     const senderName = msgData.username || getParticipantNickname(message.from, room);
                     const isLocal = message.from.isLocal;
 
+                    // 🎯 고유 ID 생성 (서버에서 받은 ID 우선 사용)
+                    const messageId = msgData.messageId || `${senderName}-${msgData.time}-${msgData.text}-${Date.now()}`;
+
                     // 🔥 번역이 있으면 하나의 메시지로 처리
                     if (msgData.translations && typeof msgData.translations === 'object') {
                         const sourceLocale = normalizeLocale(msgData.locale || 'ko-KR');
@@ -55,6 +61,7 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose, userLocale
 
                         if (translated) {
                             const translatedMessage = {
+                                id: messageId, // ✅ 고유 ID 추가
                                 type: 'chat',
                                 text: translated, // 번역된 텍스트
                                 originalText: msgData.text, // ✅ 원문 추가!
@@ -65,13 +72,19 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose, userLocale
                                 isLocal: isLocal,
                                 isTranslated: true,
                             };
-                            setMessages((prev) => [...prev, translatedMessage]);
+
+                            setMessages((prev) => {
+                                // 🎯 같은 ID가 있으면 추가하지 않음
+                                if (prev.some((m) => m.id === messageId)) return prev;
+                                return [...prev, translatedMessage];
+                            });
                             return; // ✅ 원문 메시지는 추가하지 않음
                         }
                     }
 
                     // 번역이 없으면 원문만
                     const originalMessage = {
+                        id: messageId, // ✅ 고유 ID 추가
                         type: 'chat',
                         text: msgData.text,
                         sender: senderName,
@@ -79,7 +92,12 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose, userLocale
                         isLocal: isLocal,
                         isTranslated: false,
                     };
-                    setMessages((prev) => [...prev, originalMessage]);
+
+                    setMessages((prev) => {
+                        // 🎯 같은 ID가 있으면 추가하지 않음
+                        if (prev.some((m) => m.id === messageId)) return prev;
+                        return [...prev, originalMessage];
+                    });
                 } catch (error) {
                     console.error('메시지 파싱 실패:', error);
                 }
@@ -90,95 +108,123 @@ const TranscriptSidebar = ({ documents = [], sttFinals = [], onClose, userLocale
 
     useDataChannel('chat_messages', onMessage);
 
-    // 🔥 STT Finals 처리
+    // 🔥 STT Finals 처리 - ✅ 배열 직접 업데이트 방식으로 변경
     useEffect(() => {
-        if (sttFinals.length > 0 && localParticipant) {
-            const latestSTT = sttFinals[sttFinals.length - 1];
-            const myUsername = getParticipantNickname(localParticipant, room);
-            const sttUsername = latestSTT.username || latestSTT.identity;
+        if (sttFinals.length === 0 || !localParticipant) return;
 
-            const isLocal = sttUsername === myUsername || latestSTT.identity === localParticipant.identity;
-            const timestamp = new Date(latestSTT.ts * 1000).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-            });
+        const myUsername = getParticipantNickname(localParticipant, room);
 
-            // 🔥 번역이 있는 경우
-            if (latestSTT.translations && typeof latestSTT.translations === 'object') {
-                const sourceLocale = normalizeLocale(latestSTT.locale || 'ko-KR');
-                const translated = findTranslation(latestSTT.translations, myLocale);
+        setMessages((prevMessages) => {
+            // 🎯 새 배열 생성 (기존 배열 복사)
+            let updatedMessages = [...prevMessages];
 
-                if (translated) {
-                    const translatedSTTMessage = {
-                        type: 'stt',
-                        text: `🎤 ${translated}`, // 번역된 텍스트
-                        originalText: `🎤 ${latestSTT.text}`, // ✅ 원문 추가!
-                        translatedTexts: latestSTT.translations,
-                        sourceLocale: sourceLocale,
-                        sender: sttUsername,
-                        time: timestamp,
-                        isLocal: isLocal,
-                        isTranslated: true,
-                    };
+            // 🎯 추가할 새 메시지들을 임시로 저장
+            const newMessagesToAdd = [];
 
-                    setMessages((prev) => {
-                        // 중복 체크
-                        const isDuplicate = prev.some(
-                            (msg) => msg.type === 'stt' && msg.originalText === translatedSTTMessage.originalText && msg.sender === sttUsername && Date.now() - new Date(msg.time).getTime() < 2000,
-                        );
+            sttFinals.forEach((latestSTT) => {
+                const sttUsername = latestSTT.username || latestSTT.identity;
+                const isLocal = sttUsername === myUsername || latestSTT.identity === localParticipant.identity;
 
-                        if (isDuplicate) {
-                            console.log('⏭️ Duplicate STT message, skipping');
-                            return prev;
+                const timestamp = new Date(latestSTT.ts * 1000).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                });
+
+                // 🎯 고유 ID 생성 (utteranceId 우선 사용)
+                const utteranceId = latestSTT.utteranceId || latestSTT.utterance_id || `stt-${latestSTT.identity}-${latestSTT.ts}`;
+                const messageId = utteranceId;
+
+                // 🔍 기존 메시지에서 같은 ID를 가진 메시지 찾기
+                const existingIndex = updatedMessages.findIndex((m) => m.id === messageId);
+
+                // --- 1) 번역이 있는 STT ---
+                if (latestSTT.translations && typeof latestSTT.translations === 'object') {
+                    const sourceLocale = normalizeLocale(latestSTT.locale || 'ko-KR');
+                    const translated = findTranslation(latestSTT.translations, myLocale);
+
+                    if (translated) {
+                        const translatedSTTMessage = {
+                            id: messageId,
+                            type: 'stt',
+                            text: `🎤 ${translated}`, // 번역된 텍스트
+                            originalText: `🎤 ${latestSTT.text}`, // ✅ 원문 추가!
+                            translatedTexts: latestSTT.translations,
+                            sourceLocale: sourceLocale,
+                            sender: sttUsername,
+                            time: timestamp,
+                            isLocal: isLocal,
+                            isTranslated: true,
+                        };
+
+                        // 🔁 기존 메시지 업데이트 또는 새로 추가
+                        if (existingIndex !== -1) {
+                            // ✅ 기존 메시지 업데이트 (같은 위치에서)
+                            updatedMessages[existingIndex] = translatedSTTMessage;
+                        } else {
+                            // ✅ 새 메시지 추가 예약
+                            newMessagesToAdd.push(translatedSTTMessage);
                         }
-
-                        return [...prev, translatedSTTMessage];
-                    });
-
-                    return; // ✅ 원문 메시지는 추가하지 않음
-                }
-            }
-
-            // 번역이 없으면 원문만
-            const sttMessage = {
-                type: 'stt',
-                text: `🎤 ${latestSTT.text}`,
-                sender: sttUsername,
-                time: timestamp,
-                isLocal: isLocal,
-                isTranslated: false,
-            };
-
-            setMessages((prev) => {
-                const isDuplicate = prev.some((msg) => msg.type === 'stt' && msg.text === sttMessage.text && msg.sender === sttUsername && Date.now() - new Date(msg.time).getTime() < 2000);
-
-                if (isDuplicate) {
-                    console.log('⏭️ Duplicate STT message, skipping');
-                    return prev;
+                        return; // 다음 STT 처리
+                    }
                 }
 
-                return [...prev, sttMessage];
+                // --- 2) 번역 없는 STT ---
+                const sttMessage = {
+                    id: messageId,
+                    type: 'stt',
+                    text: `🎤 ${latestSTT.text}`,
+                    sender: sttUsername,
+                    time: timestamp,
+                    isLocal: isLocal,
+                    isTranslated: false,
+                };
+
+                // 🔁 기존 메시지 업데이트 또는 새로 추가
+                if (existingIndex !== -1) {
+                    // ✅ 기존 메시지 업데이트 (같은 위치에서)
+                    updatedMessages[existingIndex] = sttMessage;
+                } else {
+                    // ✅ 새 메시지 추가 예약
+                    newMessagesToAdd.push(sttMessage);
+                }
             });
-        }
-    }, [sttFinals, localParticipant, room, myLocale]);
+
+            // 🎯 새 메시지들을 배열 끝에 추가
+            return [...updatedMessages, ...newMessagesToAdd];
+        });
+    }, [sttFinals, localParticipant?.identity, myLocale, room]);
 
     // 메시지 전송
     const handleSendMessage = useCallback(() => {
         if (!chatInput.trim() || !sendChat || !localParticipant) return;
 
         const myUsername = getParticipantNickname(localParticipant, room);
+        const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        // 🎯 고유 ID 생성 (밀리초 타임스탬프 + 랜덤 값)
+        const uniqueId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
         const messagePayload = {
             type: 'chat',
             text: chatInput,
             username: myUsername,
             locale: myLocale,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            time: currentTime,
+            messageId: uniqueId, // 🎯 고유 ID 추가
         };
 
         const textEncoder = new TextEncoder();
         sendChat(textEncoder.encode(JSON.stringify(messagePayload)));
 
-        setMessages((prev) => [...prev, { ...messagePayload, sender: myUsername, isLocal: true, isTranslated: false }]);
+        const localMessage = {
+            ...messagePayload,
+            id: uniqueId, // 🎯 고유 ID 사용
+            sender: myUsername,
+            isLocal: true,
+            isTranslated: false,
+        };
+
+        setMessages((prev) => [...prev, localMessage]);
         setChatInput('');
     }, [chatInput, sendChat, localParticipant, room, myLocale]);
 

@@ -57,7 +57,12 @@ const DashVideo = () => {
         if (!user?.userId) return;
         (async () => {
             try {
-                const res = await api.get(`/api/users/${user.userId}/meetings/all`);
+                const res = await api.get(`/api/users/${user.userId}/meetings/all`, {
+                    params: {
+                        mode: 'b',
+                    },
+                });
+
                 if (!Array.isArray(res.data?.items)) {
                     setMeetings([]);
                     return;

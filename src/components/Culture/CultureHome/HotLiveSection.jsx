@@ -68,8 +68,11 @@ export default function HotLiveSection() {
                 }),
             );
 
-            setMeetings(meetingsWithTags);
-            console.log('Hot Live meetings with tags:', meetingsWithTags);
+            // status가 'ENDED'인 미팅 제외
+            const filteredMeetings = meetingsWithTags.filter((meeting) => meeting.status !== 'ENDED');
+
+            setMeetings(filteredMeetings);
+            console.log('Hot Live meetings with tags:', filteredMeetings);
             setLoading(false);
         } catch (error) {
             console.error('Failed to fetch meetings:', error);
@@ -78,7 +81,6 @@ export default function HotLiveSection() {
             setLoading(false);
         }
     };
-
     const handleJoinCultureMeeting = async (meetingId, meetingTitle, inviteCode, rawStatus) => {
         if (rawStatus === 'ENDED') {
             Swal.fire({

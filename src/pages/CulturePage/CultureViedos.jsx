@@ -196,6 +196,9 @@ const CultureVideos = () => {
     const filteredMeetings = useMemo(() => {
         let filtered = [...meetings];
 
+        // status가 'ENDED'인 미팅 제외
+        filtered = filtered.filter((m) => m.status !== 'ENDED');
+
         if (searchQuery) {
             filtered = filtered.filter((m) => m.title.toLowerCase().includes(searchQuery.toLowerCase()) || m.host_name.toLowerCase().includes(searchQuery.toLowerCase()));
         }

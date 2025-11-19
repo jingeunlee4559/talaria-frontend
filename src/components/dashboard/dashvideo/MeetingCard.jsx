@@ -1,4 +1,4 @@
-import { Calendar, Users, Video, Clock, Edit, Trash2, FileText } from 'lucide-react';
+import { Calendar, Users, Video, Clock, Edit, Trash2, FileText, FileBarChart } from 'lucide-react';
 import React from 'react';
 
 /**
@@ -29,18 +29,22 @@ const statusConfig = {
     },
     종료: {
         badge: 'bg-red-200 text-red-700 ring-1 ring-inset ring-red-600/20',
-        button: 'bg-red-500 text-white cursor-not-allowed opacity-60',
-        text: '회의 종료됨',
-        icon: null,
+        button: 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/40 focus-visible:outline-emerald-600 transition-all',
+        text: '회의록 요약',
+        icon: <FileBarChart className="w-5 h-5" />,
         dot: 'bg-red-500',
     },
 };
 
-const MeetingCard = ({ id, title, status, participants, date, time, onJoinMeeting, onEdit, onDelete, onOpenDocuments, user_role }) => {
+const MeetingCard = ({ id, title, status, participants, date, time, onJoinMeeting, onEdit, onDelete, onOpenDocuments, onSummarize, user_role }) => {
     const currentStatus = statusConfig[status] || statusConfig['종료'];
 
     const handleButtonClick = () => {
-        if (status === '진행중' || status === '예정') onJoinMeeting();
+        if (status === '진행중' || status === '예정') {
+            onJoinMeeting();
+        } else if (status === '종료' && onSummarize) {
+            onSummarize();
+        }
     };
 
     return (

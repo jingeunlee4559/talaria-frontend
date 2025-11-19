@@ -8,10 +8,12 @@ import MeetingCard from '../../components/dashboard/dashvideo/MeetingCard';
 import InProgressMeetingCard from '../../components/dashboard/dashvideo/InProgressMeetingCard';
 import NewMeetingModal from '../../components/dashboard/dashvideo/NewMeetingModal';
 import DocumentListModal from '../../components/dashboard/dashvideo/DocumentListModal';
+
 import Pagination from '../../components/Pagination';
 
 import { UserContext } from '../../contexts/UserContext';
 import api from '../../axios';
+import MeetingSummaryHUD from '../../components/dashboard/dashvideo/Meetingsummaryhud';
 
 const MEETINGS_PER_PAGE = 6;
 const FILTERS = ['전체', '진행중', '예정', '종료'];
@@ -38,6 +40,9 @@ const DashVideo = () => {
     // 내 문서 (원문/번역 분리)
     const [myDocsOriginals, setMyDocsOriginals] = useState([]);
     const [myDocsTranslations, setMyDocsTranslations] = useState([]);
+
+    // 회의록 요약 상태 관리
+    const [summaries, setSummaries] = useState([]);
 
     const mapStatusToKorean = (status) => {
         switch (status) {
@@ -91,6 +96,7 @@ const DashVideo = () => {
                             invited_ids: guestParticipants,
                             user_role: m.user_role,
                             host_id: m.host_id,
+                            allParticipants: m.participants || [], // 전체 참가자 정보 저장
                         };
                     }),
                 );
@@ -188,6 +194,98 @@ const DashVideo = () => {
     const handlePageChange = (page) => {
         setCurrentPage(page);
         window.scrollTo(0, 0);
+    };
+
+    // === 회의록 요약 핸들러 ===
+    const handleSummarize = async (meeting) => {
+        if (!user?.userId || !meeting?.id) return;
+
+        try {
+            // 참가자 이름 목록 생성 (HOST 포함)
+            const participantNames = [];
+
+            // allParticipants에서 이름 수집
+            if (meeting.allParticipants && meeting.allParticipants.length > 0) {
+                meeting.allParticipants.forEach((p) => {
+                    if (p.user_name) {
+                        participantNames.push(p.user_name);
+                    }
+                });
+            }
+
+            // 요약 작업 상태 추가
+            const newSummary = {
+                meetingId: meeting.id,
+                meetingTitle: meeting.title,
+                participantCount: participantNames.length,
+                status: 'PROCESSING',
+                percent: 0,
+                error: null,
+            };
+            setSummaries((prev) => [...prev, newSummary]);
+            console.log(newSummary, 'summary info 되니?');
+
+            // 진행률 시뮬레이션 (실제로는 백엔드에서 진행률을 받아야 함)
+            const progressInterval = setInterval(() => {
+                setSummaries((prev) =>
+                    prev.map((s) => {
+                        if (s.meetingId === meeting.id && s.status === 'PROCESSING') {
+                            const newPercent = Math.min(s.percent + 10, 90);
+                            return { ...s, percent: newPercent };
+                        }
+                        return s;
+                    }),
+                );
+            }, 500);
+
+            // API 호출
+            const payload = {
+                meetingTitle: meeting.title,
+                participants: participantNames,
+            };
+
+            console.log(payload, 'summary 12345');
+
+            const response = await api.post(`/api/users/${user.userId}/meetings/${meeting.id}/raw-script`, payload);
+
+            // 성공 처리
+            clearInterval(progressInterval);
+            setSummaries((prev) =>
+                prev.map((s) => {
+                    if (s.meetingId === meeting.id) {
+                        return { ...s, status: 'COMPLETED', percent: 100 };
+                    }
+                    return s;
+                }),
+            );
+
+            // 3초 후 자동으로 알림 제거
+            setTimeout(() => {
+                setSummaries((prev) => prev.filter((s) => s.meetingId !== meeting.id));
+            }, 3000);
+        } catch (error) {
+            console.error('회의록 요약 실패:', error);
+
+            // 실패 처리
+            setSummaries((prev) =>
+                prev.map((s) => {
+                    if (s.meetingId === meeting.id) {
+                        return {
+                            ...s,
+                            status: 'FAILED',
+                            percent: 0,
+                            error: error?.response?.data?.error || '회의록 요약 중 오류가 발생했습니다.',
+                        };
+                    }
+                    return s;
+                }),
+            );
+        }
+    };
+
+    // 요약 알림 닫기
+    const handleCloseSummary = (meetingId) => {
+        setSummaries((prev) => prev.filter((s) => s.meetingId !== meetingId));
     };
 
     // === 회의 문서 보기/첨부 모달 ===
@@ -421,6 +519,7 @@ const DashVideo = () => {
                             invited_ids: guestParticipants,
                             user_role: m.user_role,
                             host_id: m.host_id,
+                            allParticipants: m.participants || [],
                         };
                     }),
                 );
@@ -677,6 +776,7 @@ const DashVideo = () => {
                                                 });
                                             }}
                                             onOpenDocuments={() => handleOpenDocuments(meeting)}
+                                            onSummarize={() => handleSummarize(meeting)}
                                         />
                                     </motion.div>
                                 ))}
@@ -726,6 +826,9 @@ const DashVideo = () => {
                 meetingStatus={selectedMeetingStatus}
                 initialMode="myDocs"
             />
+
+            {/* 회의록 요약 HUD */}
+            <MeetingSummaryHUD summaries={summaries} onClose={handleCloseSummary} />
         </div>
     );
 };

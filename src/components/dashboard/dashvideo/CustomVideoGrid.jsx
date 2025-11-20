@@ -1,8 +1,9 @@
-// ☢️ 수정: ParticipantTile 외에 'VideoTrack'을 추가로 import 합니다.
-import { useTracks, GridLayout, ParticipantTile, VideoTrack } from '@livekit/components-react';
+// src/components/dashboard/dashvideo/CustomVideoGrid.jsx
+import React from 'react';
+import { useTracks, ParticipantTile, VideoTrack } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 
-function CustomVideoGrid() {
+function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl }) {
     const tracks = useTracks(
         [
             { source: Track.Source.Camera, withPlaceholder: true },
@@ -11,20 +12,25 @@ function CustomVideoGrid() {
         { onlySubscribed: false },
     );
 
-    const screenShareTracks = tracks.filter((trackRef) => trackRef.source === Track.Source.ScreenShare);
-    const cameraTracks = tracks.filter((trackRef) => trackRef.source === Track.Source.Camera);
+    const screenShareTracks = tracks.filter((t) => t.source === Track.Source.ScreenShare);
+    const cameraTracks = tracks.filter((t) => t.source === Track.Source.Camera);
     const hasScreenShare = screenShareTracks.length > 0;
 
-    // 화면 공유가 있을 때
+    // 🔥 현재 선택된 프리셋이 image/blur 이면, 가상 배경 활성화 모드
+    const isVirtualBgActive = virtualBgType === 'image' || virtualBgType === 'blur';
+
+    // ======================
+    // 1) 화면 공유 레이아웃
+    // ======================
     if (hasScreenShare) {
-        console.log('🖥️ Screen share detected - using VideoTrack 2-layer layout');
+        const shareTrackRef = screenShareTracks[0];
 
         return (
-            <div className="absolute inset-0 w-full h-full overflow-hidden" style={{ backgroundColor: '#000' }}>
-                {/* 레이어 1: 흐릿한 배경 (cover로 꽉 채움) - 검정 여백 완전 제거 */}
+            <div className="absolute inset-0 w-full h-full overflow-hidden bg-black">
+                {/* 레이어 1: 흐릿한 전체 배경 */}
                 <div className="absolute inset-0 z-10" style={{ margin: '-10%' }}>
                     <VideoTrack
-                        trackRef={screenShareTracks[0]}
+                        trackRef={shareTrackRef}
                         objectFit="cover"
                         style={{
                             width: '120%',
@@ -35,10 +41,10 @@ function CustomVideoGrid() {
                     />
                 </div>
 
-                {/* 레이어 2: 선명한 원본 (contain으로 비율 유지) */}
+                {/* 레이어 2: 선명한 원본 화면공유 */}
                 <div className="absolute inset-0 z-20 flex items-center justify-center">
                     <VideoTrack
-                        trackRef={screenShareTracks[0]}
+                        trackRef={shareTrackRef}
                         objectFit="contain"
                         style={{
                             width: '100%',
@@ -47,7 +53,7 @@ function CustomVideoGrid() {
                     />
                 </div>
 
-                {/* 레이어 3: 참가자 썸네일 - 오른쪽 상단으로 이동 */}
+                {/* 레이어 3: 참가자 썸네일 */}
                 {cameraTracks.length > 0 && (
                     <div className="absolute top-4 right-4 z-40 pointer-events-none max-h-[calc(100vh-200px)] overflow-y-auto">
                         <div className="flex flex-col gap-2 pointer-events-auto">
@@ -73,10 +79,9 @@ function CustomVideoGrid() {
         );
     }
 
-    // 화면 공유가 없을 때 - 커스텀 그리드로 blur 배경 적용
-    console.log('👥 No screen share - using custom grid with blur backgrounds');
-
-    // 그리드 레이아웃 계산
+    // ======================
+    // 2) 일반 카메라 그리드 레이아웃
+    // ======================
     const getGridCols = (count) => {
         if (count === 1) return 1;
         if (count === 2) return 2;
@@ -85,72 +90,113 @@ function CustomVideoGrid() {
         return Math.ceil(Math.sqrt(count));
     };
 
-    const cols = getGridCols(cameraTracks.length);
+    const cols = getGridCols(cameraTracks.length || 1); // 최소 1
     const totalCount = cameraTracks.length;
-    const lastRowCount = totalCount % cols || cols; // 마지막 행의 아이템 개수
-    const isLastRowIncomplete = lastRowCount !== cols && totalCount > cols; // 마지막 행이 불완전한지
-    const isOnlyOneInLastRow = lastRowCount === 1; // 마지막 행에 1개만 있는지
+    const lastRowCount = totalCount % cols || cols;
+    const isLastRowIncomplete = lastRowCount !== cols && totalCount > cols;
+    const isOnlyOneInLastRow = lastRowCount === 1;
 
     return (
-        <div className="absolute inset-0 w-full h-full" style={{ backgroundColor: '#1e293b' }}>
+        <div className="absolute inset-0 w-full h-full bg-slate-900">
             <div
                 className="w-full h-full grid gap-2 p-2"
                 style={{
                     gridTemplateColumns: `repeat(${cols}, 1fr)`,
+                    // 🔥 각 row 높이를 균일하게(비디오 비율에 안 끌리게)
+                    gridAutoRows: '1fr',
                 }}
             >
                 {cameraTracks.map((trackRef, index) => {
+                    const pub = trackRef.publication;
+                    const isMuted = pub?.isMuted ?? trackRef.isMuted;
+                    const videoTrack = pub?.videoTrack || pub?.track;
+                    const hasVideoTrack = !!videoTrack && !isMuted;
+
+                    const displayName = (trackRef.participant.name || trackRef.participant.identity || '?').charAt(0).toUpperCase();
+
+                    const participant = trackRef.participant;
+                    const bgUrl = typeof getFallbackBackgroundUrl === 'function' ? getFallbackBackgroundUrl(participant) : null;
+
                     const isInLastRow = index >= totalCount - lastRowCount;
                     const isLastItem = index === totalCount - 1;
 
                     let gridColumnStyle = {};
 
-                    // 🎯 마지막 행에 1개만 있으면 → 2칸 차지 (중앙)
-                    if (isOnlyOneInLastRow && isLastItem) {
+                    // 마지막 줄에 1명만 있으면 가운데 정렬
+                    if (isOnlyOneInLastRow && isLastItem && cols > 1) {
                         const startCol = Math.max(1, Math.floor((cols - 1) / 2) + 1);
                         gridColumnStyle = {
                             gridColumn: `${startCol} / span 2`,
                         };
-                        console.log(`📏 Last item spanning 2 cols: ${startCol} / span 2`);
-                    }
-                    // 마지막 행에 여러 개 → 각각 더 넓게 span
-                    else if (isLastRowIncomplete && isInLastRow && lastRowCount > 1) {
+                    } else if (isLastRowIncomplete && isInLastRow && lastRowCount > 1) {
                         const spanSize = Math.floor(cols / lastRowCount);
                         const itemPosition = index - (totalCount - lastRowCount);
                         const startCol = itemPosition * spanSize + 1;
                         gridColumnStyle = {
                             gridColumn: `${startCol} / span ${spanSize}`,
                         };
-                        console.log(`📏 Item ${index} in last row: ${startCol} / span ${spanSize}`);
                     }
 
-                    return (
-                        <div key={trackRef.participant.identity} className="relative w-full h-full overflow-hidden rounded-lg" style={gridColumnStyle}>
-                            {/* Blur 배경 레이어 - 더 크게 확대 */}
-                            <div className="absolute inset-0 z-0" style={{ margin: '-10%' }}>
-                                <VideoTrack
-                                    trackRef={trackRef}
-                                    objectFit="cover"
-                                    style={{
-                                        width: '120%',
-                                        height: '120%',
-                                        filter: 'blur(40px) brightness(0.6)',
-                                        transform: 'scale(1.5)',
-                                    }}
-                                />
-                            </div>
+                    const key = trackRef.publication?.trackSid || trackRef.participant.identity || index;
 
-                            {/* 선명한 원본 레이어 */}
-                            <div className="absolute inset-0 z-10 flex items-center justify-center">
-                                <ParticipantTile
-                                    trackRef={trackRef}
-                                    objectFit="contain"
-                                    style={{
-                                        height: '100%',
-                                        width: '100%',
-                                    }}
-                                />
-                            </div>
+                    return (
+                        <div key={key} className="relative w-full h-full overflow-hidden rounded-lg bg-black" style={gridColumnStyle}>
+                            {hasVideoTrack ? (
+                                <>
+                                    {/* 비가상배경일 때만 블러 레이어 추가 */}
+                                    {!isVirtualBgActive && (
+                                        <div className="absolute inset-0 z-0" style={{ margin: '-10%' }}>
+                                            <VideoTrack
+                                                trackRef={trackRef}
+                                                objectFit="cover"
+                                                style={{
+                                                    width: '120%',
+                                                    height: '120%',
+                                                    filter: 'blur(40px) brightness(0.6)',
+                                                    transform: 'scale(1.5)',
+                                                }}
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* 🔥 항상 타일을 꽉 채우도록 cover 사용 */}
+                                    <div className="absolute inset-0 z-10">
+                                        <ParticipantTile
+                                            trackRef={trackRef}
+                                            objectFit="cover"
+                                            style={{
+                                                width: '100%',
+                                                height: '100%',
+                                            }}
+                                        />
+                                    </div>
+                                </>
+                            ) : (
+                                // ❗ 카메라 OFF
+                                <>
+                                    {bgUrl ? (
+                                        <>
+                                            <div className="absolute inset-0 z-0">
+                                                <div className="w-full h-full bg-center bg-cover" style={{ backgroundImage: `url(${bgUrl})` }} />
+                                            </div>
+
+                                            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3">
+                                                <div className="w-16 h-16 rounded-full bg-black/60 text-white flex items-center justify-center text-xl font-bold">{displayName}</div>
+                                                <span className="text-xs text-white/80 px-3 py-1 rounded-full bg-black/50">카메라가 꺼져 있습니다</span>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <ParticipantTile
+                                            trackRef={trackRef}
+                                            objectFit="cover"
+                                            style={{
+                                                height: '100%',
+                                                width: '100%',
+                                            }}
+                                        />
+                                    )}
+                                </>
+                            )}
                         </div>
                     );
                 })}

@@ -1,9 +1,9 @@
-// src/components/Culture/LiveView/CultureConferenceUI.jsx
-import React, { useEffect, useState, useRef, useContext, useCallback } from 'react';
+// src/components/Culture/CultureVideo/CultureConferenceUI.jsx
+import React, { useEffect, useState, useRef, useContext, useCallback, useMemo } from 'react';
 import { RoomAudioRenderer, LayoutContextProvider, useParticipants, useRoomContext, useDataChannel, useLocalParticipant } from '@livekit/components-react';
 import Swal from 'sweetalert2';
 import { FiCopy, FiMaximize, FiMinimize, FiHeart } from 'react-icons/fi';
-import { Users, MessageCircle, Info, Mic, MicOff, Video, VideoOff, MonitorUp, PhoneOff, Palette } from 'lucide-react';
+import { Users, MessageCircle, Info, Mic, MicOff, Video, VideoOff, MonitorUp, PhoneOff, Palette, Image as ImageIcon } from 'lucide-react';
 import CultureSubtitleOverlay from './CultureSubtitleOverlay';
 import { UserContext } from '../../../contexts/UserContext';
 import CustomVideoGrid from '../../dashboard/dashvideo/CustomVideoGrid';
@@ -11,10 +11,15 @@ import CultureLiveChatSidebar from './CultureLiveChatSidebar';
 import SpecialEffectAnimation from '../contents/SpecialEffectAnimation';
 import ThemeBackground from '../contents/ThemeBackground';
 import BackgroundThemeSelector from '../contents/BackgroundThemeSelector';
-import ThemeTransitionAnimation from '../contents/ThemeTransitionAnimation'; // ✨ 새로 추가
+import ThemeTransitionAnimation from '../contents/ThemeTransitionAnimation';
+
 import '../../../css/EnhancedAnimations.css';
 import { BACKGROUND_THEMES } from '../contents/backgroundThemes';
 import CultureAlert from './CultureAlert';
+import { useVirtualBackground } from '../../../hooks/useVirtualBackground';
+
+import VirtualBgModal from '../contents/VirtualBgModal';
+import { DEFAULT_VIRTUAL_BG_ID, findVirtualBgPreset, VIRTUAL_BG_PRESETS } from '../contents/VIRTUAL_BG_PRESETS ';
 
 const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meetingDesc }) => {
     const room = useRoomContext();
@@ -36,7 +41,6 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
 
     const [currentTheme, setCurrentTheme] = useState('default');
 
-    // ✨ 테마 전환 애니메이션 상태 추가
     const [showThemeAnimation, setShowThemeAnimation] = useState(false);
     const [animatingTheme, setAnimatingTheme] = useState(null);
 
@@ -47,23 +51,62 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
     const mainContainerRef = useRef(null);
     const controlsTimeoutRef = useRef(null);
     const [activeEffects, setActiveEffects] = useState([]);
-    const sttSeenRef = useRef(new Set());
     const sttTimerRef = useRef(null);
 
     const { send: sendTheme } = useDataChannel('theme_change');
+    const { send: sendVirtualBg } = useDataChannel('virtual_bg_change');
 
+    // 참가자별 virtualBgId 맵 { identity: 'korean-room' }
+    const [virtualBgMap, setVirtualBgMap] = useState({});
+
+    // 가상 배경 상태 (카메라 뒤 배경)
+    const [virtualBgId, setVirtualBgId] = useState(DEFAULT_VIRTUAL_BG_ID);
+    const [pendingVirtualBgId, setPendingVirtualBgId] = useState(DEFAULT_VIRTUAL_BG_ID);
+    const [showVirtualBgModal, setShowVirtualBgModal] = useState(false);
+
+    // 선택된 가상 배경 프리셋
+    const selectedVirtualBg = useMemo(() => findVirtualBgPreset(virtualBgId), [virtualBgId]);
+
+    // 참가자별 카메라 OFF 이미지용 fallback URL 계산
+    const getFallbackBackgroundUrlForParticipant = useCallback(
+        (participant) => {
+            const id = participant.identity;
+
+            let bgId;
+            if (id === room.localParticipant?.identity) {
+                bgId = virtualBgId; // 내 배경
+            } else {
+                bgId = virtualBgMap[id]; // 다른 사람 배경
+            }
+
+            const preset = findVirtualBgPreset(bgId);
+            if (preset?.type === 'image' && preset.imageUrl) {
+                // image 타입이면 선택한 이미지 사용
+                return preset.imageUrl;
+            }
+
+            // none/blur 등은 null 리턴 → LiveKit 기본 프로필 사용
+            return null;
+        },
+        [room, virtualBgId, virtualBgMap],
+    );
+
+    // 실제 카메라에 가상 배경 적용 (segmentation + bg)
+    useVirtualBackground(selectedVirtualBg);
+
+    // =============================
+    // 🔔 테마 변경 수신
+    // =============================
     useDataChannel('theme_change', (msg) => {
         try {
             const textDecoder = new TextDecoder();
             const data = JSON.parse(textDecoder.decode(msg.payload));
 
             if (data.themeId) {
-                // showAnimation 플래그가 true면 애니메이션과 함께 변경
                 if (data.showAnimation) {
                     setAnimatingTheme(data.themeId);
                     setShowThemeAnimation(true);
                 } else {
-                    // 그냥 테마만 변경 (프리뷰)
                     setCurrentTheme(data.themeId);
                 }
             }
@@ -72,9 +115,30 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
         }
     });
 
-    // ✨ 테마 변경 핸들러 - 애니메이션 없이 테마만 변경
+    // =============================
+    // 🔔 가상 배경 변경 수신 (다른 참가자)
+    // =============================
+    useDataChannel('virtual_bg_change', (msg) => {
+        try {
+            const text = new TextDecoder().decode(msg.payload);
+            const data = JSON.parse(text);
+
+            if (data.type !== 'virtual_bg') return;
+            if (!data.identity || !data.bgId) return;
+
+            setVirtualBgMap((prev) => ({
+                ...prev,
+                [data.identity]: data.bgId,
+            }));
+        } catch (e) {
+            console.error('virtual_bg_change 수신 오류:', e);
+        }
+    });
+
+    // =============================
+    // 🎨 테마 관련 핸들러
+    // =============================
     const handleThemeChange = (themeId) => {
-        // 실시간으로 테마만 변경 (애니메이션 없음)
         setCurrentTheme(themeId);
         if (sendTheme) {
             const textEncoder = new TextEncoder();
@@ -82,33 +146,29 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
                 textEncoder.encode(
                     JSON.stringify({
                         themeId,
-                        showAnimation: false, // 프리뷰: 애니메이션 없음
+                        showAnimation: false,
                     }),
                 ),
             );
         }
     };
 
-    // ✨ 모달 닫기 핸들러 (완료 버튼용)
     const handleThemeSelectorClose = (selectedThemeId) => {
         setShowThemeSelector(false);
 
-        // 완료 버튼으로 닫혔고 + 테마가 선택된 경우에만 애니메이션
         if (selectedThemeId) {
-            // 모든 참가자에게 애니메이션과 함께 테마 변경 전송
             if (sendTheme) {
                 const textEncoder = new TextEncoder();
                 sendTheme(
                     textEncoder.encode(
                         JSON.stringify({
                             themeId: selectedThemeId,
-                            showAnimation: true, // 완료: 애니메이션 있음!
+                            showAnimation: true,
                         }),
                     ),
                 );
             }
 
-            // 짧은 딜레이 후 로컬에서도 애니메이션 트리거
             setTimeout(() => {
                 setAnimatingTheme(selectedThemeId);
                 setShowThemeAnimation(true);
@@ -116,15 +176,16 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
         }
     };
 
-    // ✨ 애니메이션 완료 핸들러
     const handleAnimationComplete = () => {
         setShowThemeAnimation(false);
-        // 실제 테마가 아직 변경되지 않았다면 지금 변경
         if (animatingTheme && animatingTheme !== currentTheme) {
             setCurrentTheme(animatingTheme);
         }
     };
 
+    // =============================
+    // 🎆 이펙트
+    // =============================
     const handleEffectTrigger = (effect) => {
         const id = Date.now() + Math.random();
         setActiveEffects((prev) => [...prev, { ...effect, id }]);
@@ -134,6 +195,9 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
         setActiveEffects((prev) => prev.filter((e) => e.id !== id));
     };
 
+    // =============================
+    // 🎛 마이크 / 카메라 / 화면공유 상태 반영
+    // =============================
     useEffect(() => {
         if (!localParticipant) return;
 
@@ -191,7 +255,6 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
     const handleLeaveRoom = async () => {
         const result = await Swal.fire({
             title: '라이브에서 나가시겠습니까?',
-            // text: '나가시면 실시간 번역 연결이 종료됩니다.',
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#ef4444',
@@ -207,12 +270,7 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
                 console.error('⚠️ Error disconnecting:', error);
             }
             onLeave && onLeave();
-
-            // 🚪 창 닫기
             window.close();
-
-            // 만약 window.close()가 작동하지 않으면 (새 탭이 아닌 경우)
-            // 이전 페이지로 이동하거나 홈으로 이동
             setTimeout(() => {
                 if (!window.closed) {
                     window.history.back();
@@ -221,6 +279,9 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
         }
     };
 
+    // =============================
+    // 🖥 풀스크린 컨트롤 표시/숨김
+    // =============================
     useEffect(() => {
         if (!isFullscreen) {
             setShowControls(true);
@@ -286,6 +347,9 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
         };
     }, []);
 
+    // =============================
+    // 👤 사용자명 매핑
+    // =============================
     const getParticipantUsername = useCallback(
         (identity) => {
             if (!identity) return 'Unknown';
@@ -315,6 +379,9 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
         [room],
     );
 
+    // =============================
+    // 🎙 STT DataChannel
+    // =============================
     const handleSttMessage = useCallback(
         (msg) => {
             try {
@@ -324,14 +391,12 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
                 const username = data.username || getParticipantUsername(data.identity) || data.identity || 'Unknown';
                 const key = data.identity || data.participant_sid || 'unknown';
 
-                // 🔑 utterance_id를 고유 ID로 사용 (없으면 fallback)
                 const utteranceId = data.utterance_id || data.utteranceId || `stt-${data.identity || 'unknown'}-${data.ts || ''}`;
 
                 if (data.final) {
-                    // ✅ final 처리: utterance_id 기준으로 find & update
                     const finalMsg = {
                         id: utteranceId,
-                        utteranceId, // 나중에 Sidebar에서 사용
+                        utteranceId,
                         identity: data.identity,
                         username,
                         text: data.text || '',
@@ -343,16 +408,13 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
                     setFinals((prev) => {
                         const idx = prev.findIndex((m) => m.utteranceId === utteranceId || m.id === utteranceId);
                         if (idx === -1) {
-                            // 1차 게시: 새 말풍선
                             return [...prev, finalMsg];
                         }
-                        // 2차 이후: 같은 utterance 말풍선 내용 덮어쓰기
                         const next = [...prev];
                         next[idx] = { ...next[idx], ...finalMsg };
                         return next;
                     });
 
-                    // (선택) chatMessages 도 utteranceId 기준으로 find & update
                     setChatMessages((prev) => {
                         const idx = prev.findIndex((m) => m.id === utteranceId);
                         const base = {
@@ -368,14 +430,12 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
                         return next;
                     });
 
-                    // partial 제거
                     setPartials((prev) => {
                         const next = { ...prev };
                         delete next[key];
                         return next;
                     });
                 } else {
-                    // 🔁 partial (중간 STT) – 필요하면 utteranceId 같이 저장
                     if (sttTimerRef.current) {
                         clearTimeout(sttTimerRef.current);
                     }
@@ -401,8 +461,12 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
         },
         [getParticipantUsername],
     );
+
     useDataChannel('stt', handleSttMessage);
 
+    // =============================
+    // ❤️ 좋아요
+    // =============================
     const handleLike = () => {
         setLikes((prev) => prev + 1);
 
@@ -438,22 +502,68 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
         });
     };
 
+    // =============================
+    // 🎨 가상 배경 모달
+    // =============================
+    const openVirtualBgModal = () => {
+        setPendingVirtualBgId(virtualBgId);
+        setShowVirtualBgModal(true);
+    };
+
+    const handleApplyVirtualBg = (selectedId) => {
+        const finalId = selectedId || DEFAULT_VIRTUAL_BG_ID;
+
+        // 1) 내 UI/훅 상태 반영
+        setVirtualBgId(finalId);
+        setShowVirtualBgModal(false);
+
+        // 2) 내 identity → 선택한 bgId 를 로컬 맵에 반영
+        if (room?.localParticipant?.identity) {
+            const myId = room.localParticipant.identity;
+            setVirtualBgMap((prev) => ({
+                ...prev,
+                [myId]: finalId,
+            }));
+        }
+
+        // 3) DataChannel 로 다른 참가자들에게 브로드캐스트
+        if (sendVirtualBg && room?.localParticipant?.identity) {
+            const payload = {
+                type: 'virtual_bg',
+                identity: room.localParticipant.identity,
+                bgId: finalId,
+            };
+            const encoder = new TextEncoder();
+            sendVirtualBg(encoder.encode(JSON.stringify(payload)));
+        }
+    };
+
+    // =============================
+    // JSX
+    // =============================
     return (
         <LayoutContextProvider>
             {showThemeSelector && <BackgroundThemeSelector currentTheme={currentTheme} onThemeChange={handleThemeChange} onClose={handleThemeSelectorClose} />}
 
-            {/* ✨ 테마 전환 애니메이션 추가 */}
             {showThemeAnimation && animatingTheme && <ThemeTransitionAnimation themeId={animatingTheme} onComplete={handleAnimationComplete} />}
+
+            {/* 🔥 카메라 배경 설정 모달 컴포넌트 */}
+            <VirtualBgModal
+                isOpen={showVirtualBgModal}
+                presets={VIRTUAL_BG_PRESETS}
+                pendingVirtualBgId={pendingVirtualBgId}
+                onSelectPreset={setPendingVirtualBgId}
+                onApply={handleApplyVirtualBg}
+                onClose={() => setShowVirtualBgModal(false)}
+            />
 
             <div data-lk-theme="default" className="w-full min-h-screen relative overflow-hidden">
                 <div className="fixed inset-0 z-0">
                     <ThemeBackground themeId={currentTheme} />
                 </div>
 
-                {/* 🎯 메인 컨텐츠 - 완벽한 반응형 레이아웃 */}
                 <div className="relative z-10 w-full h-screen flex flex-col">
                     <div className="flex-1 flex flex-col lg:flex-row p-2 sm:p-4 gap-2 sm:gap-4 overflow-hidden">
-                        {/* 🎯 영상 영역 - flex로 비율 조정 */}
                         <div className={`flex-1 ${showChatSidebar && !isFullscreen ? 'lg:flex-[2]' : ''} transition-all duration-300`}>
                             <div
                                 ref={mainContainerRef}
@@ -466,14 +576,13 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
                                     ))}
 
                                     <div className="absolute inset-0">
-                                        <CustomVideoGrid />
+                                        <CustomVideoGrid virtualBgType={selectedVirtualBg?.type} getFallbackBackgroundUrl={getFallbackBackgroundUrlForParticipant} />
                                     </div>
 
                                     {(!isFullscreen || showControls) && (
                                         <>
                                             <CultureAlert room={room} debug={false} demo={false} displayMs={8000} />
 
-                                            {/* 🎯 LIVE 배지 - 반응형 완벽 */}
                                             <div className="absolute top-2 sm:top-3 left-2 sm:left-3 z-50 bg-gradient-to-r from-pink-600/90 to-purple-600/90 backdrop-blur-sm px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl shadow-2xl border border-white/20 max-w-[calc(100%-8rem)]">
                                                 <div className="flex items-center gap-1.5 sm:gap-2">
                                                     <div className="flex items-center gap-1 flex-shrink-0">
@@ -573,6 +682,15 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
                                                 <MonitorUp size={18} className="sm:w-5 sm:h-5" />
                                             </button>
 
+                                            {/* 🔥 카메라 배경 설정 버튼 (모달) */}
+                                            <button
+                                                onClick={openVirtualBgModal}
+                                                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white text-purple-600 flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95"
+                                                title="카메라 배경 설정"
+                                            >
+                                                <ImageIcon size={18} className="sm:w-5 sm:h-5" />
+                                            </button>
+
                                             <button
                                                 onClick={() => setShowChatSidebar(!showChatSidebar)}
                                                 className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95 ${
@@ -610,7 +728,6 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
                             </div>
                         </div>
 
-                        {/* 🎯 채팅 사이드바 - flex로 비율 조정 */}
                         {showChatSidebar && !isFullscreen && (
                             <div className="flex-1 lg:flex-[1] lg:max-w-[400px] xl:max-w-[500px] transition-all duration-300">
                                 <div className="h-full">
@@ -621,7 +738,6 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
                     </div>
                 </div>
 
-                {/* 영상 아래 정보 카드 */}
                 <div className="relative z-10 w-full max-w-[1800px] mx-auto px-2 sm:px-4 pb-6 sm:pb-10 space-y-4 sm:space-y-6">
                     <section className="bg-white/95 backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-xl px-4 sm:px-6 py-4 sm:py-5 space-y-3 border border-white/50">
                         <div className="space-y-2">

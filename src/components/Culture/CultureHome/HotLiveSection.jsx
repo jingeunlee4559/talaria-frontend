@@ -68,11 +68,15 @@ export default function HotLiveSection() {
                 }),
             );
 
-            // status가 'ENDED'인 미팅 제외
-            const filteredMeetings = meetingsWithTags.filter((meeting) => meeting.status !== 'ENDED');
+            // ✅ 1) status가 'ENDED'인 미팅 제외
+            // ✅ 2) 비공개(isPrivate / is_private === true) 미팅 제외
+            const filteredMeetings = meetingsWithTags.filter((meeting) => {
+                const isPrivate = meeting.isPrivate ?? meeting.is_private ?? false;
+                return meeting.status !== 'ENDED' && !isPrivate;
+            });
 
             setMeetings(filteredMeetings);
-            console.log('Hot Live meetings with tags:', filteredMeetings);
+            console.log('Hot Live meetings with tags (public only):', filteredMeetings);
             setLoading(false);
         } catch (error) {
             console.error('Failed to fetch meetings:', error);
@@ -81,6 +85,7 @@ export default function HotLiveSection() {
             setLoading(false);
         }
     };
+
     const handleJoinCultureMeeting = async (meetingId, meetingTitle, inviteCode, rawStatus) => {
         if (rawStatus === 'ENDED') {
             Swal.fire({
@@ -202,17 +207,21 @@ export default function HotLiveSection() {
                 </div>
 
                 <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5 sm:gap-6 lg:gap-7">
-                    {meetings.slice(0, 3).map((meeting, index) => (
-                        <LiveCard
-                            key={meeting.meetings_id}
-                            meeting={meeting}
-                            viewerCount={getViewerCount()}
-                            language={formatLanguage(meeting.default_lang)}
-                            index={index}
-                            allTags={allTags}
-                            onJoin={() => handleJoinCultureMeeting(meeting.meetings_id, meeting.title, meeting.invite_code, meeting.status)}
-                        />
-                    ))}
+                    {meetings.slice(0, 3).map((meeting, index) => {
+                        const isPrivate = meeting.isPrivate ?? meeting.is_private ?? false; // 이 섹션에서는 이미 필터링되어 항상 false일 것
+                        return (
+                            <LiveCard
+                                key={meeting.meetings_id}
+                                meeting={meeting}
+                                viewerCount={getViewerCount()}
+                                language={formatLanguage(meeting.default_lang)}
+                                index={index}
+                                allTags={allTags}
+                                isPrivate={isPrivate}
+                                onJoin={() => handleJoinCultureMeeting(meeting.meetings_id, meeting.title, meeting.invite_code, meeting.status)}
+                            />
+                        );
+                    })}
                 </div>
 
                 {meetings.length === 0 && (

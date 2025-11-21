@@ -12,6 +12,7 @@ import SpecialEffectAnimation from '../contents/SpecialEffectAnimation';
 import ThemeBackground from '../contents/ThemeBackground';
 import BackgroundThemeSelector from '../contents/BackgroundThemeSelector';
 import ThemeTransitionAnimation from '../contents/ThemeTransitionAnimation';
+import api from '../../../axios';
 
 import '../../../css/EnhancedAnimations.css';
 import { BACKGROUND_THEMES } from '../contents/backgroundThemes';
@@ -21,7 +22,7 @@ import { useVirtualBackground } from '../../../hooks/useVirtualBackground';
 import VirtualBgModal from '../contents/VirtualBgModal';
 import { DEFAULT_VIRTUAL_BG_ID, findVirtualBgPreset, VIRTUAL_BG_PRESETS } from '../contents/VIRTUAL_BG_PRESETS ';
 
-const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meetingDesc }) => {
+const CultureConferenceUI = ({ meetingId, meetingTitle, onLeave, userLocale = 'ko-KR', meetingDesc, isHost }) => {
     const room = useRoomContext();
     const participants = useParticipants();
     const participantCount = participants.length;
@@ -266,7 +267,73 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
         }
     };
 
-    const handleLeaveRoom = async () => {
+    // =============================
+    // 🚪 나가기 / 방 종료 통합 버튼
+    // =============================
+    const handleExitClick = async () => {
+        // 🔸 호스트: 방 완전 종료
+        if (isHost) {
+            if (!user?.userId || !meetingId) {
+                Swal.fire({
+                    icon: 'error',
+                    title: '종료할 수 없습니다',
+                    text: '유저 정보 또는 라이브 ID가 없습니다.',
+                });
+                return;
+            }
+
+            const result = await Swal.fire({
+                title: '라이브를 종료하시겠습니까?',
+                text: '라이브를 종료하면 참여자도 더 이상 입장할 수 없습니다.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: '예, 라이브 종료',
+                cancelButtonText: '취소',
+                reverseButtons: true,
+            });
+
+            if (!result.isConfirmed) return;
+
+            try {
+                // 🔥 서버에 ENDED 처리
+                await api.patch(`/api/users/${user.userId}/meetings/${meetingId}/end`);
+
+                await Swal.fire({
+                    icon: 'success',
+                    title: '라이브가 종료되었습니다',
+                    text: '라이브 목록에서 더 이상 노출되지 않습니다.',
+                    timer: 1500,
+                    showConfirmButton: false,
+                });
+
+                try {
+                    await room.disconnect();
+                } catch (error) {
+                    console.error('⚠️ Error disconnecting after end:', error);
+                }
+
+                onLeave && onLeave();
+                window.close();
+                setTimeout(() => {
+                    if (!window.closed) {
+                        window.history.back();
+                    }
+                }, 100);
+            } catch (error) {
+                console.error('라이브 종료 중 오류:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: '라이브 종료 실패',
+                    text: error.response?.data?.message || '라이브 종료 중 오류가 발생했습니다.',
+                });
+            }
+
+            return;
+        }
+
+        // 🔹 일반 참가자: 그냥 나가기
         const result = await Swal.fire({
             title: '라이브에서 나가시겠습니까?',
             icon: 'warning',
@@ -277,20 +344,22 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
             cancelButtonText: '취소',
             reverseButtons: true,
         });
-        if (result.isConfirmed) {
-            try {
-                await room.disconnect();
-            } catch (error) {
-                console.error('⚠️ Error disconnecting:', error);
-            }
-            onLeave && onLeave();
-            window.close();
-            setTimeout(() => {
-                if (!window.closed) {
-                    window.history.back();
-                }
-            }, 100);
+
+        if (!result.isConfirmed) return;
+
+        try {
+            await room.disconnect();
+        } catch (error) {
+            console.error('⚠️ Error disconnecting:', error);
         }
+
+        onLeave && onLeave();
+        window.close();
+        setTimeout(() => {
+            if (!window.closed) {
+                window.history.back();
+            }
+        }, 100);
     };
 
     // =============================
@@ -746,11 +815,14 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
                                                 <FiCopy className="w-4 h-4 sm:w-5 sm:h-5" />
                                             </button>
 
+                                            {/* 🚪 나가기 / 방 종료 통합 버튼 */}
                                             <button
-                                                onClick={handleLeaveRoom}
-                                                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-500 text-white flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95"
+                                                onClick={handleExitClick}
+                                                className="h-10 sm:h-11 px-4 sm:px-5 rounded-full bg-gradient-to-r from-red-500 to-rose-600 text-white flex items-center justify-center gap-1.5 sm:gap-2 transition-all shadow-lg hover:scale-110 active:scale-95"
+                                                title={isHost ? '라이브 종료' : '라이브 나가기'}
                                             >
                                                 <PhoneOff className="w-4 h-4 sm:w-5 sm:h-5" />
+                                                <span className="hidden sm:inline text-xs sm:text-sm font-semibold">{isHost ? '방 종료' : '나가기'}</span>
                                             </button>
                                         </div>
                                     </div>

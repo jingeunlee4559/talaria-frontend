@@ -1,4 +1,4 @@
-// src/pages/LiveStartPage.jsx (또는 실제 경로에 맞게)
+// src/pages/LiveStartPage.jsx
 import React, { useState, useContext, useEffect } from 'react';
 import { UserContext } from '../../contexts/UserContext';
 import { useNavigate } from 'react-router-dom';
@@ -20,6 +20,10 @@ const LiveStartPage = () => {
         culture_thumb_rel_path: '',
     });
 
+    // 공개 / 비공개 + 비밀번호
+    const [isPrivate, setIsPrivate] = useState(false);
+    const [privatePassword, setPrivatePassword] = useState('');
+
     useEffect(() => {
         if (user?.locale) {
             setFormData((prev) => ({
@@ -31,7 +35,6 @@ const LiveStartPage = () => {
 
     // ==========================
     // 태그 관련 상태
-    // /api/tags 응답 기반
     // ==========================
     const [tagOptions, setTagOptions] = useState([]); // [{ id, name, color, order, isActive }, ...]
     const [selectedTagIds, setSelectedTagIds] = useState([]); // [1,2,3]
@@ -44,24 +47,12 @@ const LiveStartPage = () => {
 
     // ==========================
     // 태그 목록 로딩
-    // GET /api/tags
-    // 응답 예:
-    // {
-    //   "is_active": true,
-    //   "updated_at": "...",
-    //   "tag_name": "K-밈",
-    //   "display_order": 10,
-    //   "tag_id": 1,
-    //   "created_at": "...",
-    //   "color_code": "#E91E63"
-    // }
     // ==========================
     useEffect(() => {
         const fetchTags = async () => {
             try {
                 const res = await api.get('/api/tags');
                 const raw = res.data || [];
-
                 const normalized = raw
                     .map((t) => ({
                         id: t.tag_id,
@@ -72,14 +63,12 @@ const LiveStartPage = () => {
                     }))
                     .filter((t) => t.isActive)
                     .sort((a, b) => a.order - b.order);
-
                 setTagOptions(normalized);
             } catch (e) {
                 console.error('❌ 태그 목록 조회 실패:', e);
-                // 실패해도 라이브 생성 자체는 가능하게 둠
+                // 실패해도 라이브 생성은 가능하게 둠
             }
         };
-
         fetchTags();
     }, []);
 
@@ -112,10 +101,7 @@ const LiveStartPage = () => {
     const handleFileChange = (e) => {
         const file = e.target.files[0];
         if (!file) return;
-
         setThumbnailFile(file);
-
-        // 실제 저장 경로는 업로드 후 백엔드에서 받은 relPath 사용
         setFormData((prev) => ({
             ...prev,
             culture_thumb_rel_path: '',
@@ -124,21 +110,19 @@ const LiveStartPage = () => {
 
     // ==========================
     // 썸네일 업로드 API 호출
-    // POST /api/assets/culture-thumb (사용자 코드 기준)
     // 응답: { "relPath": "...", "url": "..." }
     // ==========================
     const uploadThumbnail = async () => {
         if (!thumbnailFile) return null;
-
         const fd = new FormData();
         fd.append('file', thumbnailFile);
 
-        const res = await api.post('/api/assets/api/assets/culture-thumb', fd, {
+        // TODO: 백엔드 실제 경로에 맞게 수정
+        const res = await api.post('/api/assets/culture-thumb', fd, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },
         });
-
         console.log('📁 썸네일 업로드 응답:', res.data);
         return res.data?.relPath || null;
     };
@@ -154,18 +138,13 @@ const LiveStartPage = () => {
         if (!selectedTagIds.length) return;
 
         try {
-            const body = {
-                tagIds: selectedTagIds,
-            };
-
+            const body = { tagIds: selectedTagIds };
             console.log('🏷️ 태그 저장 요청:', {
                 userId: user.userId,
                 meetingId,
                 body,
             });
-
             await api.put(`/api/users/${user.userId}/meetings/${meetingId}/tags`, body);
-
             console.log('✅ 태그 저장 성공');
         } catch (e) {
             console.error('❌ 태그 저장 실패:', e);
@@ -208,12 +187,34 @@ const LiveStartPage = () => {
             return;
         }
 
+        // 비공개방인 경우 비밀번호 필수
+        if (isPrivate && !privatePassword.trim()) {
+            Swal.fire({
+                icon: 'warning',
+                title: '비밀번호를 입력해주세요',
+                text: '비공개 라이브는 입장 비밀번호가 필요합니다.',
+                confirmButtonText: '확인',
+                confirmButtonColor: '#a855f7',
+            });
+            return;
+        }
+
+        if (isPrivate && privatePassword.trim().length < 4) {
+            Swal.fire({
+                icon: 'warning',
+                title: '비밀번호가 너무 짧아요',
+                text: '비밀번호는 최소 4자리 이상으로 설정해주세요.',
+                confirmButtonText: '확인',
+                confirmButtonColor: '#a855f7',
+            });
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
             // 1️⃣ 썸네일 업로드 (있는 경우)
             let cultureThumbRelPath = formData.culture_thumb_rel_path;
-
             if (thumbnailFile) {
                 try {
                     const relPath = await uploadThumbnail();
@@ -237,20 +238,24 @@ const LiveStartPage = () => {
 
             const cultureDescFinal = formData.culture_desc && formData.culture_desc.trim().length > 0 ? formData.culture_desc : selectedTagNames.join(', ');
 
-            // 3️⃣ 미팅 생성에 사용할 최종 데이터
+            // 3️⃣ 미팅 생성에 사용할 최종 데이터 (Swagger 예시 구조 반영)
             const submitData = {
                 title: formData.title,
-                meetingMode: formData.meeting_mode,
+                meetingMode: formData.meeting_mode, // C
                 defaultLang: formData.default_lang,
                 cultureDesc: cultureDescFinal,
                 cultureThumbRelPath,
                 status: 'ONGOING',
+                // 공개/비공개 + 비밀번호
+                isPrivate: isPrivate,
+                privatePassword: isPrivate ? privatePassword.trim() : null,
+                // 필요 시 scheduledAt 추가 가능
+                // scheduledAt: new Date().toISOString(),
             };
 
             console.log('🚀 전송할 데이터:', submitData);
 
             const response = await api.post(`/api/users/${user.userId}/meetings`, submitData);
-
             console.log('✅ 라이브 생성 성공:', response.data);
 
             // 4️⃣ 응답에서 meetingId 추출 (필드명 변형 대응)
@@ -267,7 +272,7 @@ const LiveStartPage = () => {
             await Swal.fire({
                 icon: 'success',
                 title: '라이브 시작! 🎉',
-                text: '라이브 방송이 성공적으로 시작되었습니다!',
+                text: isPrivate ? '비공개 라이브가 성공적으로 시작되었습니다!' : '라이브 방송이 성공적으로 시작되었습니다!',
                 confirmButtonText: '방송 보러가기',
                 confirmButtonColor: '#a855f7',
                 timer: 2000,
@@ -302,6 +307,8 @@ const LiveStartPage = () => {
         });
         setSelectedTagIds([]);
         setThumbnailFile(null);
+        setIsPrivate(false);
+        setPrivatePassword('');
     };
 
     // ==========================
@@ -365,7 +372,6 @@ const LiveStartPage = () => {
                         <p className="text-sm text-gray-500 mb-4">관심사를 태그로 표현하세요!</p>
                         <div className="flex flex-wrap gap-2.5">
                             {tagOptions.length === 0 && <p className="text-sm text-gray-400">사용 가능한 태그가 없습니다. (관리자에서 tl_tags를 설정해주세요)</p>}
-
                             {tagOptions.map((tag) => {
                                 const isSelected = selectedTagIds.includes(tag.id);
                                 return (
@@ -405,6 +411,52 @@ const LiveStartPage = () => {
                             <option value="zh">🇨🇳 중국어 (Chinese)</option>
                             <option value="es">🇪🇸 스페인어 (Spanish)</option>
                         </select>
+                    </div>
+
+                    {/* 공개 / 비공개 설정 + 비밀번호 */}
+                    <div className="mb-8">
+                        <label className="flex items-center gap-2 text-lg font-bold text-gray-800 mb-3">
+                            <span className="text-2xl">🔒</span>
+                            공개 범위
+                        </label>
+                        <p className="text-sm text-gray-500 mb-4">비공개 라이브로 설정하면 비밀번호를 아는 사람만 입장할 수 있어요.</p>
+                        <div className="flex flex-wrap gap-3 mb-4">
+                            <button
+                                type="button"
+                                onClick={() => setIsPrivate(false)}
+                                className={`px-4 py-2.5 rounded-full text-sm font-semibold border-2 transition-all ${
+                                    !isPrivate ? 'border-pink-500 bg-pink-50 text-pink-600 shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                                }`}
+                            >
+                                🌈 공개 라이브
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setIsPrivate(true)}
+                                className={`px-4 py-2.5 rounded-full text-sm font-semibold border-2 transition-all ${
+                                    isPrivate ? 'border-purple-500 bg-purple-50 text-purple-600 shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                                }`}
+                            >
+                                🔒 비공개 (비밀번호 입장)
+                            </button>
+                        </div>
+
+                        {isPrivate && (
+                            <div className="mt-2">
+                                <label className="block text-sm font-semibold text-gray-800 mb-2">
+                                    입장 비밀번호 설정
+                                    <span className="text-red-500 ml-0.5">*</span>
+                                </label>
+                                <input
+                                    type="password"
+                                    value={privatePassword}
+                                    onChange={(e) => setPrivatePassword(e.target.value)}
+                                    placeholder="예) 4자리 이상 영문/숫자 조합"
+                                    className="w-full px-4 py-3 text-base border-2 border-purple-200 rounded-2xl focus:ring-4 focus:ring-purple-200 focus:border-purple-500 outline-none transition-all"
+                                />
+                                <p className="text-xs text-gray-500 mt-2">시청자가 입장할 때 입력해야 하는 비밀번호입니다. 호스트인 본인은 비밀번호 없이 입장 가능합니다.</p>
+                            </div>
+                        )}
                     </div>
 
                     {/* 썸네일 업로드 */}

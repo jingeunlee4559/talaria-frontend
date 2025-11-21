@@ -66,12 +66,13 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight 
                 <div className="absolute inset-0 z-10" style={{ margin: '-10%' }}>
                     <VideoTrack
                         trackRef={shareTrackRef}
-                        objectFit="cover"
+                        // objectFit="cover"
                         style={{
                             width: '120%',
                             height: '120%',
                             filter: 'blur(50px) brightness(0.7)',
                             transform: 'scale(1.5)',
+                            objectFit: 'cover',
                         }}
                     />
                 </div>
@@ -80,10 +81,10 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight 
                 <div className="absolute inset-0 z-20 flex items-center justify-center">
                     <VideoTrack
                         trackRef={shareTrackRef}
-                        objectFit="contain"
                         style={{
                             width: '100%',
                             height: '100%',
+                            objectFit: 'contain',
                         }}
                     />
                 </div>
@@ -99,10 +100,10 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight 
                                 >
                                     <ParticipantTile
                                         trackRef={trackRef}
-                                        objectFit="cover"
                                         style={{
                                             height: '100%',
                                             width: '100%',
+                                            objectFit: 'cover',
                                         }}
                                     />
                                 </div>
@@ -186,12 +187,12 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight 
                                         <div className="absolute inset-0 z-0" style={{ margin: '-10%' }}>
                                             <VideoTrack
                                                 trackRef={trackRef}
-                                                objectFit="cover"
                                                 style={{
                                                     width: '120%',
                                                     height: '120%',
                                                     filter: 'blur(40px) brightness(0.6)',
                                                     transform: 'scale(1.5)',
+                                                    objectFit: 'cover',
                                                 }}
                                             />
                                         </div>
@@ -201,10 +202,10 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight 
                                     <div className="absolute inset-0 z-10">
                                         <ParticipantTile
                                             trackRef={trackRef}
-                                            objectFit="cover"
                                             style={{
                                                 width: '100%',
                                                 height: '100%',
+                                                objectFit: 'cover',
                                             }}
                                         />
                                     </div>
@@ -226,10 +227,10 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight 
                                     ) : (
                                         <ParticipantTile
                                             trackRef={trackRef}
-                                            objectFit="cover"
                                             style={{
                                                 height: '100%',
                                                 width: '100%',
+                                                objectFit: 'cover',
                                             }}
                                         />
                                     )}

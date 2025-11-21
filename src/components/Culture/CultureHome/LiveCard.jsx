@@ -3,7 +3,15 @@ import { useState } from 'react';
 
 const MAX_TAGS = 4; // 한 카드에서 보여줄 최대 태그 수
 
-const LiveCard = ({ meeting, language, index, onJoin, allTags = [] }) => {
+const LiveCard = ({
+    meeting,
+    language,
+    index,
+    onJoin,
+    allTags = [],
+    isPrivate = false,
+    viewerCount, // 🔹 HotLiveSection에서 내려주는 시청자 수 (선택)
+}) => {
     const [likes, setLikes] = useState(Math.floor(Math.random() * 2000) + 500);
     const [comments] = useState(Math.floor(Math.random() * 500) + 50);
     const [isLiked, setIsLiked] = useState(false);
@@ -13,22 +21,17 @@ const LiveCard = ({ meeting, language, index, onJoin, allTags = [] }) => {
     const tags = meeting.tags || [];
     const displayTags = tags.map((tag) => `#${tag}`);
 
-    // 태그 노출/숨김 분리
     const shownTags = displayTags.slice(0, MAX_TAGS);
     const extraTagCount = displayTags.length - shownTags.length;
 
-    // 설명 텍스트
     const description = meeting.cultureDesc || meeting.description || meeting.cultureDescShort || meeting.cultureDescription || '';
 
-    // 태그의 color_code 가져오기
     const getTagColorCode = (tagName) => {
-        // '#' 제거
         const cleanTagName = tagName.replace('#', '');
         const tag = allTags.find((t) => t.tag_name === cleanTagName);
-        return tag?.color_code || '#9333EA'; // 기본값: violet-600
+        return tag?.color_code || '#9333EA';
     };
 
-    // hex to rgb 변환 함수
     const hexToRgb = (hex) => {
         const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
         return result
@@ -37,7 +40,7 @@ const LiveCard = ({ meeting, language, index, onJoin, allTags = [] }) => {
                   g: parseInt(result[2], 16),
                   b: parseInt(result[3], 16),
               }
-            : { r: 147, g: 51, b: 234 }; // 기본값
+            : { r: 147, g: 51, b: 234 };
     };
 
     const handleLike = (e) => {
@@ -52,7 +55,9 @@ const LiveCard = ({ meeting, language, index, onJoin, allTags = [] }) => {
     };
 
     const thumbnailImage = meeting?.cultureThumbRelPath?.trim() || '/img/content1.webp';
-    const viewers = meeting.participants || Math.floor(Math.random() * 2) + 1;
+
+    // 🔹 시청자 수: prop > meeting.participants > random
+    const viewers = viewerCount ?? meeting.participants ?? Math.floor(Math.random() * 2) + 1;
 
     return (
         <div
@@ -61,12 +66,21 @@ const LiveCard = ({ meeting, language, index, onJoin, allTags = [] }) => {
         >
             {/* 썸네일 영역 */}
             <div className="relative w-full aspect-[16/9] overflow-hidden">
-                {/* LIVE 배지 */}
-                <div className="absolute top-3 left-3 z-10">
+                {/* LIVE / 비공개 배지 영역 */}
+                <div className="absolute top-3 left-3 z-10 space-y-1">
+                    {/* 🔴 공개 LIVE 뱃지 */}
                     <div className="flex items-center gap-1.5 bg-red-500 text-white px-3 py-1.5 rounded-xl shadow-lg">
                         <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
                         <span className="text-[11px] font-bold tracking-wider">LIVE</span>
                     </div>
+
+                    {/* 🟣 비공개 추가 뱃지 (라이브와 완전 분리된 느낌) */}
+                    {isPrivate && (
+                        <div className="flex items-center gap-1.5 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white px-3 py-1.5 rounded-xl shadow-lg">
+                            <span className="text-xs">🔒</span>
+                            <span className="text-[11px] font-bold">비공개</span>
+                        </div>
+                    )}
                 </div>
 
                 {/* 언어 배지 */}
@@ -117,13 +131,12 @@ const LiveCard = ({ meeting, language, index, onJoin, allTags = [] }) => {
                         </div>
                     </div>
 
-                    {/* 태그 (API에서 가져온 실제 태그 + 중앙 정렬) */}
+                    {/* 태그 (중앙 정렬) */}
                     {shownTags.length > 0 && (
                         <div className="mt-1.5 flex flex-wrap justify-center gap-1.5">
                             {shownTags.map((tag, idx) => {
                                 const colorCode = getTagColorCode(tag);
                                 const rgb = hexToRgb(colorCode);
-
                                 return (
                                     <span
                                         key={idx}

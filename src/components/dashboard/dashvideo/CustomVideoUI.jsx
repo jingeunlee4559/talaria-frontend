@@ -1,3 +1,4 @@
+// src/components/.../CustomVideoConference.jsx
 import React, { useContext, useEffect, useState } from 'react';
 import { RoomContext } from '@livekit/components-react';
 import { Room } from 'livekit-client';
@@ -16,9 +17,16 @@ export default function CustomVideoConference({
     meetingTitle,
     meetingDesc,
     isCultureMode = false,
-    onConnected, // 🔥 새로운 prop
+    isHost = false, // 🔥 추가: 현재 유저가 이 회의의 호스트인지 여부
+    onConnected, // 🔥 기존 prop
 }) {
-    const [room] = useState(() => new Room({ adaptiveStream: true, dynacast: true }));
+    const [room] = useState(
+        () =>
+            new Room({
+                adaptiveStream: true,
+                dynacast: true,
+            }),
+    );
     const [connected, setConnected] = useState(false);
     const [needAudioUnlock, setNeedAudioUnlock] = useState(false);
     const [userLocale, setUserLocale] = useState('ko-KR');
@@ -47,6 +55,7 @@ export default function CustomVideoConference({
                     room: data.room,
                     identity: data.identity,
                     userLocale: data.userLocale,
+                    // 필요하다면 여기서 data.role, data.isHost 등도 확인 가능
                 });
 
                 const { wsUrl, token, userLocale: receivedLocale } = data || {};
@@ -96,7 +105,8 @@ export default function CustomVideoConference({
             room.disconnect();
             console.log('--- Disconnected from LiveKit ---');
         };
-    }, [roomName, identity, username, user, room, meetingId]); // 🔥 onConnected 제거
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [roomName, identity, username, user, room, meetingId]); // onConnected 제외
 
     // 🎯 문화 모드: 부모의 K-밈 로딩 화면 유지
     if (!connected && isCultureMode) {
@@ -176,8 +186,9 @@ export default function CustomVideoConference({
                     </button>
                 </div>
             )}
+
             {isCultureMode ? (
-                <CultureConferenceUI onLeave={onLeave} meetingTitle={meetingTitle} userLocale={userLocale} meetingDesc={meetingDesc} />
+                <CultureConferenceUI meetingId={meetingId} isHost={isHost} onLeave={onLeave} meetingTitle={meetingTitle} userLocale={userLocale} meetingDesc={meetingDesc} />
             ) : (
                 <ConferenceUI onLeave={onLeave} meetingTitle={meetingTitle} userLocale={userLocale} />
             )}

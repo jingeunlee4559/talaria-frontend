@@ -422,6 +422,7 @@ const CultureLiveView = () => {
                     meetingDesc={meetingData.cultureDesc}
                     isCultureMode={true}
                     onConnected={handleVideoConnected}
+                    isHost={meetingData.userRole === 'HOST'}
                 />
             </div>
         </>

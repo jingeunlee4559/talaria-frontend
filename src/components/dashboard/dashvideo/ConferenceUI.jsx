@@ -280,7 +280,6 @@ const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
             e.stopPropagation();
             const result = await Swal.fire({
                 title: '회의에서 나가시겠습니까?',
-                text: '나가시면 회의 연결이 종료됩니다.',
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#ef4444',

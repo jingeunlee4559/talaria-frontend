@@ -97,50 +97,127 @@ const CultureVideos = () => {
         }
     };
 
+    // ==========================
+    // 🔥 리스트 갱신 함수 분리 (재사용 가능)
+    // ==========================
+    const fetchMeetingsData = useCallback(async () => {
+        setLoading(true);
+        try {
+            const response = await api.get('/api/meetings/by-mode', {
+                params: {
+                    mode: 'C',
+                    page: 0,
+                    size: 100,
+                },
+            });
+
+            const meetingItems = response.data.items || [];
+
+            const meetingsWithTags = await Promise.all(
+                meetingItems.map(async (meeting) => {
+                    const userIdForTags = user?.userId || meeting.host_id;
+                    const tags = await fetchTagsForMeeting(userIdForTags, meeting.meetings_id);
+                    return {
+                        ...meeting,
+                        tags,
+                    };
+                }),
+            );
+
+            setMeetings(meetingsWithTags);
+            console.log('✅ Meetings updated:', meetingsWithTags);
+        } catch (error) {
+            console.error('Failed to fetch meetings:', error);
+        } finally {
+            setLoading(false);
+        }
+    }, [user]);
+
     // 태그 목록 불러오기
     useEffect(() => {
         fetchAllTags();
     }, [fetchAllTags]);
 
     // ==========================
-    // 문화 모드 회의 리스트 + 태그
+    // 문화 모드 회의 리스트 + 태그 (최초 로드)
     // ==========================
     useEffect(() => {
-        const fetchMeetings = async () => {
-            setLoading(true);
-            try {
-                const response = await api.get('/api/meetings/by-mode', {
-                    params: {
-                        mode: 'C',
-                        page: 0,
-                        size: 100,
-                    },
+        fetchMeetingsData();
+    }, [fetchMeetingsData]);
+
+    // ==========================
+    // 🔥 PostMessage 리스너 - 자식 창에서 메시지 수신
+    // ==========================
+    useEffect(() => {
+        const handleMessage = (event) => {
+            // 보안: 같은 origin에서 온 메시지만 처리
+            if (event.origin !== window.location.origin) {
+                return;
+            }
+
+            const { type, meetingId } = event.data;
+
+            if (type === 'MEETING_ENDED') {
+                console.log('🔴 라이브 종료 알림 받음:', meetingId);
+
+                // 토스트 알림
+                Swal.fire({
+                    icon: 'info',
+                    title: '라이브가 종료되었습니다',
+                    text: '목록이 자동으로 업데이트됩니다.',
+                    timer: 2000,
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
                 });
 
-                const meetingItems = response.data.items || [];
-
-                const meetingsWithTags = await Promise.all(
-                    meetingItems.map(async (meeting) => {
-                        const userIdForTags = user?.userId || meeting.host_id;
-                        const tags = await fetchTagsForMeeting(userIdForTags, meeting.meetings_id);
-                        return {
-                            ...meeting,
-                            tags,
-                        };
-                    }),
-                );
-
-                setMeetings(meetingsWithTags);
-                console.log('Meetings with tags:', meetingsWithTags);
-            } catch (error) {
-                console.error('Failed to fetch meetings:', error);
-            } finally {
-                setLoading(false);
+                // 🔥 리스트 새로고침
+                fetchMeetingsData();
+            } else if (type === 'USER_LEFT') {
+                console.log('👋 사용자가 라이브에서 나갔습니다:', meetingId);
+                // 필요시 리스트 업데이트
+                fetchMeetingsData();
             }
         };
 
-        fetchMeetings();
-    }, [user]);
+        window.addEventListener('message', handleMessage);
+
+        return () => {
+            window.removeEventListener('message', handleMessage);
+        };
+    }, [fetchMeetingsData]);
+
+    // ==========================
+    // 🔥 Visibility API - 탭 활성화 시 리스트 갱신
+    // ==========================
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            // 탭이 다시 활성화되었을 때 리스트 갱신
+            if (!document.hidden) {
+                console.log('👀 탭 활성화 - 리스트 갱신');
+                fetchMeetingsData();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [fetchMeetingsData]);
+
+    // ==========================
+    // 🔥 선택적: 주기적 자동 갱신 (30초마다)
+    // ==========================
+    useEffect(() => {
+        // 30초마다 자동 갱신
+        const interval = setInterval(() => {
+            console.log('🔄 자동 리스트 갱신 (30초)');
+            fetchMeetingsData();
+        }, 30000); // 30초
+
+        return () => clearInterval(interval);
+    }, [fetchMeetingsData]);
 
     // ==========================
     // 비공개 비밀번호 모달 상태

@@ -270,28 +270,51 @@ const CultureConferenceUI = ({ meetingId, meetingTitle, onLeave, userLocale = 'k
     // =============================
     // 🚪 나가기 / 방 종료 통합 버튼
     // =============================
+    // CultureConferenceUI.jsx에서 handleExitClick 함수를 다음과 같이 수정하세요
+
     const handleExitClick = async () => {
         // 🔸 호스트: 방 완전 종료
         if (isHost) {
             if (!user?.userId || !meetingId) {
                 Swal.fire({
                     icon: 'error',
-                    title: '종료할 수 없습니다',
-                    text: '유저 정보 또는 라이브 ID가 없습니다.',
+                    title: '앗! 문제가 생겼어요 😅',
+                    text: '유저 정보가 없어서 방을 종료할 수 없어요!',
+                    customClass: {
+                        popup: 'rounded-2xl',
+                        confirmButton: 'rounded-xl px-6 py-2.5 font-semibold',
+                    },
                 });
                 return;
             }
 
             const result = await Swal.fire({
-                title: '라이브를 종료하시겠습니까?',
-                text: '라이브를 종료하면 참여자도 더 이상 입장할 수 없습니다.',
+                title: '🎬 라이브 종료할까요?',
+                html: `
+                <div class="text-center">
+                    <div class="text-6xl mb-4 animate-bounce">👋</div>
+                    <p class="text-gray-600 mb-2">
+                        라이브를 종료하면 <span class="font-bold text-pink-600">모든 참가자</span>가 나가고
+                    </p>
+                    <p class="text-gray-600">
+                        더 이상 새로운 사람들이 입장할 수 없어요!
+                    </p>
+                </div>
+            `,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#ef4444',
                 cancelButtonColor: '#6b7280',
-                confirmButtonText: '예, 라이브 종료',
-                cancelButtonText: '취소',
+                confirmButtonText: '네, 종료할게요! 👋',
+                cancelButtonText: '아니요, 계속할래요 🎉',
                 reverseButtons: true,
+                customClass: {
+                    popup: 'rounded-2xl',
+                    title: 'text-2xl font-bold',
+                    confirmButton: 'rounded-xl px-6 py-3 font-bold shadow-lg hover:shadow-xl transition-all',
+                    cancelButton: 'rounded-xl px-6 py-3 font-bold',
+                },
+                backdrop: 'rgba(0, 0, 0, 0.8)',
             });
 
             if (!result.isConfirmed) return;
@@ -302,11 +325,33 @@ const CultureConferenceUI = ({ meetingId, meetingTitle, onLeave, userLocale = 'k
 
                 await Swal.fire({
                     icon: 'success',
-                    title: '라이브가 종료되었습니다',
-                    text: '라이브 목록에서 더 이상 노출되지 않습니다.',
-                    timer: 1500,
+                    title: '라이브 종료 완료! 🎉',
+                    html: `
+                    <div class="text-center">
+                        <div class="text-6xl mb-4">✨</div>
+                        <p class="text-gray-600">
+                            수고하셨어요! 다음에 또 봐요~ 💖
+                        </p>
+                    </div>
+                `,
+                    timer: 2000,
                     showConfirmButton: false,
+                    customClass: {
+                        popup: 'rounded-2xl',
+                    },
                 });
+
+                // 🔥 부모 창에 종료 알림 (PostMessage)
+                if (window.opener && !window.opener.closed) {
+                    window.opener.postMessage(
+                        {
+                            type: 'MEETING_ENDED',
+                            meetingId: meetingId,
+                        },
+                        window.location.origin,
+                    );
+                    console.log('✅ 부모 창에 라이브 종료 알림 전송:', meetingId);
+                }
 
                 try {
                     await room.disconnect();
@@ -325,8 +370,20 @@ const CultureConferenceUI = ({ meetingId, meetingTitle, onLeave, userLocale = 'k
                 console.error('라이브 종료 중 오류:', error);
                 Swal.fire({
                     icon: 'error',
-                    title: '라이브 종료 실패',
-                    text: error.response?.data?.message || '라이브 종료 중 오류가 발생했습니다.',
+                    title: '앗! 종료 실패 😱',
+                    html: `
+                    <div class="text-center">
+                        <div class="text-6xl mb-4">💥</div>
+                        <p class="text-gray-600">
+                            ${error.response?.data?.message || '라이브 종료 중 오류가 발생했어요. 다시 시도해주세요!'}
+                        </p>
+                    </div>
+                `,
+                    confirmButtonText: '알겠어요!',
+                    customClass: {
+                        popup: 'rounded-2xl',
+                        confirmButton: 'rounded-xl px-6 py-2.5 font-semibold',
+                    },
                 });
             }
 
@@ -335,17 +392,44 @@ const CultureConferenceUI = ({ meetingId, meetingTitle, onLeave, userLocale = 'k
 
         // 🔹 일반 참가자: 그냥 나가기
         const result = await Swal.fire({
-            title: '라이브에서 나가시겠습니까?',
+            title: '벌써 가시게요? 🥺',
+            html: `
+            <div class="text-center">
+                <div class="text-6xl mb-4 animate-bounce">😢</div>
+                <p class="text-gray-600 mb-2">
+                    지금 나가면 <span class="font-bold text-purple-600">이 순간을 놓칠 수도</span> 있어요!
+                </p>
+            </div>
+        `,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#ef4444',
             cancelButtonColor: '#6b7280',
-            confirmButtonText: '예, 나가기',
-            cancelButtonText: '취소',
+            confirmButtonText: '네, 나갈래요 👋',
+            cancelButtonText: '더 볼래요! 🎉',
             reverseButtons: true,
+            customClass: {
+                popup: 'rounded-2xl',
+                title: 'text-2xl font-bold',
+                confirmButton: 'rounded-xl px-6 py-3 font-bold',
+                cancelButton: 'rounded-xl px-6 py-3 font-bold shadow-lg',
+            },
+            backdrop: 'rgba(0, 0, 0, 0.8)',
         });
 
         if (!result.isConfirmed) return;
+
+        // 🔥 부모 창에 나가기 알림 (선택적)
+        if (window.opener && !window.opener.closed) {
+            window.opener.postMessage(
+                {
+                    type: 'USER_LEFT',
+                    meetingId: meetingId,
+                },
+                window.location.origin,
+            );
+            console.log('✅ 부모 창에 사용자 나가기 알림 전송:', meetingId);
+        }
 
         try {
             await room.disconnect();
@@ -361,7 +445,6 @@ const CultureConferenceUI = ({ meetingId, meetingTitle, onLeave, userLocale = 'k
             }
         }, 100);
     };
-
     // =============================
     // 🖥 풀스크린 컨트롤 표시/숨김
     // =============================

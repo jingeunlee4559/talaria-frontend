@@ -78,6 +78,7 @@ const CultureLiveView = () => {
                     status: meeting.status,
                     scheduledAt: meeting.scheduled_at,
                     cultureDesc: meeting.culture_desc,
+                    userRole: meeting.user_role,
                 });
 
                 setLoading(false);
@@ -422,7 +423,8 @@ const CultureLiveView = () => {
                     meetingDesc={meetingData.cultureDesc}
                     isCultureMode={true}
                     onConnected={handleVideoConnected}
-                    isHost={meetingData.userRole === 'HOST'}
+                    // 🔥 isHost 판단 로직 개선
+                    isHost={meetingData.userRole === 'HOST' || (user?.userId && meetingData.hostId === user.userId)}
                 />
             </div>
         </>

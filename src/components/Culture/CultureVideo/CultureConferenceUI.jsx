@@ -59,6 +59,10 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
     // 참가자별 virtualBgId 맵 { identity: 'korean-room' }
     const [virtualBgMap, setVirtualBgMap] = useState({});
 
+    // 🔥 배경 변경 하이라이트 정보
+    const [bgHighlight, setBgHighlight] = useState(null);
+    // { identity, token, category }
+
     // 가상 배경 상태 (카메라 뒤 배경)
     const [virtualBgId, setVirtualBgId] = useState(DEFAULT_VIRTUAL_BG_ID);
     const [pendingVirtualBgId, setPendingVirtualBgId] = useState(DEFAULT_VIRTUAL_BG_ID);
@@ -130,6 +134,16 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
                 ...prev,
                 [data.identity]: data.bgId,
             }));
+
+            // 🔥 수신한 참가자 타일 하이라이트
+            const preset = findVirtualBgPreset(data.bgId);
+            const category = preset?.category || 'basic';
+
+            setBgHighlight({
+                identity: data.identity,
+                token: Date.now(),
+                category,
+            });
         } catch (e) {
             console.error('virtual_bg_change 수신 오류:', e);
         }
@@ -411,7 +425,10 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
                             return [...prev, finalMsg];
                         }
                         const next = [...prev];
-                        next[idx] = { ...next[idx], ...finalMsg };
+                        next[idx] = {
+                            ...next[idx],
+                            ...finalMsg,
+                        };
                         return next;
                     });
 
@@ -426,7 +443,10 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
                         };
                         if (idx === -1) return [...prev, base];
                         const next = [...prev];
-                        next[idx] = { ...next[idx], ...base };
+                        next[idx] = {
+                            ...next[idx],
+                            ...base,
+                        };
                         return next;
                     });
 
@@ -512,18 +532,26 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
 
     const handleApplyVirtualBg = (selectedId) => {
         const finalId = selectedId || DEFAULT_VIRTUAL_BG_ID;
+        const preset = findVirtualBgPreset(finalId);
+        const category = preset?.category || 'basic';
 
         // 1) 내 UI/훅 상태 반영
         setVirtualBgId(finalId);
         setShowVirtualBgModal(false);
 
-        // 2) 내 identity → 선택한 bgId 를 로컬 맵에 반영
+        // 2) 내 identity → 선택한 bgId 를 로컬 맵에 반영 + 하이라이트
         if (room?.localParticipant?.identity) {
             const myId = room.localParticipant.identity;
             setVirtualBgMap((prev) => ({
                 ...prev,
                 [myId]: finalId,
             }));
+
+            setBgHighlight({
+                identity: myId,
+                token: Date.now(),
+                category,
+            });
         }
 
         // 3) DataChannel 로 다른 참가자들에게 브로드캐스트
@@ -568,7 +596,9 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
                             <div
                                 ref={mainContainerRef}
                                 className="h-full rounded-2xl sm:rounded-3xl overflow-hidden bg-black shadow-xl sm:shadow-2xl relative"
-                                style={{ cursor: isFullscreen && !showControls ? 'none' : 'default' }}
+                                style={{
+                                    cursor: isFullscreen && !showControls ? 'none' : 'default',
+                                }}
                             >
                                 <div className="relative w-full h-full flex items-center justify-center bg-black">
                                     {activeEffects.map((effect) => (
@@ -576,7 +606,7 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
                                     ))}
 
                                     <div className="absolute inset-0">
-                                        <CustomVideoGrid virtualBgType={selectedVirtualBg?.type} getFallbackBackgroundUrl={getFallbackBackgroundUrlForParticipant} />
+                                        <CustomVideoGrid virtualBgType={selectedVirtualBg?.type} getFallbackBackgroundUrl={getFallbackBackgroundUrlForParticipant} bgHighlight={bgHighlight} />
                                     </div>
 
                                     {(!isFullscreen || showControls) && (
@@ -652,7 +682,9 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
                                         className={`absolute left-0 right-0 bottom-0 bg-gradient-to-t from-black/95 via-black/80 to-transparent transition-all duration-300 ${
                                             isFullscreen && !showControls ? 'opacity-0 translate-y-full pointer-events-none' : 'opacity-100 translate-y-0'
                                         }`}
-                                        style={{ zIndex: 90 }}
+                                        style={{
+                                            zIndex: 90,
+                                        }}
                                     >
                                         <div className="flex flex-wrap items-center justify-center px-2 sm:px-4 pb-3 sm:pb-4 pt-4 sm:pt-6 gap-1.5 sm:gap-2">
                                             <button
@@ -661,7 +693,7 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
                                                     isMicOn ? 'bg-white text-green-600' : 'bg-white text-red-600'
                                                 }`}
                                             >
-                                                {isMicOn ? <Mic size={18} className="sm:w-5 sm:h-5" /> : <MicOff size={18} className="sm:w-5 sm:h-5" />}
+                                                {isMicOn ? <Mic className="w-4 h-4 sm:w-5 sm:h-5" /> : <MicOff className="w-4 h-4 sm:w-5 sm:h-5" />}
                                             </button>
 
                                             <button
@@ -670,7 +702,7 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
                                                     isCameraOn ? 'bg-white text-green-600' : 'bg-white text-red-600'
                                                 }`}
                                             >
-                                                {isCameraOn ? <Video size={18} className="sm:w-5 sm:h-5" /> : <VideoOff size={18} className="sm:w-5 sm:h-5" />}
+                                                {isCameraOn ? <Video className="w-4 h-4 sm:w-5 sm:h-5" /> : <VideoOff className="w-4 h-4 sm:w-5 sm:h-5" />}
                                             </button>
 
                                             <button
@@ -679,7 +711,7 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
                                                     isScreenSharing ? 'bg-white text-green-600' : 'bg-white text-gray-600'
                                                 }`}
                                             >
-                                                <MonitorUp size={18} className="sm:w-5 sm:h-5" />
+                                                <MonitorUp className="w-4 h-4 sm:w-5 sm:h-5" />
                                             </button>
 
                                             {/* 🔥 카메라 배경 설정 버튼 (모달) */}
@@ -688,7 +720,7 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
                                                 className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white text-purple-600 flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95"
                                                 title="카메라 배경 설정"
                                             >
-                                                <ImageIcon size={18} className="sm:w-5 sm:h-5" />
+                                                <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                                             </button>
 
                                             <button
@@ -697,28 +729,28 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
                                                     showChatSidebar ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white' : 'bg-white text-gray-600'
                                                 }`}
                                             >
-                                                <MessageCircle size={18} className="sm:w-5 sm:h-5" />
+                                                <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                                             </button>
 
                                             <button
                                                 onClick={toggleFullscreen}
                                                 className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white text-gray-600 flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95"
                                             >
-                                                {isFullscreen ? <FiMinimize size={18} /> : <FiMaximize size={18} />}
+                                                {isFullscreen ? <FiMinimize className="w-4 h-4 sm:w-5 sm:h-5" /> : <FiMaximize className="w-4 h-4 sm:w-5 sm:h-5" />}
                                             </button>
 
                                             <button
                                                 onClick={handleCopyLink}
                                                 className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white text-gray-600 flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95"
                                             >
-                                                <FiCopy size={18} />
+                                                <FiCopy className="w-4 h-4 sm:w-5 sm:h-5" />
                                             </button>
 
                                             <button
                                                 onClick={handleLeaveRoom}
                                                 className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-500 text-white flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95"
                                             >
-                                                <PhoneOff size={18} className="sm:w-5 sm:h-5" />
+                                                <PhoneOff className="w-4 h-4 sm:w-5 sm:h-5" />
                                             </button>
                                         </div>
                                     </div>
@@ -839,16 +871,16 @@ const CultureConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR', meet
                 </div>
 
                 <style>{`
-                @keyframes blink { 
-                    0%, 50% { opacity: 1; } 
-                    51%, 100% { opacity: 0; } 
-                }
-                @keyframes floatUp { 
-                    0% { opacity: 1; transform: translateY(0) scale(1); } 
-                    100% { opacity: 0; transform: translateY(-100px) scale(1.5); } 
-                }
-                .animate-blink { animation: blink 1s infinite; }
-            `}</style>
+                    @keyframes blink { 
+                        0%, 50% { opacity: 1; } 
+                        51%, 100% { opacity: 0; } 
+                    }
+                    @keyframes floatUp { 
+                        0% { opacity: 1; transform: translateY(0) scale(1); } 
+                        100% { opacity: 0; transform: translateY(-100px) scale(1.5); } 
+                    }
+                    .animate-blink { animation: blink 1s infinite; }
+                `}</style>
             </div>
         </LayoutContextProvider>
     );

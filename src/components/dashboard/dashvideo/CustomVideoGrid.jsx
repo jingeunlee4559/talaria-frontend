@@ -1,9 +1,44 @@
 // src/components/dashboard/dashvideo/CustomVideoGrid.jsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTracks, ParticipantTile, VideoTrack } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 
-function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl }) {
+function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight }) {
+    const [activeHighlight, setActiveHighlight] = useState(null);
+
+    // 하이라이트 유지 시간 (짧게 0.3초 정도)
+    useEffect(() => {
+        if (!bgHighlight) return;
+
+        setActiveHighlight(bgHighlight);
+
+        const timer = setTimeout(() => {
+            setActiveHighlight(null);
+        }, 320);
+
+        return () => clearTimeout(timer);
+    }, [bgHighlight?.token]);
+
+    // 카테고리별 하이라이트 스타일
+    const getHighlightClasses = (category) => {
+        switch (category) {
+            case 'basic':
+                // 기본: 파란 계열, 안정적인 느낌
+                return 'ring-4 ring-blue-400 shadow-[0_0_24px_rgba(96,165,250,0.9)] scale-[1.02]';
+            case 'culture':
+                // 문화: 핑크/보라, K-컬처/네온 감성
+                return 'ring-4 ring-pink-400 shadow-[0_0_28px_rgba(236,72,153,0.95)] scale-[1.03]';
+            case 'special':
+                // 특별: 노랑/오렌지, 이벤트/파티 느낌
+                return 'ring-4 ring-amber-300 shadow-[0_0_32px_rgba(252,211,77,1)] scale-[1.035]';
+            case 'season':
+                // 계절: 에메랄드/그린, 자연/계절감
+                return 'ring-4 ring-emerald-300 shadow-[0_0_28px_rgba(52,211,153,0.95)] scale-[1.03]';
+            default:
+                return 'ring-0 shadow-md';
+        }
+    };
+
     const tracks = useTracks(
         [
             { source: Track.Source.Camera, withPlaceholder: true },
@@ -139,8 +174,11 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl }) {
 
                     const key = trackRef.publication?.trackSid || trackRef.participant.identity || index;
 
+                    const isHighlighted = activeHighlight?.identity === trackRef.participant.identity;
+                    const highlightClasses = getHighlightClasses(isHighlighted ? activeHighlight.category : null);
+
                     return (
-                        <div key={key} className="relative w-full h-full overflow-hidden rounded-lg bg-black" style={gridColumnStyle}>
+                        <div key={key} className={`relative w-full h-full overflow-hidden rounded-lg bg-black transition-all duration-300 ${highlightClasses}`} style={gridColumnStyle}>
                             {hasVideoTrack ? (
                                 <>
                                     {/* 비가상배경일 때만 블러 레이어 추가 */}

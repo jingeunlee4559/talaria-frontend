@@ -142,7 +142,11 @@ const DashHome = () => {
         if (!user?.userId) return;
 
         try {
-            const res = await api.get(`/api/users/${user.userId}/meetings/all`);
+            const res = await api.get(`/api/users/${user.userId}/meetings/all`, {
+                params: {
+                    mode: 'b',
+                },
+            });
             console.log('회의 데이터:', res.data.items);
 
             if (Array.isArray(res.data.items)) {

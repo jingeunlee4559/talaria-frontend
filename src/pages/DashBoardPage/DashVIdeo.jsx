@@ -491,7 +491,11 @@ const DashVideo = () => {
                 meetingId = response.data.meetings_id || response.data.id;
             }
 
-            const res = await api.get(`/api/users/${user.userId}/meetings/all`);
+            const res = await api.get(`/api/users/${user.userId}/meetings/all`, {
+                    params: {
+                        mode: 'b',
+                    },
+                });
             if (Array.isArray(res.data?.items)) {
                 const formatted = await Promise.all(
                     res.data.items.map(async (m) => {

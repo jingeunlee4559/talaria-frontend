@@ -168,10 +168,14 @@ const DashBoardHeader = ({ setIsMobileSidebarOpen }) => {
     return (
         <header className="sticky top-0 bg-white shadow-md z-10">
             <div className="flex items-center justify-between p-4">
-                <button className="md:hidden text-gray-500 focus:outline-none" onClick={() => setIsMobileSidebarOpen(true)}>
-                    <FiMenu className="text-2xl" />
-                </button>
+                {/* 왼쪽: 모바일 메뉴 버튼 */}
+                <div className="flex items-center gap-3">
+                    <button className="md:hidden text-gray-500 focus:outline-none" onClick={() => setIsMobileSidebarOpen(true)}>
+                        <FiMenu className="text-2xl" />
+                    </button>
+                </div>
 
+                {/* 오른쪽: 알림 + 프로필 */}
                 <div className="flex items-center space-x-4 ml-auto">
                     <div className="relative" ref={notificationRef}>
                         <button className="relative" onClick={() => setIsNotificationOpen((prev) => !prev)}>
@@ -192,6 +196,7 @@ const DashBoardHeader = ({ setIsMobileSidebarOpen }) => {
                             onMarkAllAsRead={handleMarkAllAsRead}
                         />
                     </div>
+
                     <div className="relative" ref={profileRef}>
                         <button
                             onClick={handleProfileClick}

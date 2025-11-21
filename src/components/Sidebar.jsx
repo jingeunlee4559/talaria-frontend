@@ -2,9 +2,10 @@ import React, { useContext } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { FiHome, FiVideo, FiFileText, FiSettings, FiX, FiLogOut } from 'react-icons/fi';
 import Swal from 'sweetalert2';
-import axios from '../axios'; //
+import axios from '../axios';
 import { Calendar } from 'lucide-react';
 import { UserContext } from '../contexts/UserContext';
+import ModeToggle from './common/ModeToggle';
 
 const Sidebar = ({ isOpen, setIsOpen, className }) => {
     const navigate = useNavigate();
@@ -37,8 +38,8 @@ const Sidebar = ({ isOpen, setIsOpen, className }) => {
                 await axios.post('/api/users/logout', {}, { withCredentials: true });
 
                 // ✅ 클라이언트에 저장된 로그인 정보 삭제
-                sessionStorage.removeItem('loggedInUser'); // sessionStorage 사용 시
-                localStorage.removeItem('loggedInUser'); // localStorage 사용 시 필요하면 함께 삭제
+                sessionStorage.removeItem('loggedInUser');
+                localStorage.removeItem('loggedInUser');
 
                 await Swal.fire('로그아웃 완료!', '성공적으로 로그아웃되었습니다.', 'success');
                 setUser(null);
@@ -66,7 +67,7 @@ const Sidebar = ({ isOpen, setIsOpen, className }) => {
                 `}
             >
                 {/* 로고 & 닫기 버튼 */}
-                <div className="flex items-center justify-between mb-8 h-16 border-b border-slate-700/50 pb-4">
+                <div className="flex items-center justify-between mb-4 h-16 border-b border-slate-700/50 pb-4">
                     <div className="flex items-center overflow-hidden">
                         <img src="/img/hermes_logo.jpg" alt="Talaria Logo" className="w-10 h-10 rounded-full object-cover ring-2 ring-indigo-500/50" />
                         <span className="text-2xl font-extrabold text-white ml-3 whitespace-nowrap md:opacity-0 md:w-0 md:group-hover:opacity-100 md:group-hover:w-auto">Talaria</span>
@@ -76,8 +77,13 @@ const Sidebar = ({ isOpen, setIsOpen, className }) => {
                     </button>
                 </div>
 
+                {/* 모드 토글 */}
+                <div className="mb-6 flex justify-center md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                    <ModeToggle />
+                </div>
+
                 {/* 메뉴 리스트 */}
-                <nav className="flex-1 space-y-1 mt-4">
+                <nav className="flex-1 space-y-1">
                     {menuItems.map((item, index) => (
                         <NavLink
                             key={index}

@@ -108,8 +108,8 @@ export const VIRTUAL_BG_PRESETS = [
         category: 'culture',
         label: '한옥 정원',
         description: '전통 한옥과 아름다운 정원',
-        imageUrl: 'https://cdn.travie.com/news/photo/202106/21877_11355_4237.jpg',
-        thumb: 'https://cdn.travie.com/news/photo/202106/21877_11355_4237.jpg',
+        imageUrl: '/virtual-bg/culture/hanokgarden.jpg',
+        thumb: '/virtual-bg/culture/hanokgarden.jpg',
     },
     {
         id: 'gyeongbokgung',
@@ -117,8 +117,8 @@ export const VIRTUAL_BG_PRESETS = [
         category: 'culture',
         label: '경복궁',
         description: '대한민국의 아름다운 궁궐',
-        imageUrl: 'https://hotellemong.com/storage/97c92b9b462f3.png',
-        thumb: 'https://hotellemong.com/storage/97c92b9b462f3.png',
+        imageUrl: '/virtual-bg/culture/kbg.png',
+        thumb: '/virtual-bg/culture/kbg.png',
     },
     {
         id: 'neon-city',
@@ -126,8 +126,8 @@ export const VIRTUAL_BG_PRESETS = [
         category: 'culture',
         label: '네온 시티',
         description: 'K-POP MV 느낌의 네온 도시',
-        imageUrl: 'https://p.turbosquid.com/ts-thumb/13/R2IFI6/zUu1kdr0/1/png/1603141071/1920x1080/fit_q87/ee45c39bfab7587133be46388942d8f587993a55/1.jpg',
-        thumb: 'https://p.turbosquid.com/ts-thumb/13/R2IFI6/zUu1kdr0/1/png/1603141071/1920x1080/fit_q87/ee45c39bfab7587133be46388942d8f587993a55/1.jpg',
+        imageUrl: '/virtual-bg/culture/neon.jpg',
+        thumb: '/virtual-bg/culture/neon.jpg',
     },
     {
         id: 'seoul-night',
@@ -135,8 +135,8 @@ export const VIRTUAL_BG_PRESETS = [
         category: 'culture',
         label: '서울 야경',
         description: '화려한 서울의 밤',
-        imageUrl: 'https://img.hani.co.kr/imgdb/resize/2022/0121/164266180737_20220121.JPG',
-        thumb: 'https://img.hani.co.kr/imgdb/resize/2022/0121/164266180737_20220121.JPG',
+        imageUrl: '/virtual-bg/culture/seolul.jpg',
+        thumb: '/virtual-bg/culture/seolul.jpg',
     },
     // {
     //     id: 'hanbok-gallery',
@@ -151,10 +151,10 @@ export const VIRTUAL_BG_PRESETS = [
         id: 'traditional-temple',
         type: 'image',
         category: 'culture',
-        label: '전통 사찰',
-        description: '고요하고 평화로운 사찰',
-        imageUrl: 'https://www.ynnews.kr/news/photo/202203/183164_121400_191.jpg',
-        thumb: 'https://www.ynnews.kr/news/photo/202203/183164_121400_191.jpg',
+        label: '전통시장',
+        description: '고요하고 평화로운 시장',
+        imageUrl: '/virtual-bg/culture/korean-food.jpg',
+        thumb: '/virtual-bg/culture/korean-food.jpg',
     },
 
     // 일본
@@ -164,8 +164,8 @@ export const VIRTUAL_BG_PRESETS = [
         category: 'culture',
         label: '도쿄 야경',
         description: '화려한 네온빛의 도쿄 시부야',
-        imageUrl: 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=1200&q=80',
-        thumb: 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&q=60',
+        imageUrl: '/virtual-bg/culture/dokyo.jpg',
+        thumb: '/virtual-bg/culture/dokyo.jpg',
     },
 
     // 미국
@@ -174,9 +174,9 @@ export const VIRTUAL_BG_PRESETS = [
         type: 'image',
         category: 'culture',
         label: '뉴욕 야경',
-        description: '잠들지 않는 도시 맨해튼의 밤',
-        imageUrl: 'https://tourimage.interpark.com/BBS/Tour/FckUpload/201404/6353433153040709340.jpg',
-        thumb: 'https://tourimage.interpark.com/BBS/Tour/FckUpload/201404/6353433153040709340.jpg',
+        description: '잠들지 않는 도시 뉴욕의 밤',
+        imageUrl: '/virtual-bg/culture/newyork.jpg',
+        thumb: '/virtual-bg/culture/newyork.jpg',
     },
 
     // 유럽
@@ -186,8 +186,8 @@ export const VIRTUAL_BG_PRESETS = [
         category: 'culture',
         label: '파리 야경',
         description: '낭만의 도시 파리와 에펠탑의 밤',
-        imageUrl: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1200&q=80',
-        thumb: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=400&q=60',
+        imageUrl: '/virtual-bg/culture/parycity.jpg',
+        thumb: '/virtual-bg/culture/parycity.jpg',
     },
 
     // ==================== 특별 ====================
@@ -197,8 +197,8 @@ export const VIRTUAL_BG_PRESETS = [
         category: 'special',
         label: '콘서트 스테이지',
         description: '화려한 조명과 스테이지 배경',
-        imageUrl: 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=1200&q=80',
-        thumb: 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400&q=60',
+        imageUrl: '/virtual-bg/special/concert.jpg',
+        thumb: '/virtual-bg/special/concert.jpg',
     },
 
     {
@@ -207,8 +207,8 @@ export const VIRTUAL_BG_PRESETS = [
         category: 'special',
         label: '포켓몬 워터 파크',
         description: '신나게 물놀이하는 귀여운 포켓몬들',
-        imageUrl: 'https://p4.wallpaperbetter.com/wallpaper/451/804/949/pokemon-bulbasaur-pokemon-marill-pokemon-pikachu-wallpaper-preview.jpg',
-        thumb: 'https://p4.wallpaperbetter.com/wallpaper/451/804/949/pokemon-bulbasaur-pokemon-marill-pokemon-pikachu-wallpaper-preview.jpg',
+        imageUrl: '/virtual-bg/special/pokemonfriends.jpg',
+        thumb: '/virtual-bg/special/pokemonfriends.jpg',
     },
 
     {
@@ -217,8 +217,8 @@ export const VIRTUAL_BG_PRESETS = [
         category: 'special',
         label: '잠자는 잠만보',
         description: '공원에서 평화롭게 꿀잠 자는 귀여운 포켓몬',
-        imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQD4dW84DrC-RN-7XQ5-VlzZ9g6v_Tn1u4lFQ&s',
-        thumb: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQD4dW84DrC-RN-7XQ5-VlzZ9g6v_Tn1u4lFQ&s',
+        imageUrl: '/virtual-bg/special/jammanbo.jpg',
+        thumb: '/virtual-bg/special/jammanbo.jpg',
     },
 
     {
@@ -227,8 +227,8 @@ export const VIRTUAL_BG_PRESETS = [
         category: 'special',
         label: '생일 파티',
         description: '축하 분위기의 파티 배경',
-        imageUrl: 'https://img.pikbest.com/backgrounds/20250319/happy-birthday-party-backgrounds-beautiful-designs-for-every_11609675.jpg!w700wp',
-        thumb: 'https://img.pikbest.com/backgrounds/20250319/happy-birthday-party-backgrounds-beautiful-designs-for-every_11609675.jpg!w700wp',
+        imageUrl: '/virtual-bg/special/birthday-party.jpg',
+        thumb: '/virtual-bg/special/birthday-party.jpg',
     },
 
     {
@@ -237,8 +237,8 @@ export const VIRTUAL_BG_PRESETS = [
         category: 'special',
         label: '불꽃놀이',
         description: '화려한 불꽃이 터지는 밤',
-        imageUrl: 'https://www.hanwha.co.kr/upload/news/press/2025/08/28/1756346155963_58.jpg',
-        thumb: 'https://www.hanwha.co.kr/upload/news/press/2025/08/28/1756346155963_58.jpg',
+        imageUrl: '/virtual-bg/special/fireflower.jpg',
+        thumb: '/virtual-bg/special/fireflower.jpg',
     },
     {
         id: 'red-carpet',
@@ -246,8 +246,8 @@ export const VIRTUAL_BG_PRESETS = [
         category: 'special',
         label: '레드 카펫',
         description: 'VIP 행사 분위기',
-        imageUrl: 'https://png.pngtree.com/thumb_back/fw800/background/20230520/pngtree-red-carpet-for-red-carpet-awards-ceremony-image_2659882.jpg',
-        thumb: 'https://png.pngtree.com/thumb_back/fw800/background/20230520/pngtree-red-carpet-for-red-carpet-awards-ceremony-image_2659882.jpg',
+        imageUrl: '/virtual-bg/special/redcafet.jpg',
+        thumb: '/virtual-bg/special/redcafet.jpg',
     },
 
     // ==================== 계절 - 봄 ====================
@@ -257,8 +257,8 @@ export const VIRTUAL_BG_PRESETS = [
         category: 'season',
         label: '봄 정원',
         description: '벚꽃이 피어있는 따뜻한 봄 정원',
-        imageUrl: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?w=1200&q=80',
-        thumb: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?w=400&q=60',
+        imageUrl: '/virtual-bg/season/springgarden.jpg',
+        thumb: '/virtual-bg/season/springgarden.jpg',
     },
     {
         id: 'cherry-blossom',
@@ -266,8 +266,8 @@ export const VIRTUAL_BG_PRESETS = [
         category: 'season',
         label: '벚꽃 터널',
         description: '만개한 벚꽃이 만드는 로맨틱한 터널',
-        imageUrl: 'https://images.unsplash.com/photo-1522383225653-ed111181a951?w=1200&q=80',
-        thumb: 'https://images.unsplash.com/photo-1522383225653-ed111181a951?w=400&q=60',
+        imageUrl: '/virtual-bg/season/cheeryblossom.jpg',
+        thumb: '/virtual-bg/season/cheeryblossom.jpg',
     },
     {
         id: 'spring-field',
@@ -275,8 +275,8 @@ export const VIRTUAL_BG_PRESETS = [
         category: 'season',
         label: '봄 공원',
         description: '신록이 가득한 싱그러운 공원',
-        imageUrl: 'https://vrthumb.clipartkorea.co.kr/2020/11/09/cm080926648.jpg',
-        thumb: 'https://vrthumb.clipartkorea.co.kr/2020/11/09/cm080926648.jpg',
+        imageUrl: '/virtual-bg/season/springfield.jpg',
+        thumb: '/virtual-bg/season/springfield.jpg',
     },
 
     // ==================== 계절 - 여름 ====================
@@ -286,8 +286,8 @@ export const VIRTUAL_BG_PRESETS = [
         category: 'season',
         label: '여름 해변',
         description: '시원한 파도가 밀려오는 해변',
-        imageUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=80',
-        thumb: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&q=60',
+        imageUrl: '/virtual-bg/season/summerbeach.jpg',
+        thumb: '/virtual-bg/season/summerbeach.jpg',
     },
 
     {
@@ -296,8 +296,8 @@ export const VIRTUAL_BG_PRESETS = [
         category: 'season',
         label: '여름 노을',
         description: '따뜻한 색감의 여름 석양',
-        imageUrl: 'https://kkoma.net/web/product/big/202007/7a3565996cb085fcd4cf7e56f7a422b7.jpg',
-        thumb: 'https://kkoma.net/web/product/big/202007/7a3565996cb085fcd4cf7e56f7a422b7.jpg',
+        imageUrl: '/virtual-bg/season/summersunset.jpg',
+        thumb: '/virtual-bg/season/summersunset.jpg',
     },
 
     // ==================== 계절 - 가을 ====================
@@ -307,8 +307,8 @@ export const VIRTUAL_BG_PRESETS = [
         category: 'season',
         label: '가을 숲',
         description: '단풍으로 물든 아름다운 숲',
-        imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSS6JkoKVdn1NyvxZMlLNyg1RXrlzvGLiIGLg&s',
-        thumb: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSS6JkoKVdn1NyvxZMlLNyg1RXrlzvGLiIGLg&s',
+        imageUrl: '/virtual-bg/season/autumnforest.jpg',
+        thumb: '/virtual-bg/season/autumnforest.jpg',
     },
 
     {
@@ -317,8 +317,8 @@ export const VIRTUAL_BG_PRESETS = [
         category: 'season',
         label: '가을 공원',
         description: '노란 은행잎이 가득한 공원',
-        imageUrl: 'https://img.freepik.com/free-photo/autumn-scenery_1204-343.jpg?semt=ais_incoming&w=740&q=80',
-        thumb: 'https://img.freepik.com/free-photo/autumn-scenery_1204-343.jpg?semt=ais_incoming&w=740&q=80',
+        imageUrl: '/virtual-bg/season/autompark.avif',
+        thumb: '/virtual-bg/season/autompark.avif',
     },
 
     // ==================== 계절 - 겨울 ====================
@@ -328,8 +328,8 @@ export const VIRTUAL_BG_PRESETS = [
         category: 'season',
         label: '겨울 마을',
         description: '눈 내리는 아늑한 겨울 마을',
-        imageUrl: 'https://rimage.gnst.jp/livejapan.com/public/article/detail/a/30/00/a3000252/img/ko/a3000252_main.jpg',
-        thumb: 'https://rimage.gnst.jp/livejapan.com/public/article/detail/a/30/00/a3000252/img/ko/a3000252_main.jpg',
+        imageUrl: '/virtual-bg/season/wintervilige.webp',
+        thumb: '/virtual-bg/season/wintervilige.webp',
     },
     {
         id: 'snowy-forest',
@@ -337,8 +337,8 @@ export const VIRTUAL_BG_PRESETS = [
         category: 'season',
         label: '눈 덮인 숲',
         description: '하얀 눈으로 덮인 고요한 숲',
-        imageUrl: 'https://img.freepik.com/premium-photo/christmas-snowy-landscape-background-with-snow-drifts-hills-snowcovered-blurred-forest_434420-2226.jpg',
-        thumb: 'https://img.freepik.com/premium-photo/christmas-snowy-landscape-background-with-snow-drifts-hills-snowcovered-blurred-forest_434420-2226.jpg',
+        imageUrl: '/virtual-bg/season/winterforest.avif',
+        thumb: '/virtual-bg/season/winterforest.avif',
     },
     {
         id: 'winter-night',
@@ -346,8 +346,8 @@ export const VIRTUAL_BG_PRESETS = [
         category: 'season',
         label: '겨울 밤',
         description: '별빛과 눈이 빛나는 겨울밤',
-        imageUrl: 'https://img.freepik.com/premium-photo/winter-landscape-with-snow-mountains_146671-11736.jpg?semt=ais_incoming&w=740&q=80',
-        thumb: 'https://img.freepik.com/premium-photo/winter-landscape-with-snow-mountains_146671-11736.jpg?semt=ais_incoming&w=740&q=80',
+        imageUrl: '/virtual-bg/season/winternight.avif',
+        thumb: '/virtual-bg/season/winternight.avif',
     },
     {
         id: 'winter-city',
@@ -355,8 +355,8 @@ export const VIRTUAL_BG_PRESETS = [
         category: 'season',
         label: '겨울 도시',
         description: '크리스마스 조명이 반짝이는 도시',
-        imageUrl: 'https://img4.daumcdn.net/thumb/R658x0.q70/?fname=https://t1.daumcdn.net/news/202312/05/flybemagazine/20231205165213244npul.jpg',
-        thumb: 'https://img4.daumcdn.net/thumb/R658x0.q70/?fname=https://t1.daumcdn.net/news/202312/05/flybemagazine/20231205165213244npul.jpg',
+        imageUrl: '/virtual-bg/season/wintercity.jpg',
+        thumb: '/virtual-bg/season/wintercity.jpg',
     },
     {
         id: 'frozen-lake',
@@ -364,8 +364,8 @@ export const VIRTUAL_BG_PRESETS = [
         category: 'season',
         label: '얼어붙은 호수',
         description: '신비로운 겨울 호수',
-        imageUrl: 'https://st3.depositphotos.com/13400056/17949/i/450/depositphotos_179494834-stock-photo-frozen-lake-in-snowy-forest.jpg',
-        thumb: 'https://st3.depositphotos.com/13400056/17949/i/450/depositphotos_179494834-stock-photo-frozen-lake-in-snowy-forest.jpg',
+        imageUrl: '/virtual-bg/season/winterlake.avif',
+        thumb: '/virtual-bg/season/winterlake.avif',
     },
 ];
 

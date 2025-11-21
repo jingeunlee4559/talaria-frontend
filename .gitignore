@@ -63,7 +63,6 @@ pnpm-debug.log*
 *.old
 .env.*
 **.idea
-/public/img
 
 __pycache__/
 *.pyc

@@ -207,19 +207,6 @@ const CultureVideos = () => {
     }, [fetchMeetingsData]);
 
     // ==========================
-    // 🔥 선택적: 주기적 자동 갱신 (30초마다)
-    // ==========================
-    useEffect(() => {
-        // 30초마다 자동 갱신
-        const interval = setInterval(() => {
-            console.log('🔄 자동 리스트 갱신 (30초)');
-            fetchMeetingsData();
-        }, 30000); // 30초
-
-        return () => clearInterval(interval);
-    }, [fetchMeetingsData]);
-
-    // ==========================
     // 비공개 비밀번호 모달 상태
     // ==========================
     const [passwordModal, setPasswordModal] = useState({

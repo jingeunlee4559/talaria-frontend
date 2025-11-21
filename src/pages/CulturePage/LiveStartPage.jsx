@@ -117,8 +117,7 @@ const LiveStartPage = () => {
         const fd = new FormData();
         fd.append('file', thumbnailFile);
 
-        // TODO: 백엔드 실제 경로에 맞게 수정
-        const res = await api.post('/api/assets/culture-thumb', fd, {
+        const res = await api.post('/api/assets/api/assets/culture-thumb', fd, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },

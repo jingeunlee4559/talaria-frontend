@@ -56,6 +56,7 @@ const CultureConferenceUI = ({ meetingId, meetingTitle, onLeave, userLocale = 'k
 
     const { send: sendTheme } = useDataChannel('theme_change');
     const { send: sendVirtualBg } = useDataChannel('virtual_bg_change');
+    const { send: sendMeetingControl } = useDataChannel('meeting_control');
 
     // 참가자별 virtualBgId 맵 { identity: 'korean-room' }
     const [virtualBgMap, setVirtualBgMap] = useState({});
@@ -147,6 +148,62 @@ const CultureConferenceUI = ({ meetingId, meetingTitle, onLeave, userLocale = 'k
             });
         } catch (e) {
             console.error('virtual_bg_change 수신 오류:', e);
+        }
+    });
+
+    // =============================
+    // 🔔 방 종료 신호 수신 (모든 참가자)
+    // =============================
+    useDataChannel('meeting_control', (msg) => {
+        try {
+            const text = new TextDecoder().decode(msg.payload);
+            const data = JSON.parse(text);
+
+            if (data.type === 'HOST_ENDED_MEETING') {
+                console.log('🔴 호스트가 방을 종료했습니다!');
+
+                // 참가자들에게 알림
+                Swal.fire({
+                    icon: 'info',
+                    title: '라이브가 종료되었어요! 👋',
+                    html: `
+                    <div class="text-center">
+                        <div class="text-6xl mb-4">✨</div>
+                        <p class="text-gray-600">
+                            호스트가 라이브를 종료했습니다.
+                        </p>
+                        <p class="text-gray-500 text-sm mt-2">
+                            다음에 또 만나요~ 💖
+                        </p>
+                    </div>
+                `,
+                    timer: 3000,
+                    showConfirmButton: false,
+                    allowOutsideClick: false,
+                    customClass: {
+                        popup: 'rounded-2xl',
+                    },
+                });
+
+                // 3초 후 자동으로 방 나가기
+                setTimeout(async () => {
+                    try {
+                        await room.disconnect();
+                    } catch (error) {
+                        console.error('⚠️ Error disconnecting:', error);
+                    }
+
+                    onLeave && onLeave();
+                    window.close();
+                    setTimeout(() => {
+                        if (!window.closed) {
+                            window.history.back();
+                        }
+                    }, 100);
+                }, 3000);
+            }
+        } catch (e) {
+            console.error('meeting_control 수신 오류:', e);
         }
     });
 
@@ -320,7 +377,19 @@ const CultureConferenceUI = ({ meetingId, meetingTitle, onLeave, userLocale = 'k
             if (!result.isConfirmed) return;
 
             try {
-                // 🔥 서버에 ENDED 처리
+                // 🔥 1) 모든 참가자에게 종료 신호 브로드캐스트 (먼저!)
+                if (sendMeetingControl) {
+                    const payload = {
+                        type: 'HOST_ENDED_MEETING',
+                        meetingId: meetingId,
+                        timestamp: Date.now(),
+                    };
+                    const encoder = new TextEncoder();
+                    sendMeetingControl(encoder.encode(JSON.stringify(payload)));
+                    console.log('✅ 모든 참가자에게 종료 신호 전송');
+                }
+
+                // 🔥 2) 서버에 ENDED 처리
                 await api.patch(`/api/users/${user.userId}/meetings/${meetingId}/end`);
 
                 await Swal.fire({
@@ -341,7 +410,7 @@ const CultureConferenceUI = ({ meetingId, meetingTitle, onLeave, userLocale = 'k
                     },
                 });
 
-                // 🔥 부모 창에 종료 알림 (PostMessage)
+                // 🔥 3) 부모 창에 종료 알림 (PostMessage)
                 if (window.opener && !window.opener.closed) {
                     window.opener.postMessage(
                         {
@@ -390,7 +459,7 @@ const CultureConferenceUI = ({ meetingId, meetingTitle, onLeave, userLocale = 'k
             return;
         }
 
-        // 🔹 일반 참가자: 그냥 나가기
+        // 🔹 일반 참가자: 그냥 나가기 (기존 코드 유지)
         const result = await Swal.fire({
             title: '벌써 가시게요? 🥺',
             html: `

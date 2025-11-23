@@ -1,9 +1,9 @@
 // src/components/dashboard/dashDoc/DocumentModal.jsx
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import api from '../../../axios';
 import { CopyIcon, CloseIcon, AIIcon, SearchIcon, ParticipantsIcon, DurationIcon, CalendarIcon } from '../../icons/icons';
 import Swal from 'sweetalert2';
-import { LanguagesIcon } from 'lucide-react';
+import { LanguagesIcon, Sparkles, CheckCircle2, ListTodo } from 'lucide-react';
 
 /* =========================
    공통 유틸
@@ -27,22 +27,14 @@ const normalizeId = (id) => {
 
 /* =========================
    서버 응답 정규화
-   - 번역문 단건 컨텐츠: GET /api/users/{userId}/trans-docs/req/{requestId}
-   - 원문 컨텐츠:       GET /api/users/{userId}/documents/{docId}/content
-   다양한 키에 유연 대응
 ========================= */
 const normalizeContent = (raw = {}, itemData = {}) => {
-    // 원문/번역 텍스트 필드 유연 파싱
     const original_content = raw.original_content ?? raw.originalText ?? raw.original_text ?? raw.original?.content ?? raw.original ?? '';
-
     const translated_content = raw.translated_content ?? raw.translatedText ?? raw.translated_text ?? raw.translated?.content ?? raw.translated ?? '';
 
-    // 번역 여부
     const has_translation = typeof raw.has_translation === 'boolean' ? raw.has_translation : Boolean((translated_content ?? '').toString().trim());
 
-    // 언어
     const translated_lang = raw.translated_lang ?? raw.target_lang ?? raw.target_language ?? itemData.toLang ?? itemData.target_language ?? null;
-
     const original_lang = raw.original_lang ?? itemData.fromLang ?? null;
 
     return {
@@ -118,109 +110,223 @@ const DocumentView = ({ originalContent, translatedContent, hasTranslation, isSy
 };
 
 /* =========================
-   회의록 뷰(디자인 개선)
+   회의록 뷰 + AI 코치 카드
 ========================= */
-const MinutesView = ({ minutes }) => (
-    <div className="flex flex-col flex-grow overflow-y-auto bg-gray-50 scrollbar-thin scrollbar-thumb-slate-400 scrollbar-track-gray-100">
-        <div className="p-4 flex items-center text-sm text-slate-600 border-b border-slate-200 bg-white sticky top-0 z-10">
-            <span className="font-medium mr-5 flex items-center gap-1.5">
-                <CalendarIcon className="w-4 h-4" />
-                {minutes.date}
-            </span>
-            <span className="font-medium mr-5 flex items-center gap-1.5">
-                <DurationIcon className="w-4 h-4" />
-                {minutes.duration}
-            </span>
-            <span className="font-medium flex items-center gap-1.5">
-                <ParticipantsIcon className="w-4 h-4" />
-                {minutes.participants}명
-            </span>
-        </div>
+const MinutesView = ({ minutes, aiCoach }) => {
+    const decisions = minutes.aiSummary?.decisions || [];
+    const actionItems = minutes.aiSummary?.actionItems || [];
+    const topics = minutes.topics || [];
 
-        <div className="p-8 grid grid-cols-1 gap-6">
-            <div className="rounded-xl p-5 border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 shadow-sm">
-                <h3 className="text-xl font-bold flex items-center text-blue-900 mb-4 gap-2">
-                    <AIIcon className="w-5 h-5" /> AI 회의 요약
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                    <div>
-                        <h4 className="font-semibold text-base text-slate-800 mb-2 pb-1">결정 사항</h4>
-                        <ul className="list-disc pl-5 text-slate-700 space-y-1.5 text-sm">
-                            {minutes.aiSummary.decisions.map((d, i) => (
-                                <li key={i}>{d}</li>
-                            ))}
-                        </ul>
-                    </div>
-                    <div>
-                        <h4 className="font-semibold text-base text-slate-800 mb-2 pb-1">Action Items</h4>
-                        <ul className="text-slate-700 space-y-2 text-sm">
-                            {minutes.aiSummary.actionItems.map((a, i) => (
-                                <li key={i} className="flex items-start">
-                                    <span className="font-medium text-slate-900 mr-2 flex-shrink-0 w-[80px] truncate">{a.owner}:</span>
-                                    <span className="flex-grow text-slate-700">{a.task}</span>
-                                    <span className="text-red-600 ml-2 flex-shrink-0 text-xs font-medium mt-0.5">({a.deadline})</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                </div>
+    return (
+        <div className="flex flex-col flex-grow overflow-y-auto bg-gray-50 scrollbar-thin scrollbar-thumb-slate-400 scrollbar-track-gray-100">
+            {/* 상단 메타 정보 */}
+            <div className="p-4 flex items-center text-sm text-slate-600 border-b border-slate-200 bg-white sticky top-0 z-10">
+                <span className="font-medium mr-5 flex items-center gap-1.5">
+                    <CalendarIcon className="w-4 h-4" />
+                    {minutes.date}
+                </span>
+                <span className="font-medium mr-5 flex items-center gap-1.5">
+                    <DurationIcon className="w-4 h-4" />
+                    {minutes.duration}
+                </span>
+                <span className="font-medium flex items-center gap-1.5">
+                    <ParticipantsIcon className="w-4 h-4" />
+                    {minutes.participants}명
+                </span>
             </div>
 
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                <h3 className="text-lg font-semibold text-slate-900 mb-3">주요 주제</h3>
-                <div className="flex flex-wrap gap-2">
-                    {minutes.topics.map((topic, i) => (
-                        <span
-                            key={i}
-                            className="px-3 py-1 bg-indigo-100 text-indigo-800 text-sm font-medium rounded-full cursor-pointer transition-all duration-200 hover:bg-indigo-200 hover:shadow-md transform"
-                        >
-                            {topic}
-                        </span>
-                    ))}
-                </div>
-            </div>
-
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">대화 기록</h3>
-                <div className="relative mb-4">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <SearchIcon className="text-slate-400 w-5 h-5" />
-                    </div>
-                    <input
-                        type="text"
-                        placeholder="스크립트 내 검색..."
-                        className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition shadow-sm bg-white focus:bg-white"
-                    />
-                </div>
-
-                <div className="border-t border-slate-100">
-                    {minutes.transcript.map((t, i) => (
-                        <div key={i} className="group flex items-start p-3 transition-colors hover:bg-slate-100/70 border-b border-slate-100 last:border-b-0">
-                            <div
-                                className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white mr-3 mt-0.5 
-                  ${t.speaker === '김' ? 'bg-green-500' : t.speaker === 'J' ? 'bg-blue-500' : t.speaker === '田' ? 'bg-red-500' : 'bg-gray-500'}`}
-                            >
-                                {t.speaker}
+            <div className="p-8 grid grid-cols-1 gap-6">
+                {/* 🔹 AI 요약 카드 (리디자인) */}
+                <div className="rounded-xl p-5 border border-sky-200 bg-gradient-to-br from-sky-50 via-white to-indigo-50 shadow-sm">
+                    <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                            <div className="inline-flex h-9 w-9 rounded-full bg-sky-500/10 text-sky-600 items-center justify-center">
+                                <AIIcon className="w-5 h-5" />
                             </div>
-                            <div className="flex-grow">
-                                <div className="flex items-center mb-1">
-                                    <span className="font-bold text-slate-800 mr-2">{t.speaker === 'J' ? 'John Smith' : t.speaker === '田' ? '田中太郎' : t.speaker === '김' ? '김철수' : '기타'}</span>
-                                    <span
-                                        className="text-xs text-blue-600 font-medium cursor-pointer hover:underline md:opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                                        onClick={() => console.log(`Seek to ${t.timestamp}`)}
-                                    >
-                                        {t.timestamp}
-                                    </span>
-                                </div>
-                                <p className="text-sm text-slate-700 leading-relaxed">{t.text}</p>
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-900">AI 회의 요약</h3>
+                                <p className="text-xs text-slate-500 mt-0.5">결정·Action Item·주요 주제를 한눈에 정리한 자동 요약입니다.</p>
                             </div>
                         </div>
-                    ))}
+                        <div className="flex flex-wrap gap-1.5 text-[11px]">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-sky-100 text-sky-700 font-semibold">결정 {decisions.length}개</span>
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 font-semibold">Action Item {actionItems.length}개</span>
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-700 font-semibold">주제 {topics.length}개</span>
+                        </div>
+                    </div>
+
+                    {/* 한 줄 요약 */}
+                    <p className="text-sm text-slate-700 bg-white/60 border border-slate-100 rounded-lg px-3 py-2 mb-4">
+                        이번 회의는 <span className="font-semibold text-slate-900">{topics.length > 0 ? `"${topics.join(', ')}"` : '핵심 아젠다'}</span>를 중심으로 진행되었고, 총{' '}
+                        <span className="font-semibold text-slate-900">{minutes.participants}명</span>이 참여했습니다.
+                    </p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* 결정 사항 */}
+                        <div className="bg-white/70 rounded-xl border border-slate-200/60 p-4 shadow-[0_1px_4px_rgba(15,23,42,0.06)]">
+                            <div className="flex items-center gap-2 mb-2.5">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                <h4 className="font-semibold text-slate-900 text-sm">결정 사항</h4>
+                            </div>
+                            <ul className="space-y-1.5 text-xs sm:text-sm text-slate-700 list-disc list-inside">
+                                {decisions.map((d, i) => (
+                                    <li key={i}>{d}</li>
+                                ))}
+                                {decisions.length === 0 && <li className="text-slate-400">등록된 결정 사항이 없습니다.</li>}
+                            </ul>
+                        </div>
+
+                        {/* Action Items */}
+                        <div className="bg-white/70 rounded-xl border border-slate-200/60 p-4 shadow-[0_1px_4px_rgba(15,23,42,0.06)]">
+                            <div className="flex items-center gap-2 mb-2.5">
+                                <ListTodo className="w-4 h-4 text-indigo-500" />
+                                <h4 className="font-semibold text-slate-900 text-sm">Action Items</h4>
+                            </div>
+                            <ul className="space-y-2 text-xs sm:text-sm text-slate-700">
+                                {actionItems.map((a, i) => (
+                                    <li key={i} className="flex items-start gap-2">
+                                        <span className="font-medium text-slate-900 flex-shrink-0 w-[80px] truncate">{a.owner}</span>
+                                        <span className="flex-grow">{a.task}</span>
+                                        <span className="flex-shrink-0 text-[11px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full mt-0.5">{a.deadline}</span>
+                                    </li>
+                                ))}
+                                {actionItems.length === 0 && <li className="text-slate-400">등록된 Action Item이 없습니다.</li>}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 🔹 AI 회의 코치 카드 (리스크 / 개선 / 다음 액션) */}
+                {aiCoach && (
+                    <div className="relative rounded-2xl p-5 bg-gradient-to-br from-indigo-600 via-violet-600 to-sky-500 text-white shadow-lg overflow-hidden">
+                        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top,_#ffffff,_transparent_55%)]" />
+                        <div className="relative">
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                    <div className="inline-flex h-8 w-8 rounded-full bg-white/15 items-center justify-center">
+                                        <Sparkles className="w-4 h-4" />
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-semibold tracking-[0.14em] uppercase text-indigo-100">AI Meeting Coach</p>
+                                        <p className="text-sm font-semibold text-white">이번 회의에 대한 코칭 리포트</p>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col items-end gap-1">
+                                    <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/15 text-[11px] font-medium">
+                                        <span className={`h-2 w-2 rounded-full ${aiCoach.riskLevel === '높음' ? 'bg-rose-300' : aiCoach.riskLevel === '보통' ? 'bg-amber-300' : 'bg-emerald-300'}`} />
+                                        리스크 레벨: {aiCoach.riskLevel}
+                                    </span>
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/15 text-[11px] font-semibold">
+                                        회의 점수 <span className="text-yellow-300">{aiCoach.meetingScore}</span> / 100
+                                    </span>
+                                </div>
+                            </div>
+
+                            <p className="text-sm text-indigo-50/90 mb-4 leading-relaxed">{aiCoach.summary}</p>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs sm:text-sm">
+                                {/* 리스크 */}
+                                <div>
+                                    <h4 className="font-semibold mb-1.5 flex items-center gap-1">
+                                        <span className="h-1.5 w-1.5 rounded-full bg-rose-300" />
+                                        리스크 포인트
+                                    </h4>
+                                    <ul className="space-y-1.5 text-indigo-50/95 list-disc list-inside">
+                                        {aiCoach.risks.map((s, i) => (
+                                            <li key={i}>{s}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                                {/* 개선 제안 */}
+                                <div>
+                                    <h4 className="font-semibold mb-1.5 flex items-center gap-1">
+                                        <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
+                                        개선 제안
+                                    </h4>
+                                    <ul className="space-y-1.5 text-indigo-50/95 list-disc list-inside">
+                                        {aiCoach.improvements.map((s, i) => (
+                                            <li key={i}>{s}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                                {/* 다음 액션 */}
+                                <div>
+                                    <h4 className="font-semibold mb-1.5 flex items-center gap-1">
+                                        <span className="h-1.5 w-1.5 rounded-full bg-sky-300" />
+                                        다음 액션 제안
+                                    </h4>
+                                    <ul className="space-y-1.5 text-indigo-50/95 list-disc list-inside">
+                                        {aiCoach.nextSteps.map((s, i) => (
+                                            <li key={i}>{s}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* 주요 주제 */}
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                    <h3 className="text-lg font-semibold text-slate-900 mb-3">주요 주제</h3>
+                    <div className="flex flex-wrap gap-2">
+                        {topics.map((topic, i) => (
+                            <span
+                                key={i}
+                                className="px-3 py-1 bg-indigo-100 text-indigo-800 text-sm font-medium rounded-full cursor-pointer transition-all duration-200 hover:bg-indigo-200 hover:shadow-md transform"
+                            >
+                                {topic}
+                            </span>
+                        ))}
+                        {topics.length === 0 && <span className="text-sm text-slate-400">등록된 주제가 없습니다.</span>}
+                    </div>
+                </div>
+
+                {/* 대화 기록 */}
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                    <h3 className="text-lg font-semibold text-slate-900 mb-4">대화 기록</h3>
+                    <div className="relative mb-4">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <SearchIcon className="text-slate-400 w-5 h-5" />
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="스크립트 내 검색..."
+                            className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition shadow-sm bg-white focus:bg-white"
+                        />
+                    </div>
+
+                    <div className="border-t border-slate-100">
+                        {minutes.transcript.map((t, i) => (
+                            <div key={i} className="group flex items-start p-3 transition-colors hover:bg-slate-100/70 border-b border-slate-100 last:border-b-0">
+                                <div
+                                    className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white mr-3 mt-0.5 
+                  ${t.speaker === '김' ? 'bg-green-500' : t.speaker === 'J' ? 'bg-blue-500' : t.speaker === '田' ? 'bg-red-500' : 'bg-gray-500'}`}
+                                >
+                                    {t.speaker}
+                                </div>
+                                <div className="flex-grow">
+                                    <div className="flex items-center mb-1">
+                                        <span className="font-bold text-slate-800 mr-2">
+                                            {t.speaker === 'J' ? 'John Smith' : t.speaker === '田' ? '田中太郎' : t.speaker === '김' ? '김철수' : '기타'}
+                                        </span>
+                                        <span
+                                            className="text-xs text-blue-600 font-medium cursor-pointer hover:underline md:opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                                            onClick={() => console.log(`Seek to ${t.timestamp}`)}
+                                        >
+                                            {t.timestamp}
+                                        </span>
+                                    </div>
+                                    <p className="text-sm text-slate-700 leading-relaxed">{t.text}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
 /* =========================
    메인 모달
@@ -231,7 +337,16 @@ const DocumentModal = ({ isOpen, onClose, itemData }) => {
     const [loading, setLoading] = useState(false);
     const [translating, setTranslating] = useState(false);
 
-    // 컨텐츠 URL (요구사항에 맞춰 번역문서는 request_id 단건 컨텐츠 엔드포인트 사용)
+    // 회의록용 AI 코치: mockMinutes.aiCoach 사용
+    const aiCoach = useMemo(() => {
+        if (!itemData) return null;
+        if (itemData.type === 'minutes' || itemData.itemType === 'minutes') {
+            return itemData.aiCoach || null;
+        }
+        return null;
+    }, [itemData]);
+
+    // 문서 콘텐츠 URL
     const buildContentUrl = (userId, item) => {
         if (!item) return null;
 
@@ -241,12 +356,12 @@ const DocumentModal = ({ isOpen, onClose, itemData }) => {
             return `/api/users/${item.userId || userId}/documents/${docId}/content`;
         }
 
-        // 번역문: /trans-docs/req/{requestId}  ← 단건 컨텐츠 엔드포인트(요청대로 /content 없음)
+        // 번역문: /trans-docs/req/{requestId}
         if (item.type === 'translated' && item.request_id) {
             return `/api/users/${item.userId || userId}/trans-docs/req/${item.request_id}`;
         }
 
-        // (옵션) 백엔드가 지원하면 original_doc_id+target_language 쿼리 방식도 가능
+        // (옵션) original_doc_id + target_language 조합
         if (item.type === 'translated' && item.original_doc_id && item.target_language) {
             return `/api/users/${item.userId || userId}/trans-docs/content?original_doc_id=${item.original_doc_id}&target_language=${encodeURIComponent(item.target_language)}`;
         }
@@ -254,7 +369,7 @@ const DocumentModal = ({ isOpen, onClose, itemData }) => {
         return null;
     };
 
-    // 파일 내용 로드
+    // 파일 내용 로드 (문서일 때만)
     useEffect(() => {
         if (!isOpen || !itemData || itemData.itemType !== 'document') {
             setDocumentContent(null);
@@ -294,7 +409,7 @@ const DocumentModal = ({ isOpen, onClose, itemData }) => {
         fetchContent();
     }, [isOpen, itemData]);
 
-    // 번역 시작(샘플; 실제 API로 교체)
+    // 번역 시작(데모)
     const handleTranslate = async (targetLang) => {
         if (translating) return;
 
@@ -318,7 +433,7 @@ const DocumentModal = ({ isOpen, onClose, itemData }) => {
         toast('번역을 시작합니다...', 'info');
 
         try {
-            // 실제 번역 API로 교체:
+            // 실제 번역 API 예시:
             // await api.post(`/api/users/${itemData.userId}/documents/${normalizeId(itemData.id)}/translate`, { target_lang: targetLang });
 
             // 데모용 지연
@@ -352,8 +467,10 @@ const DocumentModal = ({ isOpen, onClose, itemData }) => {
     const isDocument = itemData.itemType === 'document';
     const currentOriginalLang = itemData.fromLang || documentContent?.original_lang;
     const availableTargetLangs = Object.keys(languageMap).filter((l) => l !== currentOriginalLang);
-    const effectiveFromLang = currentOriginalLang || 'ko';
     const effectiveToLang = documentContent?.translated_lang || null;
+
+    // 푸터용 텍스트
+    const footerMainText = isDocument ? itemData.lastModified : `${itemData.date} • ${itemData.duration}`;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white/30 backdrop-blur-md" onClick={onClose}>
@@ -443,8 +560,8 @@ const DocumentModal = ({ isOpen, onClose, itemData }) => {
                         )}
                     </div>
 
-                    {/* 컨텐츠 */}
-                    {loading ? (
+                    {/* 컨텐츠 영역 */}
+                    {loading && isDocument ? (
                         <div className="flex items-center justify-center flex-grow">
                             <div className="text-center">
                                 <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
@@ -462,7 +579,7 @@ const DocumentModal = ({ isOpen, onClose, itemData }) => {
                             toLang={effectiveToLang}
                         />
                     ) : (
-                        <MinutesView minutes={itemData} />
+                        <MinutesView minutes={itemData} aiCoach={aiCoach} />
                     )}
                 </div>
 
@@ -470,7 +587,7 @@ const DocumentModal = ({ isOpen, onClose, itemData }) => {
                 <footer className="p-3 text-sm text-slate-500 border-t border-slate-200 bg-slate-50">
                     <div className="flex justify-between items-center px-2">
                         <span>
-                            {itemData.lastModified} | {isDocument ? `${getLanguageName(currentOriginalLang || 'ko')}` : `회의록 ID: ${itemData.id}`}
+                            {footerMainText} | {isDocument ? `${getLanguageName(currentOriginalLang || 'ko')}` : `회의록 ID: ${itemData.id}`}
                         </span>
                         {isDocument && documentContent?.original_content && <span>총 {String(documentContent.original_content).trim().split(/\s+/).filter(Boolean).length} 단어</span>}
                     </div>

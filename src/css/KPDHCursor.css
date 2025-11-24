@@ -1,0 +1,130 @@
+/* src/css/KPDHCursor.css */
+
+/* 🎤 K-POP 데몬 헌터스 커스텀 마우스 커서 */
+
+/* HUNTR/X 스테이지 테마 커서 */
+.cursor-kpdh-huntrix {
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="%23a855f7" stroke="%23ec4899" stroke-width="2"/><circle cx="16" cy="16" r="8" fill="%23fff" opacity="0.8"/><circle cx="16" cy="16" r="3" fill="%23a855f7"/></svg>'),
+        auto;
+}
+
+.cursor-kpdh-huntrix *:hover {
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="%23a855f7" stroke="%23ec4899" stroke-width="3"/><circle cx="20" cy="20" r="10" fill="%23fff" opacity="0.9"/><circle cx="20" cy="20" r="4" fill="%23a855f7"/></svg>'),
+        pointer;
+}
+
+/* 데몬 헌터 모드 커서 */
+.cursor-kpdh-demon {
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><path d="M16 2 L20 12 L30 16 L20 20 L16 30 L12 20 L2 16 L12 12 Z" fill="%237c3aed" stroke="%23c026d3" stroke-width="2"/><circle cx="16" cy="16" r="4" fill="%23fff"/></svg>'),
+        auto;
+}
+
+.cursor-kpdh-demon *:hover {
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><path d="M20 2 L25 15 L38 20 L25 25 L20 38 L15 25 L2 20 L15 15 Z" fill="%237c3aed" stroke="%23c026d3" stroke-width="3"/><circle cx="20" cy="20" r="6" fill="%23fff"/></svg>'),
+        pointer;
+}
+
+/* 더피 타이거 커서 */
+.cursor-kpdh-derpy {
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="%2306b6d4" stroke="%2322d3ee" stroke-width="2"/><circle cx="12" cy="13" r="2" fill="%23000"/><circle cx="20" cy="13" r="2" fill="%23000"/><path d="M12 20 Q16 23 20 20" stroke="%23000" stroke-width="2" fill="none"/></svg>'),
+        auto;
+}
+
+.cursor-kpdh-derpy *:hover {
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="%2306b6d4" stroke="%2322d3ee" stroke-width="3"/><circle cx="15" cy="16" r="3" fill="%23000"/><circle cx="25" cy="16" r="3" fill="%23000"/><path d="M15 25 Q20 29 25 25" stroke="%23000" stroke-width="3" fill="none"/></svg>'),
+        pointer;
+}
+
+/* 콘서트 라이브 커서 */
+.cursor-kpdh-concert {
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="%239333ea" stroke="%23ec4899" stroke-width="2"/><path d="M16 8 L18 14 L24 14 L19 18 L21 24 L16 20 L11 24 L13 18 L8 14 L14 14 Z" fill="%23fbbf24"/></svg>'),
+        auto;
+}
+
+.cursor-kpdh-concert *:hover {
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="%239333ea" stroke="%23ec4899" stroke-width="3"/><path d="M20 10 L23 17 L30 17 L24 22 L27 29 L20 24 L13 29 L16 22 L10 17 L17 17 Z" fill="%23fbbf24"/></svg>'),
+        pointer;
+}
+
+/* 골든 혼문 커서 */
+.cursor-kpdh-golden {
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="%23fbbf24" stroke="%23f59e0b" stroke-width="2"/><circle cx="16" cy="16" r="8" fill="%23fff" opacity="0.8"/><path d="M16 10 L18 14 L22 14 L19 17 L20 21 L16 18 L12 21 L13 17 L10 14 L14 14 Z" fill="%23f59e0b"/></svg>'),
+        auto;
+}
+
+.cursor-kpdh-golden *:hover {
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="%23fbbf24" stroke="%23f59e0b" stroke-width="3"/><circle cx="20" cy="20" r="10" fill="%23fff" opacity="0.9"/><path d="M20 12 L23 18 L29 18 L24 22 L26 28 L20 24 L14 28 L16 22 L11 18 L17 18 Z" fill="%23f59e0b"/></svg>'),
+        pointer;
+}
+
+/* 커서 애니메이션 효과 */
+@keyframes cursor-pulse {
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.2);
+        opacity: 0.8;
+    }
+}
+
+.cursor-kpdh-animated::before {
+    content: '';
+    position: fixed;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(168, 85, 247, 0.3), transparent 70%);
+    pointer-events: none;
+    z-index: 9999;
+    animation: cursor-pulse 2s ease-in-out infinite;
+}
+
+/* 클릭 효과 */
+@keyframes cursor-click {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(2);
+        opacity: 0;
+    }
+}
+
+.cursor-click-effect {
+    position: fixed;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 3px solid #a855f7;
+    pointer-events: none;
+    z-index: 9999;
+    animation: cursor-click 0.6s ease-out forwards;
+}
+
+/* 하트 이펙트 (좋아요 버튼 클릭시) */
+@keyframes heart-float {
+    0% {
+        transform: translateY(0) scale(0);
+        opacity: 1;
+    }
+    50% {
+        transform: translateY(-50px) scale(1.2);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-100px) scale(0.8);
+        opacity: 0;
+    }
+}
+
+.heart-float-effect {
+    position: fixed;
+    font-size: 30px;
+    pointer-events: none;
+    z-index: 9999;
+    animation: heart-float 1.5s ease-out forwards;
+}

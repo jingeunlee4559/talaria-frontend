@@ -1,198 +1,160 @@
-// src/components/Culture/LiveView/ThemeTransitionAnimation.jsx
-import React, { useState, useEffect } from 'react';
-import { Sparkles, Star } from 'lucide-react';
-import picachuImg from '../../../assets/themes/picachu.png';
+// src/components/Culture/contents/ThemeTransitionAnimation.jsx
+import React, { useEffect, useState, useRef } from 'react';
+import { BACKGROUND_THEMES } from './backgroundThemes';
 
-// 🎭 테마별 캐릭터 및 애니메이션 설정
-const THEME_CHARACTERS = {
-    pokemon: {
-        imageUrl: picachuImg,
-        name: '피카츄',
-        animation: 'bounce-welcome',
-        particles: ['⚡', '✨', '💫', '⭐'],
-        message: '피카피카~! 포켓몬 세계로 어서와!',
-        sound: 'Pika Pika!',
-    },
-    japanese: {
-        emoji: '🐱',
-        name: '마네키네코',
-        animation: 'wave-paw',
-        particles: ['🌸', '🎌', '💮'],
-        message: 'いらっしゃいませ! (어서오세요!)',
-        sound: 'ニャー!',
-    },
-    korean: {
-        emoji: '🏯',
-        name: '한복소녀',
-        animation: 'bow',
-        particles: ['🌸', '🎊', '✨'],
-        message: '환영합니다! 한국 전통의 아름다움을 느껴보세요',
-        sound: '환영해요!',
-    },
-    underwater: {
-        emoji: '🐬',
-        name: '돌핀',
-        animation: 'jump-wave',
-        particles: ['💧', '🌊', '🫧'],
-        message: '바닷속 세계로 풍덩!',
-        sound: 'Click Click!',
-    },
-    galaxy: {
-        emoji: '🌟',
-        name: '스타',
-        animation: 'twinkle-spin',
-        particles: ['⭐', '✨', '💫', '🌠'],
-        message: '은하수를 여행하세요!',
-        sound: 'Twinkle~',
-    },
-    sunset: {
-        emoji: '🌅',
-        name: '선셋',
-        animation: 'fade-glow',
-        particles: ['☀️', '🌤️', '🌈'],
-        message: '아름다운 석양이 펼쳐집니다',
-        sound: 'Shine~',
-    },
-    default: {
-        emoji: '✨',
-        name: '매직',
-        animation: 'twinkle-spin',
-        particles: ['✨', '💫', '⭐'],
-        message: '환영합니다!',
-        sound: 'Magic~',
-    },
-    aurora: {
-        emoji: '🌌',
-        name: '오로라',
-        animation: 'fade-glow',
-        particles: ['✨', '💫', '🌟'],
-        message: '신비로운 오로라를 만나보세요',
-        sound: 'Aurora~',
-    },
-    tropical: {
-        emoji: '🌴',
-        name: '트로피컬',
-        animation: 'wave-paw',
-        particles: ['🌺', '🌴', '🦜'],
-        message: '열대의 낙원으로!',
-        sound: 'Tropical~',
-    },
-    anime: {
-        emoji: '🎌',
-        name: '애니메이션',
-        animation: 'bounce-welcome',
-        particles: ['✨', '💫', '🌟'],
-        message: '애니메이션 세계로!',
-        sound: 'Anime~',
-    },
-    minecraft: {
-        emoji: '⛏️',
-        name: '마인크래프트',
-        animation: 'bounce-welcome',
-        particles: ['🟩', '🟫', '⛏️'],
-        message: '크래프팅 시작!',
-        sound: 'Mine~',
-    },
-    fantasy: {
-        emoji: '🏰',
-        name: '판타지',
-        animation: 'twinkle-spin',
-        particles: ['✨', '🔮', '⚔️'],
-        message: '판타지 세계로!',
-        sound: 'Fantasy~',
-    },
-    spring: {
-        emoji: '🌸',
-        name: '봄',
-        animation: 'wave-paw',
-        particles: ['🌸', '🦋', '🌺'],
-        message: '봄이 찾아왔어요!',
-        sound: 'Spring~',
-    },
-    summer: {
-        emoji: '☀️',
-        name: '여름',
-        animation: 'fade-glow',
-        particles: ['☀️', '🌊', '🏖️'],
-        message: '뜨거운 여름!',
-        sound: 'Summer~',
-    },
-    autumn: {
-        emoji: '🍂',
-        name: '가을',
-        animation: 'wave-paw',
-        particles: ['🍂', '🍁', '🌰'],
-        message: '가을의 정취를!',
-        sound: 'Autumn~',
-    },
-    winter: {
-        emoji: '❄️',
-        name: '겨울',
-        animation: 'twinkle-spin',
-        particles: ['❄️', '⛄', '🎿'],
-        message: '하얀 겨울 나라로!',
-        sound: 'Winter~',
-    },
-};
+// 🎤 KPDH 이미지 import
+import huntrixImg from '../../../assets/kpdh/huntrix.png';
+import derpyTigerImg from '../../../assets/kpdh/derpy_tiger.png';
 
-// 🎨 메인 애니메이션 컴포넌트
 const ThemeTransitionAnimation = ({ themeId, onComplete }) => {
     const [particles, setParticles] = useState([]);
-    const [showCharacter, setShowCharacter] = useState(false);
-    const [showMessage, setShowMessage] = useState(false);
-    const [showSound, setShowSound] = useState(false);
+    const [fadeOut, setFadeOut] = useState(false);
+    const containerRef = useRef(null);
+    const theme = BACKGROUND_THEMES[themeId];
 
-    const character = THEME_CHARACTERS[themeId] || THEME_CHARACTERS.default;
+    // 🎤 KPDH 테마 감지
+    const isKPDHTheme = themeId?.startsWith('kpdh_');
+
+    // 🎤 테마별 이미지 선택
+    const getThemeImage = () => {
+        if (themeId === 'kpdh_derpy') return derpyTigerImg;
+        if (isKPDHTheme) return huntrixImg;
+        return null;
+    };
+
+    // 🎤 KPDH 음표 파티클
+    const MUSIC_NOTES = ['🎵', '🎶', '🎤', '🎼', '🎸', '🎹', '🎺', '🎻', '🥁', '🎧', '💿', '🎙️'];
+
+    // 🎤 테마별 그라데이션
+    const getThemeGradient = () => {
+        const gradients = {
+            kpdh_huntrix: 'linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #6b21a8 100%)',
+            kpdh_demon: 'linear-gradient(135deg, #7c3aed 0%, #c026d3 50%, #1e1b4b 100%)',
+            kpdh_derpy: 'linear-gradient(135deg, #06b6d4 0%, #22d3ee 50%, #0ea5e9 100%)',
+            kpdh_concert: 'linear-gradient(135deg, #9333ea 0%, #ec4899 50%, #f97316 100%)',
+            kpdh_golden: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #facc15 100%)',
+            default: theme?.gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        };
+        return gradients[themeId] || gradients.default;
+    };
 
     useEffect(() => {
-        // 1단계: 캐릭터 등장 (0.2초)
-        setTimeout(() => setShowCharacter(true), 100);
+        // 🎤 파티클 생성
+        const newParticles = [];
+        const particleCount = isKPDHTheme ? 40 : 30; // KPDH는 더 많이!
 
-        // 2단계: 파티클 폭발 (0.4초)
-        setTimeout(() => {
-            const newParticles = Array.from({ length: 40 }, (_, i) => ({
+        for (let i = 0; i < particleCount; i++) {
+            newParticles.push({
                 id: i,
-                emoji: character.particles[Math.floor(Math.random() * character.particles.length)],
-                x: 50,
-                y: 50,
-                angle: (Math.PI * 2 * i) / 40,
-                delay: Math.random() * 0.2,
-                size: Math.random() * 2 + 1,
-            }));
-            setParticles(newParticles);
-        }, 400);
+                // 🎤 KPDH 테마는 음표, 기본 테마는 별
+                emoji: isKPDHTheme ? MUSIC_NOTES[Math.floor(Math.random() * MUSIC_NOTES.length)] : '⭐',
+                left: Math.random() * 100,
+                delay: Math.random() * 2,
+                duration: 3 + Math.random() * 2,
+                size: isKPDHTheme ? 1.5 + Math.random() * 1.5 : 1 + Math.random(), // 음표는 더 크게
+                rotation: Math.random() * 360,
+                blur: Math.random() * 2,
+            });
+        }
+        setParticles(newParticles);
 
-        // 3단계: 사운드 텍스트 표시 (0.6초)
-        setTimeout(() => setShowSound(true), 600);
-
-        // 4단계: 메시지 표시 (1초)
-        setTimeout(() => setShowMessage(true), 1000);
-
-        // 5단계: 페이드아웃 및 완료 (2.8초)
+        // 🎤 애니메이션 타이밍
+        const fadeTimer = setTimeout(() => setFadeOut(true), 2500);
         const completeTimer = setTimeout(() => {
-            onComplete?.();
-        }, 2800);
+            onComplete && onComplete();
+        }, 3000);
 
-        return () => clearTimeout(completeTimer);
-    }, [themeId]);
+        return () => {
+            clearTimeout(fadeTimer);
+            clearTimeout(completeTimer);
+        };
+    }, [themeId, onComplete, isKPDHTheme]);
+
+    if (!theme) return null;
+
+    const themeImage = getThemeImage();
+    const themeGradient = getThemeGradient();
 
     return (
-        <div className="fixed inset-0 z-[10000] pointer-events-none overflow-hidden">
-            {/* 배경 오버레이 - 그라데이션 효과 */}
-            <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/20 via-pink-400/20 to-purple-400/20 animate-fade-in backdrop-blur-sm" />
+        <div
+            ref={containerRef}
+            className={`fixed inset-0 z-[9999] flex items-center justify-center transition-opacity duration-1000 ${fadeOut ? 'opacity-0' : 'opacity-100'}`}
+            style={{
+                background: themeGradient,
+                backdropFilter: 'blur(10px)',
+            }}
+        >
+            {/* 🎤 KPDH 로고 이미지 (중앙) */}
+            {isKPDHTheme && themeImage && (
+                <div className="absolute inset-0 flex items-center justify-center z-20">
+                    <div className="relative animate-kpdh-logo-entrance">
+                        <img
+                            src={themeImage}
+                            alt="K-POP Demon Hunters"
+                            className="w-64 md:w-96 h-auto object-contain drop-shadow-2xl animate-kpdh-logo-glow"
+                            style={{
+                                filter: 'drop-shadow(0 0 30px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 60px rgba(168, 85, 247, 0.6))',
+                            }}
+                        />
+                        {/* 글로우 링 */}
+                        <div
+                            className="absolute inset-0 rounded-full animate-kpdh-ring-pulse"
+                            style={{
+                                background: `radial-gradient(circle, ${theme.gradient?.includes('pink') ? 'rgba(236, 72, 153, 0.3)' : 'rgba(168, 85, 247, 0.3)'} 0%, transparent 70%)`,
+                                filter: 'blur(40px)',
+                            }}
+                        />
+                    </div>
+                </div>
+            )}
 
-            {/* 파티클 폭발 효과 */}
-            <div className="absolute inset-0">
+            {/* 📛 일반 테마 텍스트 */}
+            {!isKPDHTheme && (
+                <div className="relative z-20 text-center px-6 animate-fade-in-scale">
+                    <div className="relative">
+                        <h1
+                            className="text-5xl md:text-7xl font-black mb-4 animate-glow-pulse"
+                            style={{
+                                background: 'linear-gradient(45deg, #fff, rgba(255,255,255,0.8))',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                                backgroundClip: 'text',
+                                textShadow: '0 0 40px rgba(255,255,255,0.8), 0 0 80px rgba(255,255,255,0.4)',
+                            }}
+                        >
+                            {theme.name}
+                        </h1>
+                        <p className="text-white text-xl md:text-2xl font-medium opacity-90 drop-shadow-lg">{theme.description}</p>
+                    </div>
+                </div>
+            )}
+
+            {/* 🎤 KPDH 테마 이름 (하단) */}
+            {isKPDHTheme && (
+                <div className="absolute bottom-20 left-0 right-0 z-20 text-center animate-slide-up-fade">
+                    <div className="inline-block px-8 py-4 rounded-full bg-white/10 backdrop-blur-xl border border-white/30 shadow-2xl">
+                        <h2 className="text-3xl md:text-4xl font-black text-white drop-shadow-lg">{theme.name}</h2>
+                        <p className="text-white/90 text-sm md:text-base mt-1 font-medium">{theme.description}</p>
+                    </div>
+                </div>
+            )}
+
+            {/* 🎵 파티클 애니메이션 */}
+            <div className="absolute inset-0 overflow-hidden z-10">
                 {particles.map((particle) => (
                     <div
                         key={particle.id}
-                        className="absolute animate-particle-burst"
+                        className="absolute animate-fall-and-fade"
                         style={{
-                            left: '50%',
-                            top: '50%',
+                            left: `${particle.left}%`,
+                            top: '-10%',
                             fontSize: `${particle.size}rem`,
-                            '--angle': `${particle.angle}rad`,
                             animationDelay: `${particle.delay}s`,
+                            animationDuration: `${particle.duration}s`,
+                            transform: `rotate(${particle.rotation}deg)`,
+                            filter: `blur(${particle.blur}px)`,
+                            // 🎤 KPDH 음표는 더 밝게
+                            textShadow: isKPDHTheme ? '0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.6)' : '0 0 10px rgba(255,255,255,0.5)',
                         }}
                     >
                         {particle.emoji}
@@ -200,227 +162,149 @@ const ThemeTransitionAnimation = ({ themeId, onComplete }) => {
                 ))}
             </div>
 
-            {/* 캐릭터 등장 */}
-            <div className="absolute inset-0 flex items-center justify-center">
-                <div className={`transition-all duration-700 ease-out ${showCharacter ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-0 translate-y-32'}`}>
-                    {/* 캐릭터 뒤 빛나는 효과 */}
-                    <div className="absolute inset-0 bg-yellow-300 rounded-full blur-3xl opacity-50 animate-pulse" style={{ width: '200px', height: '200px', margin: 'auto' }} />
-
-                    {/* 피카츄 이미지 or 이모지 */}
-                    {character.imageUrl ? (
-                        <div className={`relative animate-${character.animation}`}>
-                            <img src={character.imageUrl} alt={character.name} className="w-48 h-48 md:w-64 md:h-64 object-contain filter drop-shadow-2xl" />
-                            {/* 전기 효과 (피카츄 전용) */}
-                            <div className="absolute -top-4 -right-4 text-6xl animate-spark">⚡</div>
-                            <div className="absolute -bottom-4 -left-4 text-4xl animate-spark" style={{ animationDelay: '0.3s' }}>
-                                ⚡
-                            </div>
-                        </div>
-                    ) : (
-                        <div className={`text-9xl filter drop-shadow-2xl animate-${character.animation}`}>{character.emoji}</div>
-                    )}
-                </div>
-            </div>
-
-            {/* 사운드 텍스트 (말풍선 스타일) */}
-            {showSound && (
-                <div className="absolute top-1/3 left-1/2 -translate-x-1/2 animate-bounce-in">
-                    <div className="relative bg-white rounded-3xl px-8 py-4 shadow-2xl border-4 border-yellow-400">
-                        <p className="text-3xl font-black text-gray-800 whitespace-nowrap">{character.sound}</p>
-                        {/* 말풍선 꼬리 */}
-                        <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[20px] border-l-transparent border-r-[20px] border-r-transparent border-t-[20px] border-t-white" />
-                        <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[22px] border-l-transparent border-r-[22px] border-r-transparent border-t-[22px] border-t-yellow-400" />
-                    </div>
-                </div>
-            )}
-
-            {/* 환영 메시지 */}
-            {showMessage && (
-                <div className="absolute bottom-24 md:bottom-32 left-0 right-0 flex justify-center animate-slide-up px-4">
-                    <div className="relative">
-                        {/* 글로우 효과 */}
-                        <div className="absolute inset-0 bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 rounded-3xl blur-xl opacity-50" />
-
-                        {/* 메시지 카드 */}
-                        <div className="relative bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl px-6 md:px-8 py-4 md:py-5 border-4 border-pink-300 max-w-2xl">
-                            <div className="flex flex-col md:flex-row items-center gap-3 md:gap-4">
-                                <Sparkles className="w-6 h-6 md:w-8 md:h-8 text-pink-500 animate-spin-slow flex-shrink-0" />
-                                <p className="text-lg md:text-2xl font-bold text-gray-800 text-center md:text-left leading-tight">{character.message}</p>
-                                <Star className="w-6 h-6 md:w-8 md:h-8 text-yellow-500 animate-pulse flex-shrink-0" />
-                            </div>
-                        </div>
-                    </div>
+            {/* 🎤 하단 파도 효과 (KPDH만) */}
+            {isKPDHTheme && (
+                <div className="absolute bottom-0 left-0 right-0 z-0">
+                    <svg className="w-full h-32 md:h-48" viewBox="0 0 1440 320" preserveAspectRatio="none">
+                        <path
+                            fill="rgba(255,255,255,0.1)"
+                            fillOpacity="1"
+                            d="M0,160L48,144C96,128,192,96,288,106.7C384,117,480,171,576,181.3C672,192,768,160,864,138.7C960,117,1056,107,1152,117.3C1248,128,1344,160,1392,176L1440,192L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
+                            className="animate-wave"
+                        />
+                    </svg>
                 </div>
             )}
 
             <style>{`
-                /* 기본 애니메이션 */
-                @keyframes fade-in {
-                    from { opacity: 0; }
-                    to { opacity: 1; }
-                }
-
-                /* 파티클 폭발 - 더 화려하게 */
-                @keyframes particle-burst {
+                @keyframes fall-and-fade {
                     0% {
-                        transform: translate(-50%, -50%) translate(0, 0) scale(0) rotate(0deg);
+                        transform: translateY(0) rotate(0deg);
                         opacity: 0;
                     }
                     10% {
                         opacity: 1;
                     }
+                    90% {
+                        opacity: 1;
+                    }
                     100% {
-                        transform: translate(-50%, -50%) 
-                                   translate(
-                                     calc(cos(var(--angle)) * 350px), 
-                                     calc(sin(var(--angle)) * 350px)
-                                   ) 
-                                   scale(2) 
-                                   rotate(1080deg);
+                        transform: translateY(120vh) rotate(360deg);
                         opacity: 0;
                     }
                 }
 
-                /* 피카츄 바운스 환영 */
-                @keyframes bounce-welcome {
-                    0%, 100% { transform: translateY(0) scale(1) rotate(0deg); }
-                    20% { transform: translateY(-40px) scale(1.15) rotate(-8deg); }
-                    40% { transform: translateY(0) scale(1) rotate(0deg); }
-                    60% { transform: translateY(-20px) scale(1.08) rotate(8deg); }
-                    80% { transform: translateY(0) scale(1) rotate(0deg); }
-                }
-
-                /* 손 흔들기 */
-                @keyframes wave-paw {
-                    0%, 100% { transform: rotate(0deg) scale(1); }
-                    20% { transform: rotate(-20deg) scale(1.1); }
-                    40% { transform: rotate(20deg) scale(1.15); }
-                    60% { transform: rotate(-15deg) scale(1.1); }
-                    80% { transform: rotate(10deg) scale(1.05); }
-                }
-
-                /* 인사 */
-                @keyframes bow {
-                    0%, 100% { transform: rotateX(0deg) scale(1); }
-                    50% { transform: rotateX(30deg) scale(1.1); }
-                }
-
-                /* 점프 */
-                @keyframes jump-wave {
-                    0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
-                    15% { transform: translateY(-80px) rotate(-20deg) scale(1.1); }
-                    30% { transform: translateY(-120px) rotate(0deg) scale(1.2); }
-                    45% { transform: translateY(-90px) rotate(20deg) scale(1.15); }
-                    60% { transform: translateY(-50px) rotate(-10deg) scale(1.08); }
-                    80% { transform: translateY(-20px) rotate(5deg) scale(1.03); }
-                }
-
-                /* 반짝이며 회전 */
-                @keyframes twinkle-spin {
-                    0%, 100% { 
-                        transform: scale(1) rotate(0deg);
-                        filter: brightness(1) drop-shadow(0 0 20px gold);
-                    }
-                    25% {
-                        transform: scale(1.2) rotate(90deg);
-                        filter: brightness(1.3) drop-shadow(0 0 35px gold);
-                    }
-                    50% { 
-                        transform: scale(1.4) rotate(180deg);
-                        filter: brightness(1.6) drop-shadow(0 0 50px gold);
-                    }
-                    75% {
-                        transform: scale(1.2) rotate(270deg);
-                        filter: brightness(1.3) drop-shadow(0 0 35px gold);
-                    }
-                }
-
-                /* 빛나는 효과 */
-                @keyframes fade-glow {
-                    0%, 100% { 
-                        opacity: 1;
-                        transform: scale(1);
-                        filter: drop-shadow(0 0 30px orange) brightness(1);
-                    }
-                    50% { 
-                        opacity: 0.9;
-                        transform: scale(1.2);
-                        filter: drop-shadow(0 0 60px gold) brightness(1.5);
-                    }
-                }
-
-                /* 전기 스파크 */
-                @keyframes spark {
-                    0%, 100% { 
-                        opacity: 0;
-                        transform: scale(0) rotate(0deg);
-                    }
-                    50% { 
-                        opacity: 1;
-                        transform: scale(1.5) rotate(180deg);
-                    }
-                }
-
-                /* 말풍선 등장 */
-                @keyframes bounce-in {
+                @keyframes fade-in-scale {
                     0% {
                         opacity: 0;
-                        transform: scale(0) translateY(50px);
-                    }
-                    50% {
-                        transform: scale(1.1) translateY(0);
+                        transform: scale(0.8);
                     }
                     100% {
                         opacity: 1;
-                        transform: scale(1) translateY(0);
+                        transform: scale(1);
                     }
                 }
 
-                /* 슬라이드 업 */
-                @keyframes slide-up {
-                    from {
-                        opacity: 0;
-                        transform: translateY(50px);
+                @keyframes glow-pulse {
+                    0%, 100% {
+                        text-shadow: 0 0 40px rgba(255,255,255,0.8), 0 0 80px rgba(255,255,255,0.4);
                     }
-                    to {
+                    50% {
+                        text-shadow: 0 0 60px rgba(255,255,255,1), 0 0 120px rgba(255,255,255,0.6);
+                    }
+                }
+
+                /* 🎤 KPDH 로고 등장 애니메이션 */
+                @keyframes kpdh-logo-entrance {
+                    0% {
+                        opacity: 0;
+                        transform: scale(0.5) rotateY(180deg);
+                    }
+                    50% {
+                        opacity: 1;
+                        transform: scale(1.1) rotateY(0deg);
+                    }
+                    100% {
+                        opacity: 1;
+                        transform: scale(1) rotateY(0deg);
+                    }
+                }
+
+                /* 🎤 로고 글로우 효과 */
+                @keyframes kpdh-logo-glow {
+                    0%, 100% {
+                        filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 60px rgba(168, 85, 247, 0.6));
+                    }
+                    50% {
+                        filter: drop-shadow(0 0 50px rgba(255, 255, 255, 1)) drop-shadow(0 0 100px rgba(236, 72, 153, 0.8));
+                    }
+                }
+
+                /* 🎤 글로우 링 펄스 */
+                @keyframes kpdh-ring-pulse {
+                    0%, 100% {
+                        transform: scale(1);
+                        opacity: 0.3;
+                    }
+                    50% {
+                        transform: scale(1.5);
+                        opacity: 0.6;
+                    }
+                }
+
+                /* 🎤 하단 텍스트 슬라이드 */
+                @keyframes slide-up-fade {
+                    0% {
+                        opacity: 0;
+                        transform: translateY(30px);
+                    }
+                    100% {
                         opacity: 1;
                         transform: translateY(0);
                     }
                 }
 
-                /* 천천히 회전 */
-                @keyframes spin-slow {
-                    from { transform: rotate(0deg); }
-                    to { transform: rotate(360deg); }
+                /* 🎤 파도 애니메이션 */
+                @keyframes wave {
+                    0%, 100% {
+                        transform: translateX(0) scaleY(1);
+                    }
+                    50% {
+                        transform: translateX(-25%) scaleY(1.2);
+                    }
                 }
 
-                /* 클래스 적용 */
-                .animate-fade-in { animation: fade-in 0.4s ease-out; }
-                .animate-particle-burst { animation: particle-burst 1.8s ease-out forwards; }
-                .animate-bounce-welcome { animation: bounce-welcome 2s ease-in-out infinite; }
-                .animate-wave-paw { animation: wave-paw 2s ease-in-out infinite; }
-                .animate-bow { animation: bow 2s ease-in-out infinite; }
-                .animate-jump-wave { animation: jump-wave 2s ease-in-out infinite; }
-                .animate-twinkle-spin { animation: twinkle-spin 2s ease-in-out infinite; }
-                .animate-fade-glow { animation: fade-glow 2s ease-in-out infinite; }
-                .animate-spark { animation: spark 0.6s ease-in-out infinite; }
-                .animate-bounce-in { animation: bounce-in 0.5s ease-out; }
-                .animate-slide-up { animation: slide-up 0.6s ease-out; }
-                .animate-spin-slow { animation: spin-slow 4s linear infinite; }
+                .animate-fall-and-fade {
+                    animation: fall-and-fade linear forwards;
+                }
 
-                /* 반응형 조정 */
-                @media (max-width: 768px) {
-                    @keyframes particle-burst {
-                        100% {
-                            transform: translate(-50%, -50%) 
-                                       translate(
-                                         calc(cos(var(--angle)) * 200px), 
-                                         calc(sin(var(--angle)) * 200px)
-                                       ) 
-                                       scale(1.5) 
-                                       rotate(720deg);
-                        }
-                    }
+                .animate-fade-in-scale {
+                    animation: fade-in-scale 0.8s ease-out forwards;
+                }
+
+                .animate-glow-pulse {
+                    animation: glow-pulse 2s ease-in-out infinite;
+                }
+
+                .animate-kpdh-logo-entrance {
+                    animation: kpdh-logo-entrance 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+                }
+
+                .animate-kpdh-logo-glow {
+                    animation: kpdh-logo-glow 2s ease-in-out infinite;
+                }
+
+                .animate-kpdh-ring-pulse {
+                    animation: kpdh-ring-pulse 2s ease-in-out infinite;
+                }
+
+                .animate-slide-up-fade {
+                    animation: slide-up-fade 0.8s ease-out 0.5s forwards;
+                    opacity: 0;
+                }
+
+                .animate-wave {
+                    animation: wave 6s ease-in-out infinite;
                 }
             `}</style>
         </div>

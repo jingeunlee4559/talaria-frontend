@@ -39,10 +39,10 @@ export const BACKGROUND_THEMES = {
         imageUrl: 'https://images.unsplash.com/photo-1573098398234-fd4233487e53?auto=format&fit=crop&w=1920&q=80',
     },
 
-    // 🏯 한국 테마
+    // 🯰 한국 테마
     korean: {
         id: 'korean',
-        name: '🏯 한국 전통 궁궐',
+        name: '🯰 한국 전통 궁궐',
         category: 'culture',
         gradient: 'linear-gradient(180deg, #87ceeb 0%, #e8dcc4 50%, #d4a574 100%)',
         effects: ['hanok', 'sakura', 'mountains', 'traditionalPattern'],
@@ -75,10 +75,10 @@ export const BACKGROUND_THEMES = {
         imageUrl: 'https://images.unsplash.com/photo-1501769752-a59efa2298ce?auto=format&fit=crop&w=1920&q=80',
     },
 
-    // 🏮 중국 테마
+    // 🮮 중국 테마
     chinese: {
         id: 'chinese',
-        name: '🏮 중국 랜턴',
+        name: '🮮 중국 랜턴',
         category: 'culture',
         gradient: 'linear-gradient(135deg, #b91c1c 0%, #ef4444 40%, #facc15 100%)',
         effects: ['lanterns', 'dragon', 'fireworks'],
@@ -86,7 +86,7 @@ export const BACKGROUND_THEMES = {
     },
     forbidden: {
         id: 'forbidden',
-        name: '🏛️ 자금성',
+        name: '🛏️ 자금성',
         category: 'culture',
         gradient: 'linear-gradient(180deg, #7f1d1d 0%, #b45309 50%, #facc15 100%)',
         effects: ['chineseRoof', 'clouds', 'goldPattern'],
@@ -150,7 +150,7 @@ export const BACKGROUND_THEMES = {
     },
     fantasy: {
         id: 'fantasy',
-        name: '🏰 판타지 캐슬',
+        name: '🰰 판타지 캐슬',
         category: 'special',
         gradient: 'linear-gradient(135deg, #312e81 0%, #6d28d9 50%, #f472b6 100%)',
         effects: ['castle', 'magic', 'stars'],
@@ -158,14 +158,56 @@ export const BACKGROUND_THEMES = {
     },
     underwater: {
         id: 'underwater',
-        name: '🐠 해저 세계',
+        name: '🠠 해저 세계',
         category: 'special',
         gradient: 'linear-gradient(180deg, #1e3a8a 0%, #1d4ed8 40%, #2563eb 70%, #7e22ce 100%)',
         effects: ['bubbles', 'fish', 'coral'],
         imageUrl: 'https://images.unsplash.com/photo-1682687982501-1e58ab814714?auto=format&fit=crop&w=1920&q=80',
     },
 
-    // 🍃 계절 테마
+    // 🎤 K-POP 데몬 헌터스 테마 (KPDH)
+    kpdh_huntrix: {
+        id: 'kpdh_huntrix',
+        name: '💜 HUNTR/X 스테이지',
+        category: 'kpop',
+        gradient: 'linear-gradient(135deg, #6b21a8 0%, #a855f7 30%, #ec4899 60%, #f472b6 100%)',
+        effects: ['kpdh_stage', 'kpdh_sparkles', 'kpdh_neon', 'spotlight', 'stars'],
+        imageUrl: '/mnt/user-data/uploads/1763998599754_image.png',
+    },
+    kpdh_demon: {
+        id: 'kpdh_demon',
+        name: '👹 데몬 헌터 모드',
+        category: 'kpop',
+        gradient: 'linear-gradient(135deg, #1e1b4b 0%, #4c1d95 30%, #7c3aed 60%, #c026d3 100%)',
+        effects: ['kpdh_energy', 'kpdh_sword', 'kpdh_portal', 'stars'],
+        imageUrl: '/mnt/user-data/uploads/1763998599754_image.png',
+    },
+    kpdh_derpy: {
+        id: 'kpdh_derpy',
+        name: '🐯 더피 타이거',
+        category: 'kpop',
+        gradient: 'linear-gradient(135deg, #0ea5e9 0%, #06b6d4 30%, #22d3ee 60%, #67e8f9 100%)',
+        effects: ['kpdh_derpy', 'kpdh_clouds', 'sparkles'],
+        imageUrl: '/mnt/user-data/uploads/1763998638481_image.png',
+    },
+    kpdh_concert: {
+        id: 'kpdh_concert',
+        name: '🎵 콘서트 라이브',
+        category: 'kpop',
+        gradient: 'linear-gradient(135deg, #9333ea 0%, #c026d3 25%, #ec4899 50%, #f97316 75%, #fbbf24 100%)',
+        effects: ['kpdh_concert_lights', 'kpdh_cheering', 'spotlight', 'neon'],
+        imageUrl: '/mnt/user-data/uploads/1763998599754_image.png',
+    },
+    kpdh_golden: {
+        id: 'kpdh_golden',
+        name: '✨ 골든 혼문',
+        category: 'kpop',
+        gradient: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 30%, #facc15 60%, #fde047 100%)',
+        effects: ['kpdh_golden_seal', 'kpdh_runes', 'magic', 'sparkles'],
+        imageUrl: '/mnt/user-data/uploads/1763998599754_image.png',
+    },
+
+    // 🃏 계절 테마
     spring: {
         id: 'spring',
         name: '🌸 봄',
@@ -184,7 +226,7 @@ export const BACKGROUND_THEMES = {
     },
     autumn: {
         id: 'autumn',
-        name: '🍂 가을',
+        name: '🂂 가을',
         category: 'season',
         gradient: 'linear-gradient(135deg, #ff9068 0%, #fd746c 50%, #f59e0b 100%)',
         effects: ['leaves', 'wind'],
@@ -203,9 +245,10 @@ export const BACKGROUND_THEMES = {
 // 🎨 테마 카테고리
 export const THEME_CATEGORIES = {
     basic: { name: '기본 테마', icon: '🎨' },
-    culture: { name: '문화 테마', icon: '🌍' },
+    culture: { name: '문화 테마', icon: '🌏' },
     special: { name: '특별 테마', icon: '⭐' },
-    season: { name: '계절 테마', icon: '🍃' },
+    season: { name: '계절 테마', icon: '🃏' },
+    kpop: { name: 'K-POP 데몬 헌터스', icon: '🎤' },
 };
 
 // 🎬 애니메이션 스타일 + 유틸 클래스 (그대로 사용)
@@ -333,6 +376,42 @@ export const getAnimationStyles = () => `
     50% { transform: scale(1.5) rotate(180deg); opacity: 1; }
   }
 
+  @keyframes kpdh-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.7; }
+    50% { transform: scale(1.1); opacity: 1; }
+  }
+
+  @keyframes kpdh-rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  @keyframes kpdh-beam {
+    0% { transform: translateY(100vh) scale(0.8); opacity: 0; }
+    50% { opacity: 1; }
+    100% { transform: translateY(-100vh) scale(1.2); opacity: 0; }
+  }
+
+  @keyframes kpdh-float {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-30px) scale(1.05); }
+  }
+
+  @keyframes kpdh-swing {
+    0%, 100% { transform: rotate(-5deg); }
+    50% { transform: rotate(5deg); }
+  }
+
+  @keyframes kpdh-portal {
+    0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.3; }
+    50% { transform: scale(1.2) rotate(180deg); opacity: 0.6; }
+  }
+
+  @keyframes kpdh-cheer {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+
   /* 🔧 유틸 클래스 */
   .animate-aurora-1 { animation: aurora-1 18s ease-in-out infinite alternate; }
   .animate-aurora-2 { animation: aurora-2 22s ease-in-out infinite alternate; }
@@ -349,4 +428,11 @@ export const getAnimationStyles = () => `
   .animate-magic-sparkle { animation: magic-sparkle 4s ease-in-out infinite; }
   .animate-neon-glow { animation: neon-glow 3s ease-in-out infinite; }
   .animate-cloud-move { animation: cloud-move 40s linear infinite; }
+  .animate-kpdh-pulse { animation: kpdh-pulse 3s ease-in-out infinite; }
+  .animate-kpdh-rotate { animation: kpdh-rotate 20s linear infinite; }
+  .animate-kpdh-beam { animation: kpdh-beam 4s ease-out infinite; }
+  .animate-kpdh-float { animation: kpdh-float 6s ease-in-out infinite; }
+  .animate-kpdh-swing { animation: kpdh-swing 3s ease-in-out infinite; }
+  .animate-kpdh-portal { animation: kpdh-portal 8s ease-in-out infinite; }
+  .animate-kpdh-cheer { animation: kpdh-cheer 0.6s ease-in-out infinite; }
 `;

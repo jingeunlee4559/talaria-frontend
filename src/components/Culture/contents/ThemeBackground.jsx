@@ -4,8 +4,14 @@ import React, { useEffect, useState } from 'react';
 import { BACKGROUND_THEMES, getAnimationStyles } from './backgroundThemes';
 import pokeballImg from '../../../assets/themes/pokeball.png';
 
+// K-POP Demon Hunters 이미지 경로
+import huntrixImg from '../../../assets/kpdh/huntrix.png';
+import derpyTigerImg from '../../../assets/kpdh/derpy_tiger.png';
+
 // ⚡ 포켓볼 이미지 경로 (public/assets/themes/pokeball.png 기준)
 const POKEBALL_IMAGE_SRC = pokeballImg;
+const HUNTRIX_IMAGE_SRC = huntrixImg;
+const DERPY_TIGER_SRC = derpyTigerImg;
 
 const ThemeBackground = ({ themeId = 'default' }) => {
     const theme = BACKGROUND_THEMES[themeId] || BACKGROUND_THEMES.default;
@@ -74,6 +80,20 @@ const ThemeBackground = ({ themeId = 'default' }) => {
             {theme.effects?.includes('wind') && <WindEffect />}
             {theme.effects?.includes('frost') && <FrostEffect />}
 
+            {/* 🎤 K-POP 데몬 헌터스 이펙트 */}
+            {theme.effects?.includes('kpdh_stage') && <KPDHStageEffect />}
+            {theme.effects?.includes('kpdh_sparkles') && <KPDHSparklesEffect />}
+            {theme.effects?.includes('kpdh_neon') && <KPDHNeonEffect />}
+            {theme.effects?.includes('kpdh_energy') && <KPDHEnergyEffect />}
+            {theme.effects?.includes('kpdh_sword') && <KPDHSwordEffect />}
+            {theme.effects?.includes('kpdh_portal') && <KPDHPortalEffect />}
+            {theme.effects?.includes('kpdh_derpy') && <KPDHDerpyEffect />}
+            {theme.effects?.includes('kpdh_clouds') && <KPDHCloudsEffect />}
+            {theme.effects?.includes('kpdh_concert_lights') && <KPDHConcertLightsEffect />}
+            {theme.effects?.includes('kpdh_cheering') && <KPDHCheeringEffect />}
+            {theme.effects?.includes('kpdh_golden_seal') && <KPDHGoldenSealEffect />}
+            {theme.effects?.includes('kpdh_runes') && <KPDHRunesEffect />}
+
             {/* 파티클 */}
             <div className="absolute inset-0">
                 {particles.map((p) => (
@@ -96,7 +116,7 @@ const ThemeBackground = ({ themeId = 'default' }) => {
     );
 };
 
-// ===== 효과 컴포넌트들 =====
+// ===== 기존 효과 컴포넌트들 =====
 
 const StarsEffect = () => (
     <div className="absolute inset-0">
@@ -298,7 +318,6 @@ const SunEffect = () => (
         <div className="text-8xl animate-pulse" style={{ animationDuration: '3s' }}>
             ☀️
         </div>
-        <div className="absolute inset-0 bg-yellow-300 rounded-full blur-3xl opacity-30 animate-pulse" />
     </div>
 );
 
@@ -307,11 +326,10 @@ const CloudsEffect = () => (
         {Array.from({ length: 5 }, (_, i) => (
             <div
                 key={i}
-                className="absolute text-6xl opacity-30 animate-cloud-move"
+                className="absolute text-6xl opacity-60 animate-cloud-move"
                 style={{
                     top: `${Math.random() * 40 + 10}%`,
-                    animationDuration: `${30 + i * 10}s`,
-                    animationDelay: `${i * 5}s`,
+                    animationDelay: `${i * 3}s`,
                 }}
             >
                 ☁️
@@ -322,60 +340,47 @@ const CloudsEffect = () => (
 
 const PalmsEffect = () => (
     <div className="absolute inset-0">
-        <div className="absolute bottom-0 left-10 text-9xl opacity-50 animate-palm-sway">🌴</div>
-        <div className="absolute bottom-0 right-10 text-9xl opacity-50 animate-palm-sway" style={{ animationDelay: '1s' }}>
+        <div className="absolute bottom-0 left-5 text-9xl animate-palm-sway">🌴</div>
+        <div className="absolute bottom-0 right-5 text-9xl animate-palm-sway" style={{ animationDelay: '1s' }}>
             🌴
         </div>
     </div>
 );
 
 const BeachEffect = () => (
-    <div className="absolute bottom-0 left-0 right-0 h-32">
-        <div className="absolute inset-0 bg-gradient-to-t from-yellow-200/30 to-transparent" />
-        <div className="absolute bottom-0 text-4xl opacity-40 whitespace-nowrap">{'🏖️'.repeat(20)}</div>
+    <div className="absolute bottom-0 left-0 right-0 h-20 opacity-50">
+        <div className="text-6xl">🏖️</div>
     </div>
 );
 
 const OceanEffect = () => (
-    <div className="absolute bottom-0 left-0 right-0 h-40">
-        <div className="absolute inset-0 bg-gradient-to-t from-blue-400/20 to-transparent animate-tide" />
+    <div className="absolute bottom-0 left-0 right-0 h-40 opacity-40 animate-tide">
+        <div className="w-full h-full bg-gradient-to-t from-blue-400/30 to-transparent" />
     </div>
 );
 
 const BirdsEffect = () => (
     <div className="absolute inset-0">
-        {Array.from({ length: 5 }, (_, i) => (
+        {Array.from({ length: 3 }, (_, i) => (
             <div
                 key={i}
-                className="absolute text-3xl"
+                className="absolute text-4xl opacity-70"
                 style={{
-                    top: `${20 + i * 10}%`,
-                    animation: `bird-fly ${20 + i * 5}s linear ${i * 3}s infinite`,
+                    top: `${Math.random() * 40 + 20}%`,
+                    animation: `bird-fly ${Math.random() * 20 + 15}s linear ${i * 5}s infinite`,
                 }}
             >
-                🦜
+                🦅
             </div>
         ))}
     </div>
 );
 
 const CityscapeEffect = () => (
-    <div className="absolute bottom-0 left-0 right-0 h-64 opacity-40">
-        <div className="flex justify-around items-end h-full">
-            {Array.from({ length: 8 }, (_, i) => (
-                <div
-                    key={i}
-                    className="bg-gradient-to-t from-gray-800 to-gray-600"
-                    style={{
-                        width: '8%',
-                        height: `${50 + Math.random() * 50}%`,
-                        boxShadow: '0 0 20px rgba(255,255,255,0.2)',
-                    }}
-                >
-                    {Array.from({ length: Math.floor(Math.random() * 10 + 5) }, (_, j) => (
-                        <div key={j} className="w-2 h-2 bg-yellow-300 m-1 animate-pulse" style={{ animationDelay: `${Math.random() * 2}s` }} />
-                    ))}
-                </div>
+    <div className="absolute bottom-0 left-0 right-0 h-64 opacity-30">
+        <div className="flex items-end justify-center gap-2 h-full">
+            {Array.from({ length: 12 }, (_, i) => (
+                <div key={i} className="bg-gray-800/60" style={{ width: '40px', height: `${Math.random() * 150 + 100}px` }} />
             ))}
         </div>
     </div>
@@ -383,14 +388,15 @@ const CityscapeEffect = () => (
 
 const NeonEffect = () => (
     <div className="absolute inset-0">
-        {Array.from({ length: 5 }, (_, i) => (
+        {Array.from({ length: 8 }, (_, i) => (
             <div
                 key={i}
-                className="absolute left-0 right-0 h-px animate-neon-glow"
+                className="absolute h-2 animate-neon-glow"
                 style={{
-                    top: `${(i + 1) * 18}%`,
-                    background: i % 2 === 0 ? 'rgba(0,255,255,0.8)' : 'rgba(255,0,255,0.8)',
-                    animationDelay: `${i * 0.5}s`,
+                    left: `${Math.random() * 80 + 10}%`,
+                    top: `${Math.random() * 80 + 10}%`,
+                    width: '60px',
+                    background: ['#ff00ff', '#00ffff', '#ffff00', '#ff0000'][i % 4],
                 }}
             />
         ))}
@@ -398,11 +404,11 @@ const NeonEffect = () => (
 );
 
 const SnowEffect = () => (
-    <div className="absolute inset-0">
+    <div className="absolute inset-0 overflow-hidden">
         {Array.from({ length: 50 }, (_, i) => (
             <div
                 key={i}
-                className="absolute text-2xl opacity-70"
+                className="absolute text-2xl"
                 style={{
                     left: `${Math.random() * 100}%`,
                     animation: `fall ${Math.random() * 10 + 5}s linear ${Math.random() * 5}s infinite`,
@@ -415,14 +421,14 @@ const SnowEffect = () => (
 );
 
 const LeavesEffect = () => (
-    <div className="absolute inset-0">
+    <div className="absolute inset-0 overflow-hidden">
         {Array.from({ length: 20 }, (_, i) => (
             <div
                 key={i}
                 className="absolute text-3xl"
                 style={{
                     left: `${Math.random() * 100}%`,
-                    animation: `fall-rotate ${Math.random() * 8 + 5}s linear ${Math.random() * 5}s infinite`,
+                    animation: `fall-rotate ${Math.random() * 10 + 8}s linear ${Math.random() * 5}s infinite`,
                 }}
             >
                 🍂
@@ -433,34 +439,31 @@ const LeavesEffect = () => (
 
 const FlowersEffect = () => (
     <div className="absolute inset-0">
-        {['🌺', '🌻', '🌷', '🌹', '💐'].map((flower, i) =>
-            Array.from({ length: 5 }, (_, j) => (
-                <div
-                    key={`${i}-${j}`}
-                    className="absolute text-4xl opacity-70 animate-bounce"
-                    style={{
-                        left: `${Math.random() * 100}%`,
-                        top: `${Math.random() * 100}%`,
-                        animationDelay: `${(i + j) * 0.5}s`,
-                        animationDuration: `${Math.random() * 2 + 2}s`,
-                    }}
-                >
-                    {flower}
-                </div>
-            )),
-        )}
+        {Array.from({ length: 20 }, (_, i) => (
+            <div
+                key={i}
+                className="absolute text-3xl opacity-70"
+                style={{
+                    left: `${Math.random() * 100}%`,
+                    top: `${Math.random() * 100}%`,
+                    animation: `float ${Math.random() * 8 + 6}s ease-in-out ${Math.random() * 4}s infinite`,
+                }}
+            >
+                🌺
+            </div>
+        ))}
     </div>
 );
 
 const BubblesEffect = () => (
     <div className="absolute inset-0">
-        {Array.from({ length: 30 }, (_, i) => (
+        {Array.from({ length: 15 }, (_, i) => (
             <div
                 key={i}
-                className="absolute rounded-full border-2 border-white/30 animate-bubble-rise"
+                className="absolute rounded-full bg-white/30 animate-bubble-rise"
                 style={{
                     left: `${Math.random() * 100}%`,
-                    bottom: '-50px',
+                    bottom: '0',
                     width: `${Math.random() * 40 + 20}px`,
                     height: `${Math.random() * 40 + 20}px`,
                     animationDelay: `${Math.random() * 5}s`,
@@ -472,21 +475,18 @@ const BubblesEffect = () => (
 
 const FishEffect = () => (
     <div className="absolute inset-0">
-        {['🐠', '🐟', '🐡'].map((fish, i) =>
-            Array.from({ length: 3 }, (_, j) => (
-                <div
-                    key={`${i}-${j}`}
-                    className="absolute text-4xl animate-swim"
-                    style={{
-                        top: `${20 + i * 20}%`,
-                        animationDuration: `${15 + j * 5}s`,
-                        animationDelay: `${j * 3}s`,
-                    }}
-                >
-                    {fish}
-                </div>
-            )),
-        )}
+        {Array.from({ length: 8 }, (_, i) => (
+            <div
+                key={i}
+                className="absolute text-4xl animate-swim"
+                style={{
+                    top: `${Math.random() * 80 + 10}%`,
+                    animationDelay: `${i * 2}s`,
+                }}
+            >
+                🐠
+            </div>
+        ))}
     </div>
 );
 
@@ -497,9 +497,9 @@ const ButterfliesEffect = () => (
                 key={i}
                 className="absolute text-3xl animate-butterfly"
                 style={{
-                    left: `${Math.random() * 100}%`,
-                    top: `${Math.random() * 100}%`,
-                    animationDelay: `${Math.random() * 5}s`,
+                    left: `${Math.random() * 80 + 10}%`,
+                    top: `${Math.random() * 80 + 10}%`,
+                    animationDelay: `${Math.random() * 3}s`,
                 }}
             >
                 🦋
@@ -534,7 +534,7 @@ const PokeballEffect = () => (
 
 const CastleEffect = () => (
     <div className="absolute bottom-0 left-1/2 -translate-x-1/2 opacity-50">
-        <div className="text-9xl">🏰</div>
+        <div className="text-9xl">🰰</div>
         <div className="absolute inset-0 bg-gradient-to-t from-purple-500/20 to-transparent animate-pulse" />
     </div>
 );
@@ -716,6 +716,275 @@ const FrostEffect = () => (
                 backgroundSize: '100px 100px, 150px 150px, 120px 120px',
             }}
         />
+    </div>
+);
+
+// ===== 🎤 K-POP 데몬 헌터스 전용 이펙트 =====
+
+// HUNTR/X 스테이지 효과
+const KPDHStageEffect = () => (
+    <div className="absolute inset-0">
+        {/* 무대 조명 빔 */}
+        {Array.from({ length: 6 }, (_, i) => (
+            <div
+                key={i}
+                className="absolute animate-kpdh-beam"
+                style={{
+                    left: `${(i * 100) / 5}%`,
+                    bottom: '0',
+                    width: '80px',
+                    height: '100%',
+                    background: `linear-gradient(180deg, 
+                        transparent, 
+                        ${['rgba(168,85,247,0.3)', 'rgba(236,72,153,0.3)', 'rgba(139,92,246,0.3)'][i % 3]}, 
+                        transparent
+                    )`,
+                    animationDelay: `${i * 0.3}s`,
+                }}
+            />
+        ))}
+    </div>
+);
+
+// K-POP 스타일 반짝임
+const KPDHSparklesEffect = () => (
+    <div className="absolute inset-0">
+        {Array.from({ length: 30 }, (_, i) => (
+            <div
+                key={i}
+                className="absolute animate-kpdh-pulse"
+                style={{
+                    left: `${Math.random() * 100}%`,
+                    top: `${Math.random() * 100}%`,
+                    animationDelay: `${Math.random() * 3}s`,
+                }}
+            >
+                <div className="text-2xl md:text-3xl">
+                    {['💜', '💖', '✨', '⭐'][Math.floor(Math.random() * 4)]}
+                </div>
+            </div>
+        ))}
+    </div>
+);
+
+// 네온 라인 효과
+const KPDHNeonEffect = () => (
+    <div className="absolute inset-0">
+        {Array.from({ length: 8 }, (_, i) => (
+            <div
+                key={i}
+                className="absolute animate-neon-glow"
+                style={{
+                    left: `${Math.random() * 80 + 10}%`,
+                    top: `${Math.random() * 80 + 10}%`,
+                    width: '100px',
+                    height: '4px',
+                    background: ['#a855f7', '#ec4899', '#8b5cf6', '#f472b6'][i % 4],
+                    transform: `rotate(${Math.random() * 360}deg)`,
+                    borderRadius: '2px',
+                }}
+            />
+        ))}
+    </div>
+);
+
+// 에너지 파동 효과
+const KPDHEnergyEffect = () => (
+    <div className="absolute inset-0">
+        {Array.from({ length: 5 }, (_, i) => (
+            <div
+                key={i}
+                className="absolute inset-0 rounded-full animate-kpdh-pulse"
+                style={{
+                    border: '2px solid rgba(168, 85, 247, 0.3)',
+                    animationDelay: `${i * 0.8}s`,
+                    animationDuration: '4s',
+                }}
+            />
+        ))}
+    </div>
+);
+
+// 사인검 효과
+const KPDHSwordEffect = () => (
+    <div className="absolute inset-0">
+        {Array.from({ length: 4 }, (_, i) => (
+            <div
+                key={i}
+                className="absolute animate-kpdh-float"
+                style={{
+                    left: `${20 + i * 20}%`,
+                    top: `${Math.random() * 60 + 20}%`,
+                    animationDelay: `${i * 0.5}s`,
+                }}
+            >
+                <div
+                    className="text-5xl md:text-6xl opacity-40"
+                    style={{
+                        filter: 'drop-shadow(0 0 10px rgba(168, 85, 247, 0.6))',
+                        transform: `rotate(${45 + i * 90}deg)`,
+                    }}
+                >
+                    ⚔️
+                </div>
+            </div>
+        ))}
+    </div>
+);
+
+// 악마 포털 효과
+const KPDHPortalEffect = () => (
+    <div className="absolute inset-0 flex items-center justify-center">
+        {Array.from({ length: 3 }, (_, i) => (
+            <div
+                key={i}
+                className="absolute rounded-full animate-kpdh-portal"
+                style={{
+                    width: `${200 + i * 100}px`,
+                    height: `${200 + i * 100}px`,
+                    border: `3px solid rgba(124, 58, 237, ${0.4 - i * 0.1})`,
+                    animationDelay: `${i * 0.5}s`,
+                }}
+            />
+        ))}
+        <div className="absolute text-7xl opacity-50 animate-kpdh-rotate">
+            🌀
+        </div>
+    </div>
+);
+
+// 더피 타이거 효과
+const KPDHDerpyEffect = () => (
+    <div className="absolute inset-0">
+        {Array.from({ length: 3 }, (_, i) => (
+            <div
+                key={i}
+                className="absolute animate-kpdh-swing"
+                style={{
+                    left: `${10 + i * 35}%`,
+                    bottom: '10%',
+                    animationDelay: `${i * 0.4}s`,
+                }}
+            >
+                <div className="text-7xl md:text-8xl opacity-70">🐯</div>
+            </div>
+        ))}
+    </div>
+);
+
+// K-POP 구름 효과
+const KPDHCloudsEffect = () => (
+    <div className="absolute inset-0">
+        {Array.from({ length: 6 }, (_, i) => (
+            <div
+                key={i}
+                className="absolute text-5xl md:text-6xl opacity-50 animate-cloud-move"
+                style={{
+                    top: `${Math.random() * 50 + 10}%`,
+                    animationDelay: `${i * 2}s`,
+                }}
+            >
+                ☁️
+            </div>
+        ))}
+    </div>
+);
+
+// 콘서트 조명 효과
+const KPDHConcertLightsEffect = () => (
+    <div className="absolute inset-0">
+        {Array.from({ length: 12 }, (_, i) => (
+            <div
+                key={i}
+                className="absolute animate-pulse"
+                style={{
+                    left: `${(i * 100) / 11}%`,
+                    top: '0',
+                    width: '60px',
+                    height: '100%',
+                    background: `linear-gradient(180deg, 
+                        ${['rgba(147, 51, 234, 0.4)', 'rgba(192, 38, 211, 0.4)', 'rgba(236, 72, 153, 0.4)', 'rgba(249, 115, 22, 0.4)'][i % 4]}, 
+                        transparent 60%
+                    )`,
+                    animationDelay: `${i * 0.2}s`,
+                    animationDuration: '2s',
+                }}
+            />
+        ))}
+    </div>
+);
+
+// 응원봉 효과
+const KPDHCheeringEffect = () => (
+    <div className="absolute inset-0">
+        {Array.from({ length: 20 }, (_, i) => (
+            <div
+                key={i}
+                className="absolute animate-kpdh-cheer"
+                style={{
+                    left: `${Math.random() * 100}%`,
+                    bottom: '0',
+                    animationDelay: `${Math.random() * 0.6}s`,
+                }}
+            >
+                <div
+                    className="text-3xl md:text-4xl"
+                    style={{
+                        filter: `drop-shadow(0 0 8px ${['#a855f7', '#ec4899', '#f472b6'][i % 3]})`,
+                    }}
+                >
+                    {['💜', '💖', '💗'][i % 3]}
+                </div>
+            </div>
+        ))}
+    </div>
+);
+
+// 골든 혼문 봉인 효과
+const KPDHGoldenSealEffect = () => (
+    <div className="absolute inset-0 flex items-center justify-center">
+        {Array.from({ length: 4 }, (_, i) => (
+            <div
+                key={i}
+                className="absolute rounded-full animate-kpdh-pulse"
+                style={{
+                    width: `${150 + i * 80}px`,
+                    height: `${150 + i * 80}px`,
+                    border: `4px solid rgba(251, 191, 36, ${0.5 - i * 0.1})`,
+                    animationDelay: `${i * 0.3}s`,
+                }}
+            />
+        ))}
+        <div className="absolute text-8xl animate-kpdh-rotate" style={{ animationDuration: '30s' }}>
+            ✨
+        </div>
+    </div>
+);
+
+// 룬 문자 효과
+const KPDHRunesEffect = () => (
+    <div className="absolute inset-0">
+        {Array.from({ length: 12 }, (_, i) => (
+            <div
+                key={i}
+                className="absolute animate-kpdh-float"
+                style={{
+                    left: `${Math.random() * 100}%`,
+                    top: `${Math.random() * 100}%`,
+                    animationDelay: `${Math.random() * 4}s`,
+                }}
+            >
+                <div
+                    className="text-2xl md:text-3xl font-bold opacity-40"
+                    style={{
+                        color: '#fbbf24',
+                        textShadow: '0 0 10px rgba(251, 191, 36, 0.8)',
+                    }}
+                >
+                    {['⚡', '✧', '◆', '★', '◈'][i % 5]}
+                </div>
+            </div>
+        ))}
     </div>
 );
 

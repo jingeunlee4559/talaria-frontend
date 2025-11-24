@@ -1,7 +1,7 @@
 // src/constants/specialEffects.js
 
 export const SPECIAL_EFFECTS = {
-    '🎉': { type: 'confetti', emoji: '🎉', color: 'multi', name: '축하 폭죽', description: '회전하며 떨어지는 축하 효과' },
+    '🎉': { type: 'firework', emoji: '🎉', color: 'multi', name: '축하 폭죽', description: '회전하며 떨어지는 축하 효과', variant: 'side-cannons' },
     '🎊': { type: 'confetti', emoji: '🎊', color: 'multi', name: '파티 크래커', description: '회전하며 떨어지는 파티 효과' },
     '💥': { type: 'explosion', emoji: '💥', color: 'red', name: '폭발', description: '사방으로 퍼지는 폭발 효과' },
     '✨': { type: 'sparkle', emoji: '✨', color: 'gold', name: '반짝임', description: '반짝이며 회전하는 효과' },

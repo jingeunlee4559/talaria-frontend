@@ -8,24 +8,107 @@ const SpecialEffectAnimation = ({ effect, onComplete }) => {
         if (!effect) return;
 
         let count = 50;
-        if (effect.type === 'firework') count = 80;
+        if (effect.type === 'firework') count = 90;
         else if (effect.type === 'explosion') count = 60;
         else if (effect.type === 'snow' || effect.type === 'sakura') count = 40;
         else if (effect.type === 'butterfly') count = 15;
         else if (effect.type === 'heart-spin') count = 30;
         else if (effect.type === 'spiral') count = 40;
 
-        const newParticles = Array.from({ length: count }, (_, i) => ({
-            id: i,
-            // firework는 중앙 기준, 나머지는 랜덤
-            x: effect.type === 'firework' ? 50 : Math.random() * 100,
-            y: effect.type === 'firework' ? 50 : Math.random() * 80,
-            rotation: Math.random() * 360,
-            delay: Math.random() * 0.5,
-            duration: 1.5 + Math.random() * 1.5,
-            angle: (Math.PI * 2 * i) / count,
-        }));
-        setParticles(newParticles);
+        // 🎉 전용: 생일축하 폭죽 (양쪽 아래에서 대각선으로 크게 터짐)
+        const isBirthdayPop = effect.type === 'firework' && (effect.variant === 'birthday-pop' || effect.emoji === '🎉');
+
+        const newParticles = [];
+        const now = Date.now();
+
+        if (isBirthdayPop) {
+            const total = count + 40; // 조금 더 많이
+            const half = Math.floor(total / 2);
+
+            const baseY = effect.baseY ?? 82; // 아래쪽 기준 Y(%)
+            const leftX = effect.leftX ?? 10; // 왼쪽 캐논 X(%)
+            const rightX = effect.rightX ?? 90; // 오른쪽 캐논 X(%)
+
+            const spreadDeg = 35; // 퍼지는 각도
+            const spreadRad = (spreadDeg * Math.PI) / 180;
+
+            const centerAngleLeft = (-60 * Math.PI) / 180; // 왼쪽: 오른쪽 위 대각선
+            const centerAngleRight = (-120 * Math.PI) / 180; // 오른쪽: 왼쪽 위 대각선
+
+            // 왼쪽 폭죽들
+            for (let i = 0; i < half; i++) {
+                const angle = centerAngleLeft + (Math.random() - 0.5) * spreadRad;
+                const distance = 320 + Math.random() * 260; // 전체 길이
+                const dx = Math.cos(angle) * distance;
+                const dy = Math.sin(angle) * distance; // 음수라서 위로
+
+                newParticles.push({
+                    id: `birthday-L-${i}-${now}`,
+                    originX: leftX + Math.random() * 5,
+                    originY: baseY + Math.random() * 6,
+                    rotation: Math.random() * 360,
+                    delay: Math.random() * 0.35,
+                    duration: 1.4 + Math.random() * 0.7,
+                    dx,
+                    dy,
+                    side: 'left',
+                });
+            }
+
+            // 오른쪽 폭죽들
+            for (let i = 0; i < total - half; i++) {
+                const angle = centerAngleRight + (Math.random() - 0.5) * spreadRad;
+                const distance = 320 + Math.random() * 260;
+                const dx = Math.cos(angle) * distance;
+                const dy = Math.sin(angle) * distance;
+
+                newParticles.push({
+                    id: `birthday-R-${i}-${now}`,
+                    originX: rightX - Math.random() * 5,
+                    originY: baseY + Math.random() * 6,
+                    rotation: Math.random() * 360,
+                    delay: Math.random() * 0.35,
+                    duration: 1.4 + Math.random() * 0.7,
+                    dx,
+                    dy,
+                    side: 'right',
+                });
+            }
+
+            setParticles(newParticles);
+        } else if (effect.type === 'firework') {
+            // 기본 중앙 폭죽 (기존/백업용)
+            for (let i = 0; i < count; i++) {
+                const angle = (Math.PI * 2 * i) / count;
+                const radius1 = 200 + Math.random() * 100;
+                const radius2 = radius1 + 150 + Math.random() * 120;
+                newParticles.push({
+                    id: `center-firework-${i}-${now}`,
+                    x: 50,
+                    y: 50,
+                    rotation: Math.random() * 360,
+                    delay: Math.random() * 0.5,
+                    duration: 1.6 + Math.random() * 0.9,
+                    angle,
+                    radius1,
+                    radius2,
+                });
+            }
+            setParticles(newParticles);
+        } else {
+            // 나머지 낙하형 이펙트
+            for (let i = 0; i < count; i++) {
+                newParticles.push({
+                    id: i,
+                    x: Math.random() * 100,
+                    y: Math.random() * 80,
+                    rotation: Math.random() * 360,
+                    delay: Math.random() * 0.5,
+                    duration: 1.5 + Math.random() * 1.5,
+                });
+            }
+            setParticles(newParticles);
+        }
 
         const timer = setTimeout(() => {
             onComplete && onComplete();
@@ -37,23 +120,39 @@ const SpecialEffectAnimation = ({ effect, onComplete }) => {
     if (!effect) return null;
 
     const getParticleStyle = (particle) => {
+        const isBirthdayPop = effect.type === 'firework' && (effect.variant === 'birthday-pop' || effect.emoji === '🎉');
+
         const baseStyle = {
-            position: 'absolute', // 오버레이 안에서 절대 위치
-            fontSize: '2.2rem',
+            position: 'absolute',
+            fontSize: isBirthdayPop ? '3.2rem' : '2.2rem',
             zIndex: 1,
             pointerEvents: 'none',
         };
 
-        if (effect.type === 'firework') {
+        if (isBirthdayPop) {
             return {
                 ...baseStyle,
-                left: '50%',
-                top: '50%',
-                animation: `firework-burst ${particle.duration}s ease-out ${particle.delay}s forwards`,
-                '--angle': `${particle.angle}rad`,
+                left: `${particle.originX}%`,
+                top: `${particle.originY}%`,
+                animation: `firework-side-diagonal ${particle.duration}s cubic-bezier(0.16, 1, 0.3, 1) ${particle.delay}s forwards`,
+                '--dx': `${particle.dx}px`,
+                '--dy': `${particle.dy}px`,
             };
         }
 
+        if (effect.type === 'firework') {
+            return {
+                ...baseStyle,
+                left: `${particle.x}%`,
+                top: `${particle.y}%`,
+                animation: `firework-burst ${particle.duration}s cubic-bezier(0.16, 1, 0.3, 1) ${particle.delay}s forwards`,
+                '--angle': `${particle.angle}rad`,
+                '--radius1': `${particle.radius1 || 220}px`,
+                '--radius2': `${particle.radius2 || 380}px`,
+            };
+        }
+
+        // 기본 낙하시 효과
         return {
             ...baseStyle,
             left: `${particle.x}%`,
@@ -64,7 +163,6 @@ const SpecialEffectAnimation = ({ effect, onComplete }) => {
 
     return (
         <div
-            // 영상 영역을 덮는 오버레이
             style={{
                 position: 'absolute',
                 inset: 0,
@@ -80,7 +178,81 @@ const SpecialEffectAnimation = ({ effect, onComplete }) => {
             ))}
 
             <style>{`
-                /* 공통: 아래 keyframes 안에는 Math.random() 절대 사용 X */
+                /* 🎉 생일축하 폭죽: 양쪽 아래에서 대각선으로 크게 터지는 애니메이션 */
+                @keyframes firework-side-diagonal {
+                    0% {
+                        transform: translate(0, 0) scale(0.2) rotate(0deg);
+                        opacity: 0;
+                        filter: brightness(1);
+                    }
+                    15% {
+                        transform: translate(
+                            calc(var(--dx) * 0.15),
+                            calc(var(--dy) * 0.15)
+                        ) scale(1.3) rotate(45deg);
+                        opacity: 1;
+                        filter: brightness(1.5);
+                    }
+                    40% {
+                        transform: translate(
+                            calc(var(--dx) * 0.5),
+                            calc(var(--dy) * 0.5)
+                        ) scale(2.4) rotate(180deg);
+                        opacity: 1;
+                        filter: brightness(2);
+                    }
+                    70% {
+                        transform: translate(
+                            calc(var(--dx) * 0.8),
+                            calc(var(--dy) * 0.8)
+                        ) scale(1.7) rotate(270deg);
+                        opacity: 0.9;
+                        filter: brightness(1.6);
+                    }
+                    100% {
+                        transform: translate(var(--dx), var(--dy)) scale(0.4) rotate(360deg);
+                        opacity: 0;
+                        filter: brightness(1);
+                    }
+                }
+
+                /* 기존 firework (중앙에서 터지는 버전, 다른 이펙트용) */
+                @keyframes firework-burst {
+                    0% {
+                        transform: translate(-50%, -50%) translate(0, 0) scale(0.2);
+                        opacity: 0;
+                        filter: brightness(1);
+                    }
+                    20% {
+                        transform: translate(-50%, -50%)
+                                   translate(0, -40px)
+                                   scale(1.1) rotate(45deg);
+                        opacity: 1;
+                        filter: brightness(1.5);
+                    }
+                    60% {
+                        transform: translate(-50%, -50%) 
+                                   translate(
+                                       calc(cos(var(--angle)) * var(--radius1, 240px)),
+                                       calc(sin(var(--angle)) * var(--radius1, 240px))
+                                   )
+                                   scale(2.2) rotate(180deg);
+                        opacity: 1;
+                        filter: brightness(2);
+                    }
+                    100% {
+                        transform: translate(-50%, -50%) 
+                                   translate(
+                                       calc(cos(var(--angle)) * var(--radius2, 420px)),
+                                       calc(sin(var(--angle)) * var(--radius2, 420px))
+                                   )
+                                   scale(0.2) rotate(360deg);
+                        opacity: 0;
+                        filter: brightness(1);
+                    }
+                }
+
+                /* ===== 이하 기존 fall-* 이펙트 유지 ===== */
 
                 @keyframes fall-confetti {
                     0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
@@ -115,25 +287,6 @@ const SpecialEffectAnimation = ({ effect, onComplete }) => {
                     0% { transform: translateY(0) scale(1); opacity: 1; filter: hue-rotate(0deg); }
                     50% { transform: translateY(-10vh) scale(2.5); opacity: 1; filter: hue-rotate(45deg); }
                     100% { transform: translateY(-20vh) scale(0); opacity: 0; filter: hue-rotate(90deg); }
-                }
-
-                @keyframes firework-burst {
-                    0% {
-                        transform: translate(-50%, -50%) translate(0, 0) scale(0);
-                        opacity: 1;
-                    }
-                    50% {
-                        transform: translate(-50%, -50%) 
-                                   translate(calc(cos(var(--angle)) * 200px), calc(sin(var(--angle)) * 200px)) 
-                                   scale(1.5) rotate(180deg);
-                        opacity: 1;
-                    }
-                    100% {
-                        transform: translate(-50%, -50%) 
-                                   translate(calc(cos(var(--angle)) * 400px), calc(sin(var(--angle)) * 400px)) 
-                                   scale(0) rotate(360deg);
-                        opacity: 0;
-                    }
                 }
 
                 @keyframes fall-star-burst {

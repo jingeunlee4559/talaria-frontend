@@ -159,14 +159,38 @@ function mapSeverity(sev) {
     return 1;
 }
 
-function normalizeToCard(ev) {
+// [수정] targetLocale 파라미터 추가 (기본값 'ko-KR')
+function normalizeToCard(ev, targetLocale = 'ko-KR') {
     if (!ev) return null;
 
     const matchText = (ev.match && String(ev.match).trim()) || (ev.label && String(ev.label).trim()) || '';
     if (!matchText) return null;
 
     const sev = mapSeverity(ev.severity);
-    const explanation = (ev.explanation || '').toString().trim() || '문화적 차이가 있을 수 있어요!';
+
+    // 🟢 [변경 시작] 언어별 설명 선택 로직
+    // 1순위: 내 Locale과 정확히 일치하는 번역 (예: 'en-US')
+    // 2순위: 언어 코드가 일치하는 번역 (예: 'en')
+    // 3순위: 기본 explanation (한국어 원본)
+    let selectedExplanation = ev.explanation || '';
+
+    if (ev.translations) {
+        if (ev.translations[targetLocale]) {
+            // 정확히 일치 (예: en-US)
+            selectedExplanation = ev.translations[targetLocale];
+        } else {
+            // 언어 코드만 일치하는지 확인 (예: en-US -> en)
+            const langCode = targetLocale.split('-')[0];
+            const fallbackKey = Object.keys(ev.translations).find(k => k.startsWith(langCode));
+            if (fallbackKey) {
+                selectedExplanation = ev.translations[fallbackKey];
+            }
+        }
+    }
+
+    const explanation = (selectedExplanation || '').toString().trim() || '문화적 차이가 있을 수 있어요!';
+    // 🟢 [변경 끝]
+
     const suggestion = (ev.suggestion || '').toString().trim() || '';
     const speaker = ev.identity || ev.username || 'unknown';
     const cooldownSec = 30;
@@ -224,6 +248,19 @@ export default function CultureAlert({ room: roomProp, displayMs = 8000, debug =
     const isConnected = !!room && (room.state === ConnectionState.Connected || room.state === 'connected');
     const liveMode = !demo && isConnected;
 
+    // 내 언어 설정을 가져오는 헬퍼 함수
+    const getMyLocale = () => {
+        try {
+            if (room && room.localParticipant && room.localParticipant.metadata) {
+                const meta = JSON.parse(room.localParticipant.metadata);
+                return meta.appLocale || 'ko-KR';
+            }
+        } catch (e) {
+            // 파싱 에러 시 기본값
+        }
+        return 'ko-KR';
+    };
+
     // DataChannel 수신
     useEffect(() => {
         if (!liveMode) return;
@@ -242,7 +279,9 @@ export default function CultureAlert({ room: roomProp, displayMs = 8000, debug =
                     return;
                 }
 
-                const card = normalizeToCard(data);
+                // 내 Locale을 구해서 normalizeToCard에 전달
+                const myLocale = getMyLocale();
+                const card = normalizeToCard(data, myLocale);
                 if (!card) return;
 
                 const now = Date.now();

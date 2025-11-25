@@ -31,11 +31,12 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
 
     useEffect(() => {
         if (isOpen) {
-            const now = new Date();
-            const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-            const endOfDay = '23:59'; // ✅ 종료 시간 기본값
+            // 🔹 공통 기본 시간
+            const defaultStartTime = '09:00';
+            const defaultEndTime = '18:00';
 
             if (isEditing) {
+                // ✅ 기존 일정 수정 모드
                 const { event } = selectedInfo;
                 const startDate = format(new Date(event.start), 'yyyy-MM-dd');
                 let endDate = event.end ? new Date(event.end) : new Date(event.start);
@@ -43,32 +44,41 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
                     endDate.setDate(endDate.getDate() - 1);
                 }
 
-                // ✅ 한글 타입을 영어 value로 변환
                 const eventType = event.extendedProps?.type || 'meeting';
                 const typeValue = getTypeValue(eventType);
 
                 setFormData({
                     id: event.id,
                     title: event.title || '',
-                    type: typeValue, // 영어 value 사용
+                    type: typeValue,
                     date: startDate,
                     endDate: format(endDate, 'yyyy-MM-dd'),
-                    startTime: String(event.start).includes('T') ? format(new Date(event.start), 'HH:mm') : currentTime,
-                    endTime: event.end && String(event.end).includes('T') ? format(new Date(event.end), 'HH:mm') : endOfDay,
+                    // ⬇️ 시간이 없으면 기본값 09:00 / 18:00 사용
+                    startTime: String(event.start)?.includes('T') ? format(new Date(event.start), 'HH:mm') : defaultStartTime,
+                    endTime: event.end && String(event.end).includes('T') ? format(new Date(event.end), 'HH:mm') : defaultEndTime,
                     location: event.extendedProps?.location || '',
                     description: event.extendedProps?.description || '',
                 });
             } else {
-                const initialDate = selectedInfo?.date ? format(selectedInfo.date, 'yyyy-MM-dd') : '';
+                // ✅ 새 일정 추가 모드 (MinutesView에서 열리는 경우 포함)
+                const initialDate = selectedInfo?.date instanceof Date ? format(selectedInfo.date, 'yyyy-MM-dd') : selectedInfo?.date || '';
+
+                const initialEndDate = selectedInfo?.deadlineDate instanceof Date ? format(selectedInfo.deadlineDate, 'yyyy-MM-dd') : initialDate;
+
+                const presetTitle = selectedInfo?.presetTitle || '';
+                const presetDescription = selectedInfo?.presetDescription || '';
+                const presetType = selectedInfo?.presetType || 'meeting';
+
                 setFormData({
-                    title: '',
-                    type: 'meeting',
+                    title: presetTitle,
+                    type: presetType,
                     date: initialDate,
-                    endDate: initialDate,
-                    startTime: currentTime,
-                    endTime: endOfDay, // ✅ 새 일정 추가 시에도 23:59로 설정
+                    endDate: initialEndDate,
+                    // ⬇️ 여기서 기본값 고정
+                    startTime: defaultStartTime, // 09:00
+                    endTime: defaultEndTime, // 18:00
                     location: '',
-                    description: '',
+                    description: presetDescription,
                 });
             }
         }
@@ -132,7 +142,6 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
             const savedEvent = response.data;
             console.log('서버로부터 받은 저장된 이벤트:', savedEvent);
 
-            // ✅ 서버에서 snake_case로 오는 필드명 사용
             const calendarEvent = {
                 id: String(savedEvent.event_id),
                 title: savedEvent.title,
@@ -159,7 +168,6 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
 
             console.log('FullCalendar에 전달할 이벤트:', calendarEvent);
 
-            // ✅ 성공 알림
             await Swal.fire({
                 icon: 'success',
                 title: formData.id ? '일정 수정 완료' : '일정 추가 완료',
@@ -168,7 +176,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
                 showConfirmButton: false,
             });
 
-            onSave(calendarEvent);
+            if (onSave) onSave(calendarEvent);
             onClose();
         } catch (error) {
             console.error('일정 저장 실패:', error);
@@ -176,7 +184,6 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
                 console.error('서버 응답 데이터:', error.response.data);
             }
 
-            // ✅ 실패 알림
             Swal.fire({
                 icon: 'error',
                 title: '일정 저장 실패',
@@ -186,7 +193,6 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
         }
     };
 
-    // ✅ 삭제 핸들러
     const handleDelete = async () => {
         if (!user) {
             Swal.fire({
@@ -199,7 +205,6 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
         }
         if (!formData.id) return;
 
-        // ✅ 삭제 확인 다이얼로그
         const result = await Swal.fire({
             title: '일정을 삭제하시겠습니까?',
             text: `"${formData.title}" 일정이 영구적으로 삭제됩니다.`,
@@ -213,12 +218,10 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
 
         if (!result.isConfirmed) return;
 
-        // ✅ 서버 요청은 하지 않고, 부모 컴포넌트에게만 알림
         console.log('🗑️ [EventModal] 삭제 요청을 부모에게 전달:', formData.id);
-        onDelete(formData.id);
+        if (onDelete) onDelete(formData.id);
         onClose();
 
-        // ✅ 삭제 성공 알림 (onClose 후에 표시)
         setTimeout(() => {
             Swal.fire({
                 icon: 'success',
@@ -230,7 +233,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, selectedInfo }) => {
         }, 100);
     };
 
-    const selectedType = eventTypes.find((t) => t.value === formData.type);
+    const selectedType = eventTypes.find((t) => t.value === formData.type) || eventTypes[0];
 
     return (
         <AnimatePresence>

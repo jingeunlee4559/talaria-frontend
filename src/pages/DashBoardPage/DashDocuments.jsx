@@ -1,7 +1,8 @@
+// src/pages/Dashboard/DashDocuments.jsx
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import DocumentModal from '../../components/dashboard/dashDoc/DocumentModal';
 import Pagination from '../../components/Pagination';
-import { mockMinutes } from './mockDocuments';
+// import { mockMinutes } from './mockDocuments'; // ✅ 더 이상 사용 안 함
 import { SubTabButton, TabButton } from '../../components/dashboard/dashDoc/TabButtons';
 import { DocumentList, MeetingMinutesList } from '../../components/dashboard/dashDoc/DocList';
 import DocHeader from '../../components/dashboard/dashDoc/DocHeader';
@@ -11,16 +12,37 @@ import Swal from 'sweetalert2';
 
 const ITEMS_PER_PAGE = 5;
 
+// ✅ 안전 JSON 파서 (문자/배열 둘 다 처리)
+const safeJsonParse = (value, fallback) => {
+    if (value == null) return fallback;
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') {
+        try {
+            const parsed = JSON.parse(value);
+            return parsed ?? fallback;
+        } catch {
+            return fallback;
+        }
+    }
+    return fallback;
+};
+
 const DashDocuments = () => {
     const [activeTab, setActiveTab] = useState('번역 문서'); // 상위 탭: 번역 문서 / 회의록
     const [docSubTab, setDocSubTab] = useState('전체'); // 하위 탭: 전체 / 원문 / 번역
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+
+    // 문서 상태
     const [origDocuments, setOrigDocuments] = useState([]); // tl_documents
     const [transDocuments, setTransDocuments] = useState([]); // tl_trans_docs
     const [selectedDocs, setSelectedDocs] = useState([]);
     const [loading, setLoading] = useState(false);
+
+    // 회의록 상태
+    const [minutesList, setMinutesList] = useState([]);
+    const [minutesLoading, setMinutesLoading] = useState(false);
 
     // 페이지네이션
     const [docCurrentPage, setDocCurrentPage] = useState(1);
@@ -50,7 +72,7 @@ const DashDocuments = () => {
                         size_bytes: doc.size ?? 0,
                         author: doc.uploader_name,
                         filepath: doc.filepath,
-                        rel_path: doc.filepath, // 서버가 rel_path로도 인식한다면 유지
+                        rel_path: doc.filepath,
                         downloadUrl: `/api/users/${user.userId}/documents/${doc.doc_id}/download`,
                         use_context_rag: !!doc.use_context_rag,
                     };
@@ -83,7 +105,6 @@ const DashDocuments = () => {
                 });
                 const items = Array.isArray(res.data?.items) ? res.data.items : [];
 
-                // 원문 매핑(제목/언어 등 붙이기)
                 const origById = new Map(origDocuments.map((o) => [o.doc_id, o]));
 
                 const formatted = items.map((t) => {
@@ -96,10 +117,7 @@ const DashDocuments = () => {
                         id: `trans-${t.request_id}`,
                         request_id: t.request_id,
                         original_doc_id: t.original_doc_id,
-
-                        // ⬇️ 제목에 " · {lang} 번역" 제거 (원문 제목만)
                         title: baseTitle,
-
                         lastModified: t.translated_at ? new Date(t.translated_at).toLocaleString('ko-KR') : t.updated_at ? new Date(t.updated_at).toLocaleString('ko-KR') : '날짜 정보 없음',
                         target_language: t.target_language,
                         provider: t.provider,
@@ -107,10 +125,8 @@ const DashDocuments = () => {
                         size_bytes: t.size_bytes ?? 0,
                         translated_rel_path: t.translated_rel_path,
                         downloadUrl: `/api/users/${user.userId}/trans-docs/req/${t.request_id}/download`,
-
-                        // 서브텍스트용 보조 정보
                         author: orig?.author ?? '',
-                        fromLang: orig?.fromLang ?? '', // ⬅️ 원문 언어
+                        fromLang: orig?.fromLang ?? '',
                         rel_path: t.translated_rel_path,
                         use_context_rag: null,
                     };
@@ -131,8 +147,51 @@ const DashDocuments = () => {
         };
 
         fetchTranslated();
-        // 원문 변경 시(처음 로드 포함) 번역 매핑 재계산 필요
     }, [user, userLoading, origDocuments]);
+
+    // ===== Fetch: 회의록 리스트 (/meetings/summary/all) =====
+    useEffect(() => {
+        if (userLoading || !user?.userId) return;
+
+        const fetchMinutesList = async () => {
+            setMinutesLoading(true);
+            try {
+                const res = await api.get(`/api/users/${user.userId}/meetings/summary/all`, {
+                    params: { lang: user.locale }, // 필요 시 사용자 설정으로 교체 가능
+                });
+
+                const rawItems = Array.isArray(res.data) ? res.data : res.data?.items || [];
+
+                const formatted = rawItems.map((m) => ({
+                    id: m.summaryId,
+                    summaryId: m.summaryId,
+                    meetingId: m.meetingId,
+                    itemType: 'minutes',
+                    title: m.meetingTitle || '(제목 없음)',
+                    date: m.meetingDate, // "2025-11-19"
+                    participants: m.participantCount ?? 0,
+                    topics: safeJsonParse(m.topics, []),
+                    meetingScore: m.meetingScore,
+                    riskLevel: m.riskLevel,
+                    summary: m.summary,
+                }));
+
+                setMinutesList(formatted);
+            } catch (err) {
+                console.error('회의록 리스트 불러오기 오류:', err);
+                Swal.fire({
+                    icon: 'error',
+                    title: '회의록 불러오기 실패',
+                    text: '회의록 요약 리스트를 불러오는 중 오류가 발생했습니다.',
+                });
+                setMinutesList([]);
+            } finally {
+                setMinutesLoading(false);
+            }
+        };
+
+        fetchMinutesList();
+    }, [user, userLoading]);
 
     // ===== 새 원문 추가(업로드 성공 콜백) =====
     const handleDocumentAdd = (newDocumentData) => {
@@ -154,7 +213,7 @@ const DashDocuments = () => {
         setOrigDocuments((prev) => [formattedNewDocument, ...prev]);
     };
 
-    // ===== 필터링 & 병합 =====
+    // ===== 문서 필터링 & 병합 =====
     const mergedBySubTab = useMemo(() => {
         const term = searchTerm.toLowerCase();
 
@@ -165,7 +224,7 @@ const DashDocuments = () => {
         return filterByTerm([...origDocuments, ...transDocuments]);
     }, [docSubTab, origDocuments, transDocuments, searchTerm]);
 
-    // 최신순 정렬(날짜 문자열을 Date로 안전 변환)
+    // 최신순 정렬
     const sortedDocuments = useMemo(() => {
         return [...mergedBySubTab].sort((a, b) => {
             const da = new Date(a.lastModified).getTime() || 0;
@@ -180,8 +239,12 @@ const DashDocuments = () => {
         return sortedDocuments.slice(startIndex, startIndex + ITEMS_PER_PAGE);
     }, [docCurrentPage, sortedDocuments]);
 
-    // 회의록
-    const filteredMinutes = useMemo(() => mockMinutes.filter((m) => m.title.toLowerCase().includes(searchTerm.toLowerCase())), [searchTerm]);
+    // ===== 회의록 필터링 & 페이지네이션 =====
+    const filteredMinutes = useMemo(() => {
+        const term = searchTerm.toLowerCase();
+        return minutesList.filter((m) => (m.title || '').toLowerCase().includes(term));
+    }, [minutesList, searchTerm]);
+
     const totalMinPages = Math.ceil(filteredMinutes.length / ITEMS_PER_PAGE);
     const currentMinutes = useMemo(() => {
         const startIndex = (minCurrentPage - 1) * ITEMS_PER_PAGE;
@@ -201,19 +264,18 @@ const DashDocuments = () => {
         }
     };
 
-    // 삭제(원문만 지원, 번역 문서는 서버 정책에 따라 별도 API 필요시 분기)
+    // 삭제(원문 + 번역)
     const handleDeleteSelected = async () => {
         if (selectedDocs.length === 0) {
             Swal.fire({ icon: 'warning', title: '선택된 문서가 없습니다', text: '삭제할 문서를 먼저 선택해주세요.' });
             return;
         }
 
-        // 현재 화면의 데이터 소스에서 선택된 항목 추출
         const allItems = [...origDocuments, ...transDocuments];
         const selectedItems = allItems.filter((d) => selectedDocs.includes(d.id));
 
-        const originalsToDelete = selectedItems.filter((d) => d.type === 'original'); // orig-*
-        const translationsToDelete = selectedItems.filter((d) => d.type === 'translated'); // trans-*
+        const originalsToDelete = selectedItems.filter((d) => d.type === 'original');
+        const translationsToDelete = selectedItems.filter((d) => d.type === 'translated');
 
         if (originalsToDelete.length === 0 && translationsToDelete.length === 0) {
             Swal.fire({
@@ -244,22 +306,14 @@ const DashDocuments = () => {
         try {
             setLoading(true);
 
-            // 원문 삭제 호출
             const delOriginals = originalsToDelete.length ? Promise.all(originalsToDelete.map((d) => api.delete(`/api/users/${user.userId}/documents/${d.doc_id}`))) : Promise.resolve();
 
-            // 번역(요청) 삭제 호출
             const delTranslations = translationsToDelete.length
-                ? Promise.all(
-                      translationsToDelete.map((d) =>
-                          // ⚠️ 서버가 '/req{requestId}' 형태를 요구한다면 아래 URL에서 '/' 제거
-                          api.delete(`/api/users/${user.userId}/trans-docs/req/${d.request_id}`),
-                      ),
-                  )
+                ? Promise.all(translationsToDelete.map((d) => api.delete(`/api/users/${user.userId}/trans-docs/req/${d.request_id}`)))
                 : Promise.resolve();
 
             await Promise.all([delOriginals, delTranslations]);
 
-            // 상태 갱신: 삭제된 항목 제거
             const selectedSet = new Set(selectedDocs);
             setOrigDocuments((prev) => prev.filter((d) => !selectedSet.has(d.id)));
             setTransDocuments((prev) => prev.filter((d) => !selectedSet.has(d.id)));
@@ -274,6 +328,7 @@ const DashDocuments = () => {
         }
     };
 
+    // 리스트 아이템 클릭 → 모달 오픈
     const handleItemClick = (item) => {
         setSelectedItem({ ...item, userId: user.userId });
         setIsModalOpen(true);
@@ -294,7 +349,7 @@ const DashDocuments = () => {
                 <header className="mb-6 sm:mb-8">
                     <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-800">문서 & 회의록</h1>
                     <p className="text-slate-500 mt-1 text-sm sm:text-base">
-                        과거의 모든 기록을 찾아보고 원하는 정보를 탐색하세요. (Total: {origDocuments.length + transDocuments.length + mockMinutes.length}건)
+                        과거의 모든 기록을 찾아보고 원하는 정보를 탐색하세요. (Total: {origDocuments.length + transDocuments.length + minutesList.length}건)
                     </p>
                 </header>
 
@@ -388,7 +443,12 @@ const DashDocuments = () => {
 
                     {activeTab === '회의록' && (
                         <>
-                            {currentMinutes.length > 0 ? (
+                            {minutesLoading ? (
+                                <div className="text-center py-16 text-slate-500 bg-white rounded-xl border border-slate-200">
+                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                                    <p>회의록을 불러오는 중...</p>
+                                </div>
+                            ) : currentMinutes.length > 0 ? (
                                 <>
                                     <MeetingMinutesList minutes={currentMinutes} onItemClick={handleItemClick} />
                                     <Pagination

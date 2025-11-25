@@ -1,6 +1,5 @@
-// src/pages/ProfileSettings.jsx
-import React, { useContext, useEffect, useMemo, useState } from 'react';
-import api from '../../../axios'; // 8080 API 인스턴스(프로젝트 경로에 맞게 조정)
+import React, { useContext, useEffect, useState } from 'react';
+import api from '../../../axios';
 import Swal from 'sweetalert2';
 import { UserContext } from '../../../contexts/UserContext';
 
@@ -11,46 +10,36 @@ const LANG_OPTIONS = [
     { code: 'zh', label: '중국어' },
 ];
 
-// 업종 드롭다운(가상 데이터)
 const INDUSTRY_OPTIONS = ['기술/IT', '법률', '금융/보험'];
-
-// 회사명(가상 데이터 기본값)
 const DEFAULT_COMPANY = 'Talaria Labs';
 
 const ProfileSettings = () => {
-    const { user } = useContext(UserContext);
+    // ✅ setUser 추가
+    const { user, setUser } = useContext(UserContext);
 
-    // ------ 토글 ------
     const [autoDetect, setAutoDetect] = useState(true);
     const [liveCaptions, setLiveCaptions] = useState(true);
 
-    // ------ 폼 상태 ------
     const [name, setName] = useState(user?.name || '');
     const [email, setEmail] = useState(user?.email || '');
     const [company, setCompany] = useState(DEFAULT_COMPANY);
     const [industry, setIndustry] = useState(INDUSTRY_OPTIONS[0]);
-    const [locale, setLocale] = useState(
-        // Context가 zh-CN 같은 값을 들고 있어도, 우선 ko/en/ja/zh 코드를 쓰도록 정규화
-        ['ko', 'en', 'ja', 'zh'].includes(user?.locale) ? user?.locale : 'ko',
-    );
+    const [locale, setLocale] = useState(['ko', 'en', 'ja', 'zh'].includes(user?.locale) ? user?.locale : 'ko');
+    console.log(locale, 'dsfsdfsdflocale');
 
-    // 서버 GET으로 name/email/locale 가져와 폼에 반영 (회사/업종은 프론트 가상값 유지)
     useEffect(() => {
         const fetchUser = async () => {
             try {
                 if (!user?.userId) return;
                 const { data } = await api.get(`/api/users/${user.userId}`);
-                // 기대 응답: { userId, email, name, locale, role, profileImageUrl }
                 if (data) {
                     setName(data.name ?? name);
                     setEmail(data.email ?? email);
-                    // locale은 ko/en/ja/zh 중 하나만 쓰도록 정규화
                     const serverLocale = data.locale;
                     const normalized = ['ko', 'en', 'ja', 'zh'].includes(serverLocale) ? serverLocale : locale;
                     setLocale(normalized);
                 }
             } catch (err) {
-                // 실패해도 Context 기반 초기값으로 그대로 사용
                 console.warn('GET /api/users/{id} 실패: ', err);
             }
         };
@@ -72,9 +61,9 @@ const ProfileSettings = () => {
             const payload = {
                 email,
                 name,
-                locale, // ko/en/ja/zh 저장 (다른 곳에서 map[l]로 국가코드 변환)
-                company, // 프론트에서 가상 관리
-                industry, // 프론트에서 가상 관리
+                locale,
+                company,
+                industry,
                 settings: {
                     autoDetect,
                     liveCaptions,
@@ -82,6 +71,16 @@ const ProfileSettings = () => {
             };
 
             await api.patch(`/api/users/${user.userId}`, payload);
+
+            // ✅ UserContext + localStorage 동기화
+            const updatedUser = {
+                ...user,
+                name,
+                email,
+                locale,
+            };
+            setUser(updatedUser);
+            localStorage.setItem('loggedInUser', JSON.stringify(updatedUser));
 
             Swal.fire({
                 icon: 'success',

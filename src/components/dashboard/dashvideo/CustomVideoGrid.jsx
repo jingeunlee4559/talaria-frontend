@@ -3,36 +3,52 @@ import React, { useEffect, useState } from 'react';
 import { useTracks, ParticipantTile, VideoTrack } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 
+// 🤖 에이전트 판별 함수
+const isAgent = (participant) => {
+    if (!participant) return false;
+
+    const identity = participant.identity || '';
+    const name = participant.name || '';
+
+    // identity나 name에 'agent' 포함 여부 확인 (대소문자 무시)
+    if (identity.toLowerCase().includes('agent') || name.toLowerCase().includes('agent')) {
+        return true;
+    }
+
+    // metadata에서 확인
+    try {
+        const metadata = JSON.parse(participant.metadata || '{}');
+        if (metadata.isAgent === true || metadata.type === 'agent') {
+            return true;
+        }
+    } catch (e) {
+        // metadata 파싱 실패 시 무시
+    }
+
+    return false;
+};
+
 function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight }) {
     const [activeHighlight, setActiveHighlight] = useState(null);
 
-    // 하이라이트 유지 시간 (짧게 0.3초 정도)
     useEffect(() => {
         if (!bgHighlight) return;
-
         setActiveHighlight(bgHighlight);
-
         const timer = setTimeout(() => {
             setActiveHighlight(null);
         }, 320);
-
         return () => clearTimeout(timer);
     }, [bgHighlight?.token]);
 
-    // 카테고리별 하이라이트 스타일
     const getHighlightClasses = (category) => {
         switch (category) {
             case 'basic':
-                // 기본: 파란 계열, 안정적인 느낌
                 return 'ring-4 ring-blue-400 shadow-[0_0_24px_rgba(96,165,250,0.9)] scale-[1.02]';
             case 'culture':
-                // 문화: 핑크/보라, K-컬처/네온 감성
                 return 'ring-4 ring-pink-400 shadow-[0_0_28px_rgba(236,72,153,0.95)] scale-[1.03]';
             case 'special':
-                // 특별: 노랑/오렌지, 이벤트/파티 느낌
                 return 'ring-4 ring-amber-300 shadow-[0_0_32px_rgba(252,211,77,1)] scale-[1.035]';
             case 'season':
-                // 계절: 에메랄드/그린, 자연/계절감
                 return 'ring-4 ring-emerald-300 shadow-[0_0_28px_rgba(52,211,153,0.95)] scale-[1.03]';
             default:
                 return 'ring-0 shadow-md';
@@ -47,11 +63,12 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight 
         { onlySubscribed: false },
     );
 
-    const screenShareTracks = tracks.filter((t) => t.source === Track.Source.ScreenShare);
-    const cameraTracks = tracks.filter((t) => t.source === Track.Source.Camera);
-    const hasScreenShare = screenShareTracks.length > 0;
+    // 🤖 에이전트 제외 필터링
+    const screenShareTracks = tracks.filter((t) => t.source === Track.Source.ScreenShare).filter((t) => !isAgent(t.participant));
 
-    // 🔥 현재 선택된 프리셋이 image/blur 이면, 가상 배경 활성화 모드
+    const cameraTracks = tracks.filter((t) => t.source === Track.Source.Camera).filter((t) => !isAgent(t.participant));
+
+    const hasScreenShare = screenShareTracks.length > 0;
     const isVirtualBgActive = virtualBgType === 'image' || virtualBgType === 'blur';
 
     // ======================
@@ -66,7 +83,6 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight 
                 <div className="absolute inset-0 z-10" style={{ margin: '-10%' }}>
                     <VideoTrack
                         trackRef={shareTrackRef}
-                        // objectFit="cover"
                         style={{
                             width: '120%',
                             height: '120%',
@@ -89,7 +105,7 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight 
                     />
                 </div>
 
-                {/* 레이어 3: 참가자 썸네일 */}
+                {/* 레이어 3: 참가자 썸네일 (에이전트 제외) */}
                 {cameraTracks.length > 0 && (
                     <div className="absolute top-4 right-4 z-40 pointer-events-none max-h-[calc(100vh-200px)] overflow-y-auto">
                         <div className="flex flex-col gap-2 pointer-events-auto">
@@ -126,7 +142,7 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight 
         return Math.ceil(Math.sqrt(count));
     };
 
-    const cols = getGridCols(cameraTracks.length || 1); // 최소 1
+    const cols = getGridCols(cameraTracks.length || 1);
     const totalCount = cameraTracks.length;
     const lastRowCount = totalCount % cols || cols;
     const isLastRowIncomplete = lastRowCount !== cols && totalCount > cols;
@@ -138,7 +154,6 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight 
                 className="w-full h-full grid gap-2 p-2"
                 style={{
                     gridTemplateColumns: `repeat(${cols}, 1fr)`,
-                    // 🔥 각 row 높이를 균일하게(비디오 비율에 안 끌리게)
                     gridAutoRows: '1fr',
                 }}
             >
@@ -158,7 +173,6 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight 
 
                     let gridColumnStyle = {};
 
-                    // 마지막 줄에 1명만 있으면 가운데 정렬
                     if (isOnlyOneInLastRow && isLastItem && cols > 1) {
                         const startCol = Math.max(1, Math.floor((cols - 1) / 2) + 1);
                         gridColumnStyle = {
@@ -182,7 +196,6 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight 
                         <div key={key} className={`relative w-full h-full overflow-hidden rounded-lg bg-black transition-all duration-300 ${highlightClasses}`} style={gridColumnStyle}>
                             {hasVideoTrack ? (
                                 <>
-                                    {/* 비가상배경일 때만 블러 레이어 추가 */}
                                     {!isVirtualBgActive && (
                                         <div className="absolute inset-0 z-0" style={{ margin: '-10%' }}>
                                             <VideoTrack
@@ -198,7 +211,6 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight 
                                         </div>
                                     )}
 
-                                    {/* 🔥 항상 타일을 꽉 채우도록 cover 사용 */}
                                     <div className="absolute inset-0 z-10">
                                         <ParticipantTile
                                             trackRef={trackRef}
@@ -211,7 +223,6 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight 
                                     </div>
                                 </>
                             ) : (
-                                // ❗ 카메라 OFF
                                 <>
                                     {bgUrl ? (
                                         <>

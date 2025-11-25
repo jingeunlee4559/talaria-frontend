@@ -93,9 +93,29 @@ const getThemeColors = (themeId) => {
 };
 
 const CultureConferenceUI = ({ meetingId, meetingTitle, onLeave, userLocale = 'ko-KR', meetingDesc, isHost }) => {
+    const isAgent = (participant) => {
+        if (!participant) return false;
+        const identity = participant.identity || '';
+        const name = participant.name || '';
+
+        if (identity.toLowerCase().includes('agent') || name.toLowerCase().includes('agent')) {
+            return true;
+        }
+
+        try {
+            const metadata = JSON.parse(participant.metadata || '{}');
+            if (metadata.isAgent === true || metadata.type === 'agent') {
+                return true;
+            }
+        } catch (e) {}
+
+        return false;
+    };
+
     const room = useRoomContext();
     const participants = useParticipants();
-    const participantCount = participants.length;
+    const realParticipants = participants.filter((p) => !isAgent(p)); // 🤖 에이전트 제외
+    const participantCount = realParticipants.length;
     const { user } = useContext(UserContext);
     const { localParticipant } = useLocalParticipant();
 
@@ -821,7 +841,9 @@ const CultureConferenceUI = ({ meetingId, meetingTitle, onLeave, userLocale = 'k
                                         <>
                                             <CultureAlert room={room} debug={false} demo={false} displayMs={8000} />
 
-                                            <div className={`absolute top-2 sm:top-3 left-2 sm:left-3 z-50 ${themeColors.bg} backdrop-blur-sm px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl shadow-2xl ${themeColors.border} border max-w-[calc(100%-8rem)]`}>
+                                            <div
+                                                className={`absolute top-2 sm:top-3 left-2 sm:left-3 z-50 ${themeColors.bg} backdrop-blur-sm px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl shadow-2xl ${themeColors.border} border max-w-[calc(100%-8rem)]`}
+                                            >
                                                 <div className="flex items-center gap-1.5 sm:gap-2">
                                                     <div className="flex items-center gap-1 flex-shrink-0">
                                                         <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-white rounded-full animate-pulse" />
@@ -961,7 +983,10 @@ const CultureConferenceUI = ({ meetingId, meetingTitle, onLeave, userLocale = 'k
                                                 {isFullscreen ? <FiMinimize className="w-4 h-4 sm:w-5 sm:h-5" /> : <FiMaximize className="w-4 h-4 sm:w-5 sm:h-5" />}
                                             </button>
 
-                                            <button onClick={handleCopyLink} className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white text-gray-600 flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95">
+                                            <button
+                                                onClick={handleCopyLink}
+                                                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white text-gray-600 flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95"
+                                            >
                                                 <FiCopy className="w-4 h-4 sm:w-5 sm:h-5" />
                                             </button>
 
@@ -984,7 +1009,13 @@ const CultureConferenceUI = ({ meetingId, meetingTitle, onLeave, userLocale = 'k
                         {showChatSidebar && !isFullscreen && (
                             <div className="flex-1 lg:flex-[1] lg:max-w-[400px] xl:max-w-[500px] transition-all duration-300">
                                 <div className="h-full">
-                                    <CultureLiveChatSidebar userLocale={userLocale} sttFinals={finals} onClose={() => setShowChatSidebar(false)} onEffectTrigger={handleEffectTrigger} currentTheme={currentTheme} />
+                                    <CultureLiveChatSidebar
+                                        userLocale={userLocale}
+                                        sttFinals={finals}
+                                        onClose={() => setShowChatSidebar(false)}
+                                        onEffectTrigger={handleEffectTrigger}
+                                        currentTheme={currentTheme}
+                                    />
                                 </div>
                             </div>
                         )}
@@ -1068,7 +1099,9 @@ const CultureConferenceUI = ({ meetingId, meetingTitle, onLeave, userLocale = 'k
                             </button>
                             <button
                                 onClick={() => setActiveTab('members')}
-                                className={`flex items-center gap-1.5 pb-2 sm:pb-3 text-xs sm:text-sm font-semibold transition-all ${activeTab === 'members' ? `border-b-2` : 'text-slate-400 hover:text-slate-600'}`}
+                                className={`flex items-center gap-1.5 pb-2 sm:pb-3 text-xs sm:text-sm font-semibold transition-all ${
+                                    activeTab === 'members' ? `border-b-2` : 'text-slate-400 hover:text-slate-600'
+                                }`}
                                 style={
                                     activeTab === 'members'
                                         ? {
@@ -1089,7 +1122,9 @@ const CultureConferenceUI = ({ meetingId, meetingTitle, onLeave, userLocale = 'k
                                     <div className="text-[10px] sm:text-xs text-slate-400 mb-3">현재 참여자 {participants.length}명</div>
                                     {participants.map((p) => (
                                         <div key={p.identity} className="flex items-center gap-2 sm:gap-3 py-2 border-b border-slate-50 last:border-0">
-                                            <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br ${themeColors.gradient} flex items-center justify-center text-white font-bold text-xs flex-shrink-0`}>
+                                            <div
+                                                className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br ${themeColors.gradient} flex items-center justify-center text-white font-bold text-xs flex-shrink-0`}
+                                            >
                                                 {(p.name || p.identity).charAt(0).toUpperCase()}
                                             </div>
                                             <span className="text-slate-800 font-medium text-xs sm:text-sm truncate">{p.name || p.identity}</span>

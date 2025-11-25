@@ -14,9 +14,29 @@ import { UserContext } from '../../../contexts/UserContext';
 import api from '../../../axios';
 
 const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
+    const isAgent = (participant) => {
+        if (!participant) return false;
+        const identity = participant.identity || '';
+        const name = participant.name || '';
+
+        if (identity.toLowerCase().includes('agent') || name.toLowerCase().includes('agent')) {
+            return true;
+        }
+
+        try {
+            const metadata = JSON.parse(participant.metadata || '{}');
+            if (metadata.isAgent === true || metadata.type === 'agent') {
+                return true;
+            }
+        } catch (e) {}
+
+        return false;
+    };
+
     const room = useRoomContext();
     const participants = useParticipants();
-    const participantCount = participants.length;
+    const realParticipants = participants.filter((p) => !isAgent(p)); // 🤖 에이전트 제외
+    const participantCount = realParticipants.length;
 
     const { user } = useContext(UserContext);
 

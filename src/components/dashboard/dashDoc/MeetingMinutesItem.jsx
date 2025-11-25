@@ -64,10 +64,10 @@ const MeetingMinutesItem = ({ onClick, onSelect, isSelected, ...minute }) => (
                     <CalendarIcon className="w-4 h-4" />
                     {minute.date}
                 </span>
-                <span className="flex items-center gap-1.5 truncate">
+                {/* <span className="flex items-center gap-1.5 truncate">
                     <ClockIcon className="w-4 h-4" />
                     {minute.duration}
-                </span>
+                </span> */}
                 <span className="flex items-center gap-1.5 truncate">
                     <UsersIcon className="w-4 h-4" />
                     {minute.participants}명

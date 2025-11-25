@@ -1,7 +1,7 @@
 // src/components/Culture/CultureVideo/CultureLiveChatSidebar.jsx
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useDataChannel, useLocalParticipant, useRemoteParticipants, useRoomContext } from '@livekit/components-react';
-import { MessageCircle, Users, Send, X, Sparkles, Globe, Heart, Smile, Type, Info, ChevronRight } from 'lucide-react';
+import { MessageCircle, Users, Send, X, Sparkles, Globe, Heart, Smile, Type, Info, ChevronRight, Zap } from 'lucide-react';
 
 // 🎨 Import constants from separate files
 import { SPECIAL_EFFECTS, detectSpecialEffect, ANIMATION_CATEGORIES } from '../contents/specialEffects';
@@ -161,12 +161,13 @@ const AnimationListSidebar = ({ isOpen, onClose, onSelectEffect, themeColors }) 
     );
 };
 
-const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger, triggeredMessages, themeColors }) => {
+const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger, triggeredMessages, themeColors, impactMode = false }) => {
     const isLocal = msg.isLocal;
     const myLocale = normalizeLocale(userLocale);
     const translatedText = msg.text;
     const originalText = msg.originalText || msg.text;
     const [liked, setLiked] = useState(false);
+    const [isImpactAnimating, setIsImpactAnimating] = useState(false);
     const messageId = msg.id || `${msg.sender}-${msg.time}-${originalText}`;
     const textEffectClass = TEXT_EFFECT_MAP[msg.textEffect || 'none']?.className || '';
 
@@ -178,6 +179,15 @@ const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger, triggeredMess
             triggeredMessages.current.add(messageId);
         }
     }, [messageId, originalText, onEffectTrigger, triggeredMessages]);
+
+    // 임팩트 모드 애니메이션
+    useEffect(() => {
+        if (impactMode && msg.timestamp && Date.now() - msg.timestamp < 100) {
+            setIsImpactAnimating(true);
+            const timer = setTimeout(() => setIsImpactAnimating(false), 800);
+            return () => clearTimeout(timer);
+        }
+    }, [msg.timestamp, impactMode]);
 
     const handleLike = () => {
         setLiked(true);
@@ -204,12 +214,15 @@ const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger, triggeredMess
                 </div>
                 <div className="relative">
                     <div
-                        className={`rounded-2xl px-4 py-3 shadow-lg backdrop-blur-sm ${msg.isTranslated ? 'text-white border' : isLocal ? 'text-white' : 'bg-white text-gray-800 border border-gray-200'} ${
-                            isLocal ? 'rounded-br-sm' : 'rounded-bl-sm'
-                        }`}
+                        className={`rounded-2xl px-4 py-3 shadow-lg backdrop-blur-sm ${
+                            msg.isTranslated ? 'text-white border' : isLocal ? 'text-white' : 'bg-white text-gray-800 border border-gray-200'
+                        } ${isLocal ? 'rounded-br-sm' : 'rounded-bl-sm'} ${isImpactAnimating ? 'animate-impact-message' : ''}`}
                         style={
                             msg.isTranslated
-                                ? { background: isLocal ? `linear-gradient(135deg, ${themeColors.primary}, ${themeColors.secondary})` : 'linear-gradient(135deg, #3b82f6, #06b6d4)', borderColor: 'rgba(255,255,255,0.3)' }
+                                ? {
+                                      background: isLocal ? `linear-gradient(135deg, ${themeColors.primary}, ${themeColors.secondary})` : 'linear-gradient(135deg, #3b82f6, #06b6d4)',
+                                      borderColor: 'rgba(255,255,255,0.3)',
+                                  }
                                 : isLocal
                                 ? { backgroundColor: themeColors.primary }
                                 : {}
@@ -270,6 +283,7 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
     const [selectedFont, setSelectedFont] = useState(FONT_STYLES[0]);
     const [selectedEffect, setSelectedEffect] = useState(TEXT_EFFECTS[0]);
     const [showTextEffectPicker, setShowTextEffectPicker] = useState(false);
+    const [impactMode, setImpactMode] = useState(false);
     const triggeredEffectsRef = useRef(new Set());
     const triggeredChatMessagesRef = useRef(new Set());
     const chatEndRef = useRef(null);
@@ -308,7 +322,21 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                             if (prev.some((m) => m.id === messageId)) return prev;
                             return [
                                 ...prev,
-                                { id: messageId, type: 'chat', text: translated, originalText: msgData.text, translatedTexts: msgData.translations, sourceLocale, sender: senderName, time: msgData.time, isLocal, isTranslated: true, fontStyle, textEffect },
+                                {
+                                    id: messageId,
+                                    type: 'chat',
+                                    text: translated,
+                                    originalText: msgData.text,
+                                    translatedTexts: msgData.translations,
+                                    sourceLocale,
+                                    sender: senderName,
+                                    time: msgData.time,
+                                    isLocal,
+                                    isTranslated: true,
+                                    fontStyle,
+                                    textEffect,
+                                    timestamp: Date.now(),
+                                },
                             ];
                         });
                         return;
@@ -316,7 +344,10 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                 }
                 setMessages((prev) => {
                     if (prev.some((m) => m.id === messageId)) return prev;
-                    return [...prev, { id: messageId, type: 'chat', text: msgData.text, sender: senderName, time: msgData.time, isLocal, isTranslated: false, fontStyle, textEffect }];
+                    return [
+                        ...prev,
+                        { id: messageId, type: 'chat', text: msgData.text, sender: senderName, time: msgData.time, isLocal, isTranslated: false, fontStyle, textEffect, timestamp: Date.now() },
+                    ];
                 });
             } catch {}
         },
@@ -354,6 +385,7 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                             time: timestamp,
                             isLocal,
                             isTranslated: true,
+                            timestamp: Date.now(),
                         };
                         if (existingIndex === -1 && !triggeredEffectsRef.current.has(messageId)) {
                             const effect = detectSpecialEffect(latestSTT.text || '') || detectSpecialEffect(translated);
@@ -368,7 +400,7 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                         return;
                     }
                 }
-                const sttMessage = { id: messageId, type: 'stt', text: `🎤 ${latestSTT.text}`, sender: sttUsername, time: timestamp, isLocal, isTranslated: false };
+                const sttMessage = { id: messageId, type: 'stt', text: `🎤 ${latestSTT.text}`, sender: sttUsername, time: timestamp, isLocal, isTranslated: false, timestamp: Date.now() };
                 if (existingIndex === -1 && !triggeredEffectsRef.current.has(messageId)) {
                     const effect = detectSpecialEffect(latestSTT.text || '');
                     if (effect && onEffectTrigger) {
@@ -389,10 +421,19 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
         const myUsername = getParticipantNickname(localParticipant, room);
         const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const uniqueId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const messagePayload = { type: 'chat', text: chatInput, username: myUsername, locale: myLocale, time: currentTime, fontStyle: selectedFont.style, textEffect: selectedEffect.id, messageId: uniqueId };
+        const messagePayload = {
+            type: 'chat',
+            text: chatInput,
+            username: myUsername,
+            locale: myLocale,
+            time: currentTime,
+            fontStyle: selectedFont.style,
+            textEffect: selectedEffect.id,
+            messageId: uniqueId,
+        };
         const textEncoder = new TextEncoder();
         sendChat(textEncoder.encode(JSON.stringify(messagePayload)));
-        setMessages((prev) => [...prev, { ...messagePayload, id: uniqueId, sender: myUsername, isLocal: true, isTranslated: false }]);
+        setMessages((prev) => [...prev, { ...messagePayload, id: uniqueId, sender: myUsername, isLocal: true, isTranslated: false, timestamp: Date.now() }]);
         setChatInput('');
         setShowEmojiPicker(false);
         setShowFontPicker(false);
@@ -432,16 +473,30 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                         <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
                         <h2 className="text-lg font-bold">실시간 채팅</h2>
                     </div>
-                    {onClose && (
-                        <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center">
-                            <X className="w-5 h-5" />
+                    <div className="flex items-center gap-2">
+                        {/* 임팩트 모드 토글 버튼 */}
+                        <button
+                            onClick={() => setImpactMode(!impactMode)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${impactMode ? 'bg-white shadow-lg' : 'bg-white/20 hover:bg-white/30'}`}
+                            style={impactMode ? { color: themeColors.primary } : {}}
+                            title="임팩트 모드: 메시지가 크게 나타났다가 작아집니다"
+                        >
+                            <Zap className={`w-4 h-4 ${impactMode ? 'animate-pulse' : ''}`} />
+                            <span>임팩트</span>
                         </button>
-                    )}
+                        {onClose && (
+                            <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center">
+                                <X className="w-5 h-5" />
+                            </button>
+                        )}
+                    </div>
                 </div>
                 <div className="flex gap-3">
                     <button
                         onClick={() => setActiveTab('chat')}
-                        className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all ${activeTab === 'chat' ? 'bg-white shadow-md' : 'bg-white/20 text-white hover:bg-white/30'}`}
+                        className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all ${
+                            activeTab === 'chat' ? 'bg-white shadow-md' : 'bg-white/20 text-white hover:bg-white/30'
+                        }`}
                         style={activeTab === 'chat' ? { color: themeColors.primary } : {}}
                     >
                         <MessageCircle className="w-4 h-4" />
@@ -449,7 +504,9 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                     </button>
                     <button
                         onClick={() => setActiveTab('participants')}
-                        className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all ${activeTab === 'participants' ? 'bg-white shadow-md' : 'bg-white/20 text-white hover:bg-white/30'}`}
+                        className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all ${
+                            activeTab === 'participants' ? 'bg-white shadow-md' : 'bg-white/20 text-white hover:bg-white/30'
+                        }`}
                         style={activeTab === 'participants' ? { color: themeColors.secondary } : {}}
                     >
                         <Users className="w-4 h-4" />
@@ -478,7 +535,18 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                                     <p className="text-xs mt-1">첫 메시지를 보내보세요! 🎉</p>
                                 </div>
                             ) : (
-                                messages.map((msg) => <MessageBubble key={msg.id} msg={msg} userLocale={userLocale} onLike={handleLike} onEffectTrigger={onEffectTrigger} triggeredMessages={triggeredChatMessagesRef} themeColors={themeColors} />)
+                                messages.map((msg) => (
+                                    <MessageBubble
+                                        key={msg.id}
+                                        msg={msg}
+                                        userLocale={userLocale}
+                                        onLike={handleLike}
+                                        onEffectTrigger={onEffectTrigger}
+                                        triggeredMessages={triggeredChatMessagesRef}
+                                        themeColors={themeColors}
+                                        impactMode={impactMode}
+                                    />
+                                ))
                             )}
                             <div ref={chatEndRef} />
                         </div>
@@ -486,7 +554,12 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                             <div className="flex-shrink-0 p-3 bg-white/95 backdrop-blur-sm border-t" style={{ borderColor: `${themeColors.primary}20` }}>
                                 <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
                                     {QUICK_EMOJIS.map((emoji) => (
-                                        <button key={emoji} onClick={() => handleEmojiClick(emoji)} className="w-10 h-10 rounded-lg flex items-center justify-center text-xl hover:scale-110" style={{ backgroundColor: `${themeColors.primary}10` }}>
+                                        <button
+                                            key={emoji}
+                                            onClick={() => handleEmojiClick(emoji)}
+                                            className="w-10 h-10 rounded-lg flex items-center justify-center text-xl hover:scale-110"
+                                            style={{ backgroundColor: `${themeColors.primary}10` }}
+                                        >
                                             {emoji}
                                         </button>
                                     ))}
@@ -594,7 +667,11 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                                         borderColor: `${themeColors.primary}40`,
                                     }}
                                 />
-                                <button onClick={handleSendMessage} disabled={!chatInput.trim()} className={`w-10 h-10 rounded-full bg-gradient-to-r ${themeColors.gradient} text-white flex items-center justify-center hover:shadow-lg disabled:opacity-50 hover:scale-105`}>
+                                <button
+                                    onClick={handleSendMessage}
+                                    disabled={!chatInput.trim()}
+                                    className={`w-10 h-10 rounded-full bg-gradient-to-r ${themeColors.gradient} text-white flex items-center justify-center hover:shadow-lg disabled:opacity-50 hover:scale-105`}
+                                >
                                     <Send className="w-5 h-5" />
                                 </button>
                             </div>
@@ -604,19 +681,31 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                 {activeTab === 'participants' && (
                     <div className="h-full overflow-y-auto p-4 space-y-3 relative z-10">
                         <div className="flex items-center gap-3 p-3 bg-white/95 backdrop-blur-sm rounded-xl shadow-sm border" style={{ borderColor: `${themeColors.primary}30` }}>
-                            <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold" style={{ background: `linear-gradient(135deg, ${themeColors.primary}, ${themeColors.secondary})` }}>
+                            <div
+                                className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold"
+                                style={{ background: `linear-gradient(135deg, ${themeColors.primary}, ${themeColors.secondary})` }}
+                            >
                                 {localParticipant?.name?.charAt(0).toUpperCase() || 'Y'}
                             </div>
                             <div className="flex-1">
                                 <p className="font-semibold text-gray-800 truncate">
-                                    {getParticipantNickname(localParticipant, room)} <span className="text-xs" style={{ color: themeColors.primary }}>(나)</span>
+                                    {getParticipantNickname(localParticipant, room)}{' '}
+                                    <span className="text-xs" style={{ color: themeColors.primary }}>
+                                        (나)
+                                    </span>
                                 </p>
                                 <p className="text-xs text-gray-500">호스트</p>
                             </div>
                         </div>
                         {remoteParticipants.map((p) => (
-                            <div key={p.identity} className="flex items-center gap-3 p-3 bg-white/95 backdrop-blur-sm rounded-xl shadow-sm border" style={{ borderColor: `${themeColors.secondary}30` }}>
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center text-white font-bold">{p.name?.charAt(0).toUpperCase() || 'G'}</div>
+                            <div
+                                key={p.identity}
+                                className="flex items-center gap-3 p-3 bg-white/95 backdrop-blur-sm rounded-xl shadow-sm border"
+                                style={{ borderColor: `${themeColors.secondary}30` }}
+                            >
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center text-white font-bold">
+                                    {p.name?.charAt(0).toUpperCase() || 'G'}
+                                </div>
                                 <div className="flex-1">
                                     <p className="font-semibold text-gray-800 truncate">{getParticipantNickname(p, room)}</p>
                                     <p className="text-xs text-gray-500">게스트</p>
@@ -631,7 +720,35 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                     <Heart className="w-4 h-4 inline mr-1 fill-current" />+{likeCount}
                 </div>
             )}
-            <style>{`@keyframes slide-in-right{from{transform:translateX(100%)}to{transform:translateX(0)}}.animate-slide-in-right{animation:slide-in-right .3s ease-out}`}</style>
+            <style>{`
+                @keyframes slide-in-right {
+                    from { transform: translateX(100%); }
+                    to { transform: translateX(0); }
+                }
+                .animate-slide-in-right {
+                    animation: slide-in-right .3s ease-out;
+                }
+                
+                /* 임팩트 애니메이션 */
+                @keyframes impact-message {
+                    0% {
+                        transform: scale(2);
+                        opacity: 0.8;
+                    }
+                    50% {
+                        transform: scale(1.8);
+                        opacity: 0.9;
+                    }
+                    100% {
+                        transform: scale(1);
+                        opacity: 1;
+                    }
+                }
+                .animate-impact-message {
+                    animation: impact-message 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+                    transform-origin: center center;
+                }
+            `}</style>
         </div>
     );
 };

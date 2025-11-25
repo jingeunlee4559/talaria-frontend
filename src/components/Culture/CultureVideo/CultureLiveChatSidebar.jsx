@@ -161,7 +161,7 @@ const AnimationListSidebar = ({ isOpen, onClose, onSelectEffect, themeColors }) 
     );
 };
 
-const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger, triggeredMessages, themeColors, impactMode = false }) => {
+const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger, triggeredMessages, themeColors }) => {
     const isLocal = msg.isLocal;
     const myLocale = normalizeLocale(userLocale);
     const translatedText = msg.text;
@@ -170,6 +170,7 @@ const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger, triggeredMess
     const [isImpactAnimating, setIsImpactAnimating] = useState(false);
     const messageId = msg.id || `${msg.sender}-${msg.time}-${originalText}`;
     const textEffectClass = TEXT_EFFECT_MAP[msg.textEffect || 'none']?.className || '';
+    const msgImpactMode = msg.impactMode || false;
 
     useEffect(() => {
         if (triggeredMessages.current.has(messageId)) return;
@@ -180,14 +181,14 @@ const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger, triggeredMess
         }
     }, [messageId, originalText, onEffectTrigger, triggeredMessages]);
 
-    // 임팩트 모드 애니메이션
+    // 임팩트 모드 애니메이션 - 메시지 자체의 impactMode 사용
     useEffect(() => {
-        if (impactMode && msg.timestamp && Date.now() - msg.timestamp < 100) {
+        if (msgImpactMode && msg.timestamp && Date.now() - msg.timestamp < 100) {
             setIsImpactAnimating(true);
             const timer = setTimeout(() => setIsImpactAnimating(false), 800);
             return () => clearTimeout(timer);
         }
-    }, [msg.timestamp, impactMode]);
+    }, [msg.timestamp, msgImpactMode]);
 
     const handleLike = () => {
         setLiked(true);
@@ -312,6 +313,7 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                 const isLocal = message.from.isLocal;
                 const fontStyle = msgData.fontStyle || FONT_STYLES[0].style;
                 const textEffect = msgData.textEffect || 'none';
+                const msgImpactMode = msgData.impactMode || false;
                 const messageId = msgData.messageId || `${senderName}-${msgData.time}-${msgData.text}-${Date.now()}`;
 
                 if (msgData.translations && typeof msgData.translations === 'object') {
@@ -336,6 +338,7 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                                     fontStyle,
                                     textEffect,
                                     timestamp: Date.now(),
+                                    impactMode: msgImpactMode,
                                 },
                             ];
                         });
@@ -346,7 +349,19 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                     if (prev.some((m) => m.id === messageId)) return prev;
                     return [
                         ...prev,
-                        { id: messageId, type: 'chat', text: msgData.text, sender: senderName, time: msgData.time, isLocal, isTranslated: false, fontStyle, textEffect, timestamp: Date.now() },
+                        {
+                            id: messageId,
+                            type: 'chat',
+                            text: msgData.text,
+                            sender: senderName,
+                            time: msgData.time,
+                            isLocal,
+                            isTranslated: false,
+                            fontStyle,
+                            textEffect,
+                            timestamp: Date.now(),
+                            impactMode: msgImpactMode,
+                        },
                     ];
                 });
             } catch {}
@@ -430,15 +445,16 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
             fontStyle: selectedFont.style,
             textEffect: selectedEffect.id,
             messageId: uniqueId,
+            impactMode,
         };
         const textEncoder = new TextEncoder();
         sendChat(textEncoder.encode(JSON.stringify(messagePayload)));
-        setMessages((prev) => [...prev, { ...messagePayload, id: uniqueId, sender: myUsername, isLocal: true, isTranslated: false, timestamp: Date.now() }]);
+        setMessages((prev) => [...prev, { ...messagePayload, id: uniqueId, sender: myUsername, isLocal: true, isTranslated: false, timestamp: Date.now(), impactMode }]);
         setChatInput('');
         setShowEmojiPicker(false);
         setShowFontPicker(false);
         setShowTextEffectPicker(false);
-    }, [chatInput, sendChat, localParticipant, room, myLocale, selectedFont, selectedEffect]);
+    }, [chatInput, sendChat, localParticipant, room, myLocale, selectedFont, selectedEffect, impactMode]);
 
     const handleKeyPress = useCallback(
         (e) => {
@@ -544,7 +560,6 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                                         onEffectTrigger={onEffectTrigger}
                                         triggeredMessages={triggeredChatMessagesRef}
                                         themeColors={themeColors}
-                                        impactMode={impactMode}
                                     />
                                 ))
                             )}

@@ -1,19 +1,18 @@
-// src/components/Culture/CultureVideo/CultureLiveChatSidebar.jsx
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useDataChannel, useLocalParticipant, useRemoteParticipants, useRoomContext } from '@livekit/components-react';
 import { MessageCircle, Users, Send, X, Sparkles, Globe, Heart, Smile, Type, Info, Zap } from 'lucide-react';
 
-// 🎨 Import constants from separate files
 import { SPECIAL_EFFECTS, detectSpecialEffect, ANIMATION_CATEGORIES } from '../contents/specialEffects';
 import { QUICK_EMOJIS } from '../contents/emojis';
 import { FONT_STYLES } from '../contents/fontStyles';
 import { TEXT_EFFECTS, TEXT_EFFECT_MAP } from '../contents/textEffects';
+import { highlightKeywords } from '../contents/chatKeywordHighlight';
+
 import '../../../css/TestAnimation.css';
 
 // 🎤 테마별 이미지 import
 import huntrixImg from '../../../assets/kpdh/huntrix.png';
 import derpyTigerImg from '../../../assets/kpdh/derpy_tiger.png';
-import { highlightKeywords } from '../contents/chatKeywordHighlight';
 
 // 🎨 테마별 색상 팔레트
 const getThemeColors = (themeId) => {
@@ -244,7 +243,7 @@ const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger, triggeredMess
                                     <Globe className="w-3 h-3 mt-0.5 flex-shrink-0" />
                                     <div className="flex-1">
                                         <p className="text-[10px] font-semibold mb-1 opacity-80">원문 ({msg.sourceLocale})</p>
-                                        <p className="text-xs opacity-70 italic break-words" style={fontStyle}>
+                                        <p className="talaria-message-text text-xs opacity-70 italic break-words" style={fontStyle}>
                                             {highlightKeywords(originalText, themeColors)}
                                         </p>
                                     </div>
@@ -253,14 +252,14 @@ const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger, triggeredMess
                                     <Sparkles className="w-3 h-3 mt-0.5 flex-shrink-0" />
                                     <div className="flex-1">
                                         <p className="text-[10px] font-semibold mb-1 opacity-90">번역 ({myLocale})</p>
-                                        <p className={`text-sm font-medium break-words ${textEffectClass}`} style={fontStyle}>
+                                        <p className={`talaria-message-text text-sm font-medium break-words ${textEffectClass}`} style={fontStyle}>
                                             {highlightKeywords(translatedText, themeColors)}
                                         </p>
                                     </div>
                                 </div>
                             </div>
                         ) : (
-                            <p className={`text-sm break-words ${textEffectClass}`} style={fontStyle}>
+                            <p className={`talaria-message-text text-sm break-words ${textEffectClass}`} style={fontStyle}>
                                 {highlightKeywords(originalText, themeColors)}
                             </p>
                         )}
@@ -546,7 +545,6 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                         <h2 className="text-lg font-bold">실시간 채팅</h2>
                     </div>
                     <div className="flex items-center gap-2">
-                        {/* 임팩트 모드 토글 버튼 */}
                         <button
                             onClick={() => setImpactMode(!impactMode)}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${impactMode ? 'bg-white shadow-lg' : 'bg-white/20 hover:bg-white/30'}`}
@@ -835,21 +833,6 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                     animation: impact-message 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
                     transform-origin: center center;
                 }
-                      @keyframes keyword-pop {
-        0% {
-            transform: scale(0.7);
-            opacity: 0;
-        }
-        60% {
-            transform: scale(1.18);
-            opacity: 1;
-        }
-        100% {
-            transform: scale(1);
-            opacity: 1;
-        }
-    }
-                    
             `}</style>
         </div>
     );

@@ -1,13 +1,38 @@
-// src/components/Culture/contents/chatKeywordHighlight.jsx
 import React from 'react';
 
-export const HIGHLIGHT_KEYWORDS = ['최애', '입덕', '레전드', '갓생', '국룰', '성지순례', '킬링파트', '원딜', '탑차이', '가챠', '현질'];
+// 👉 강조하고 싶은 단어들
+export const HIGHLIGHT_KEYWORDS = [
+    // 기존 밈/게임/신조어
+    '최애',
+    '입덕',
+    '레전드',
+    '갓생',
+    '국룰',
+    '성지순례',
+    '킬링파트',
+    '원딜',
+    '탑차이',
+    '가챠',
+    '현질',
+    // 🔥 K-POP 관련 단어
+    '컴백',
+    '엔딩요정',
+    '완전체',
+    '팬캠',
+    '안무영상',
+    '타이틀곡',
+    '수록곡',
+    '응원법',
+];
 
 const escapeRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-// 🎨 단어별 스타일(색/이모지) – 애니메이션은 CSS에서 class로 처리
+// 🎵 K-POP 관련 단어 (음표 애니메이션 공통 적용)
+const KPOP_KEYWORDS = new Set(['최애', '입덕', '킬링파트', '컴백', '엔딩요정', '완전체', '팬캠', '안무영상', '타이틀곡', '수록곡', '응원법']);
+
+// 🎨 단어별 스타일(그라디언트 + 이모지)
 const KEYWORD_STYLES = {
-    // K-POP 감성
+    // ====== K-POP 감성 ======
     최애: {
         bgFrom: '#ec4899',
         bgTo: '#a855f7',
@@ -23,8 +48,48 @@ const KEYWORD_STYLES = {
         bgTo: '#ec4899',
         emoji: '🎧',
     },
+    컴백: {
+        bgFrom: '#f472b6',
+        bgTo: '#6366f1',
+        emoji: '🎵',
+    },
+    엔딩요정: {
+        bgFrom: '#a855f7',
+        bgTo: '#f97316',
+        emoji: '📸',
+    },
+    완전체: {
+        bgFrom: '#22c55e',
+        bgTo: '#0ea5e9',
+        emoji: '👑',
+    },
+    팬캠: {
+        bgFrom: '#6366f1',
+        bgTo: '#22d3ee',
+        emoji: '🎥',
+    },
+    안무영상: {
+        bgFrom: '#4f46e5',
+        bgTo: '#ec4899',
+        emoji: '🩰',
+    },
+    타이틀곡: {
+        bgFrom: '#f97316',
+        bgTo: '#facc15',
+        emoji: '🎶',
+    },
+    수록곡: {
+        bgFrom: '#0ea5e9',
+        bgTo: '#22c55e',
+        emoji: '💿',
+    },
+    응원법: {
+        bgFrom: '#22c55e',
+        bgTo: '#a855f7',
+        emoji: '📣',
+    },
 
-    // 밈/신조어
+    // ====== 밈/신조어 ======
     레전드: {
         bgFrom: '#22c55e',
         bgTo: '#16a34a',
@@ -46,7 +111,7 @@ const KEYWORD_STYLES = {
         emoji: '⛺',
     },
 
-    // 게임 용어
+    // ====== 게임 용어 ======
     원딜: {
         bgFrom: '#0ea5e9',
         bgTo: '#6366f1',
@@ -82,11 +147,11 @@ export const highlightKeywords = (text, themeColors) => {
         return (
             <>
                 {hasMicPrefix && (
-                    <span className="mr-1" aria-hidden="true">
+                    <span className="talaria-mic-prefix mr-1" aria-hidden="true">
                         🎤
                     </span>
                 )}
-                {bodyText}
+                <span className="talaria-text-fragment">{bodyText}</span>
             </>
         );
     }
@@ -100,7 +165,7 @@ export const highlightKeywords = (text, themeColors) => {
 
     if (hasMicPrefix) {
         nodes.push(
-            <span key="mic-prefix" className="mr-1" aria-hidden="true">
+            <span key="mic-prefix" className="talaria-mic-prefix mr-1" aria-hidden="true">
                 🎤
             </span>,
         );
@@ -112,10 +177,10 @@ export const highlightKeywords = (text, themeColors) => {
         const lower = part.toLowerCase();
         const isKeyword = lowerKeywords.includes(lower);
 
-        // 일반 텍스트는 그대로
+        // 일반 텍스트
         if (!isKeyword) {
             nodes.push(
-                <span key={`txt-${idx}`} className="align-middle">
+                <span key={`txt-${idx}`} className="talaria-text-fragment align-middle">
                     {part}
                 </span>,
             );
@@ -129,16 +194,21 @@ export const highlightKeywords = (text, themeColors) => {
         const bgFrom = styleConfig.bgFrom || defaultFrom;
         const bgTo = styleConfig.bgTo || defaultTo;
         const emoji = styleConfig.emoji || null;
+        const isKpop = KPOP_KEYWORDS.has(originalKey);
+
+        const keywordClassName = ['talaria-keyword', `talaria-keyword--${originalKey}`, isKpop ? 'talaria-keyword--kpop' : '', 'inline-flex', 'items-center', 'justify-center', 'align-middle']
+            .filter(Boolean)
+            .join(' ');
 
         nodes.push(
             <span
                 key={`kw-${idx}`}
-                className={`talaria-keyword talaria-keyword--${originalKey} inline-flex items-center justify-center align-middle`}
+                className={keywordClassName}
                 style={{
-                    fontSize: '1.5em',
+                    fontSize: '1.25em', // 말풍선 너무 커지지 않게 조정
                     fontWeight: 900,
-                    padding: '0.22rem 0.8rem',
-                    margin: '0 0.12rem',
+                    padding: '0.16rem 0.72rem',
+                    margin: '0 0.06rem',
                     borderRadius: '999px',
                     backgroundImage: `linear-gradient(135deg, ${bgFrom}, ${bgTo})`,
                     color: '#ffffff',
@@ -147,7 +217,7 @@ export const highlightKeywords = (text, themeColors) => {
                 }}
             >
                 {emoji && (
-                    <span className="mr-1" aria-hidden="true" style={{ fontSize: '1.05em' }}>
+                    <span className="mr-1" aria-hidden="true" style={{ fontSize: '1.0em' }}>
                         {emoji}
                     </span>
                 )}

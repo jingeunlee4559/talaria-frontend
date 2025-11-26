@@ -510,11 +510,39 @@
 
 /* 채팅 단어 css */
 
-/* 공통 키워드 배지 기본 효과 */
+/* ============================= */
+/* 채팅 텍스트 공통 스타일      */
+/* ============================= */
+
+.talaria-message-text {
+    display: block;
+    line-height: 1.35;
+    word-break: keep-all; /* 한국어 자연 줄바꿈 */
+}
+
+.talaria-message-text .talaria-text-fragment {
+    vertical-align: baseline;
+}
+
+.talaria-message-text .talaria-keyword {
+    vertical-align: baseline;
+}
+
+/* 키워드와 일반 텍스트 사이 간격 */
+.talaria-message-text .talaria-keyword + .talaria-text-fragment,
+.talaria-message-text .talaria-text-fragment + .talaria-keyword {
+    margin-left: 0.08rem;
+}
+
+/* 마이크 prefix */
+.talaria-mic-prefix {
+    opacity: 0.9;
+}
+
+/* 키워드 pill 공통 스타일 */
 .talaria-keyword {
-    box-shadow: 0 0 12px rgba(15, 23, 42, 0.6);
-    transform-origin: center center;
-    animation: keyword-glow-strong 1.3s ease-out;
+    position: relative;
+    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.55);
 }
 
 /* ============================= */
@@ -540,7 +568,7 @@
 }
 
 /* ============================= */
-/* 💖 최애: 심장 두근두근 2번    */
+/* 💖 최애: 심장 두근두근        */
 /* ============================= */
 .talaria-keyword--최애 {
     animation: keyword-heart-beat 0.9s ease-out 0s 2, keyword-glow-strong 1.4s ease-out;
@@ -567,7 +595,7 @@
 }
 
 /* ============================= */
-/* ✨ 입덕: 아래→위 점프 + 흔들림 */
+/* ✨ 입덕: 아래→위 점프         */
 /* ============================= */
 .talaria-keyword--입덕 {
     animation: keyword-join-bounce 0.8s cubic-bezier(0.25, 1.3, 0.5, 1), keyword-glow-strong 1.4s ease-out;
@@ -591,7 +619,7 @@
 }
 
 /* =================================== */
-/* 🎧 킬링파트: EQ 바운스(세로 늘었다 줄기) */
+/* 🎧 킬링파트: EQ 바운스              */
 /* =================================== */
 .talaria-keyword--킬링파트 {
     animation: keyword-eq-bounce 0.85s ease-out, keyword-glow-strong 1.4s ease-out;
@@ -642,7 +670,7 @@
 }
 
 /* ============================= */
-/* 💪 갓생: 위로 레벨업 느낌    */
+/* 💪 갓생: 위로 레벨업          */
 /* ============================= */
 .talaria-keyword--갓생 {
     animation: keyword-life-levelup 0.85s ease-out, keyword-glow-strong 1.4s ease-out;
@@ -666,7 +694,7 @@
 }
 
 /* ============================= */
-/* 📌 국룰: 위에서 떨어져 도장 꽝 */
+/* 📌 국룰: 도장 찍는 느낌       */
 /* ============================= */
 .talaria-keyword--국룰 {
     animation: keyword-stamp-drop 0.8s ease-out, keyword-glow-strong 1.4s ease-out;
@@ -717,7 +745,7 @@
 }
 
 /* ============================= */
-/* 🎯 원딜: 왼쪽에서 쏘는 화살  */
+/* 🎯 원딜: 왼쪽에서 날아오는 화살 */
 /* ============================= */
 .talaria-keyword--원딜 {
     animation: keyword-arrow-shot 0.8s ease-out, keyword-glow-strong 1.4s ease-out;
@@ -820,5 +848,76 @@
     }
     100% {
         transform: translateY(0) scale(1);
+    }
+}
+
+/* ============================= */
+/* 🎵 K-POP 공통: 음표 떠오르기  */
+/* ============================= */
+
+.talaria-keyword--kpop {
+    position: relative;
+    overflow: visible;
+}
+
+/* 왼쪽 음표 ♪ */
+.talaria-keyword--kpop::before,
+.talaria-keyword--kpop::after {
+    position: absolute;
+    font-size: 0.9em;
+    opacity: 0;
+    pointer-events: none;
+    color: rgba(255, 255, 255, 0.95);
+    text-shadow: 0 0 6px rgba(15, 23, 42, 0.8);
+}
+
+.talaria-keyword--kpop::before {
+    content: '♪';
+    left: -0.35rem;
+    top: -0.05rem;
+    animation: kpop-note-left 1.1s ease-out forwards;
+}
+
+/* 오른쪽 음표 ♫ */
+.talaria-keyword--kpop::after {
+    content: '♫';
+    right: -0.45rem;
+    top: -0.25rem;
+    animation: kpop-note-right 1.1s ease-out 0.12s forwards;
+}
+
+@keyframes kpop-note-left {
+    0% {
+        transform: translate(0, 6px) scale(0.7) rotate(0deg);
+        opacity: 0;
+    }
+    25% {
+        opacity: 1;
+    }
+    60% {
+        transform: translate(-4px, -14px) scale(1) rotate(-18deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(-8px, -22px) scale(1.05) rotate(-22deg);
+        opacity: 0;
+    }
+}
+
+@keyframes kpop-note-right {
+    0% {
+        transform: translate(0, 6px) scale(0.7) rotate(0deg);
+        opacity: 0;
+    }
+    25% {
+        opacity: 1;
+    }
+    60% {
+        transform: translate(4px, -16px) scale(1.05) rotate(16deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(8px, -26px) scale(1.08) rotate(22deg);
+        opacity: 0;
     }
 }

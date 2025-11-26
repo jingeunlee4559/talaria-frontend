@@ -1,7 +1,7 @@
 // src/components/Culture/CultureVideo/CultureLiveChatSidebar.jsx
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useDataChannel, useLocalParticipant, useRemoteParticipants, useRoomContext } from '@livekit/components-react';
-import { MessageCircle, Users, Send, X, Sparkles, Globe, Heart, Smile, Type, Info, ChevronRight, Zap } from 'lucide-react';
+import { MessageCircle, Users, Send, X, Sparkles, Globe, Heart, Smile, Type, Info, Zap } from 'lucide-react';
 
 // 🎨 Import constants from separate files
 import { SPECIAL_EFFECTS, detectSpecialEffect, ANIMATION_CATEGORIES } from '../contents/specialEffects';
@@ -90,6 +90,174 @@ const findTranslation = (translations, targetLocale) => {
     return null;
 };
 
+// ================================
+// 🔥 STT + 채팅 키워드 하이라이트
+// ================================
+
+// 👉 여기 배열에 강조하고 싶은 단어들을 넣어주면 됨
+const HIGHLIGHT_KEYWORDS = ['최애', '입덕', '레전드', '갓생', '국룰', '성지순례', '킬링파트', '원딜', '탑차이', '가챠', '현질'];
+
+const escapeRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const KEYWORD_STYLES = {
+    // K-POP 감성
+    최애: {
+        bgFrom: '#ec4899', // pink-500
+        bgTo: '#a855f7', // purple-500
+        emoji: '💖',
+    },
+    입덕: {
+        bgFrom: '#f97316', // orange-500
+        bgTo: '#ec4899', // pink-500
+        emoji: '✨',
+    },
+    킬링파트: {
+        bgFrom: '#6366f1', // indigo-500
+        bgTo: '#ec4899',
+        emoji: '🎧',
+    },
+
+    // 밈/신조어
+    레전드: {
+        bgFrom: '#22c55e', // green-500
+        bgTo: '#16a34a',
+        emoji: '🔥',
+    },
+    갓생: {
+        bgFrom: '#06b6d4', // cyan-500
+        bgTo: '#6366f1',
+        emoji: '💪',
+    },
+    국룰: {
+        bgFrom: '#facc15', // yellow-400
+        bgTo: '#f97316',
+        emoji: '📌',
+    },
+    성지순례: {
+        bgFrom: '#14b8a6', // teal-500
+        bgTo: '#22c55e',
+        emoji: '⛺',
+    },
+
+    // 게임 용어
+    원딜: {
+        bgFrom: '#0ea5e9', // sky-500
+        bgTo: '#6366f1',
+        emoji: '🎯',
+    },
+    탑차이: {
+        bgFrom: '#f97316', // orange-500
+        bgTo: '#dc2626', // red-600
+        emoji: '⚔️',
+    },
+    가챠: {
+        bgFrom: '#a855f7',
+        bgTo: '#22c55e',
+        emoji: '🎲',
+    },
+    현질: {
+        bgFrom: '#22c55e',
+        bgTo: '#16a34a',
+        emoji: '💸',
+    },
+};
+const highlightKeywords = (text, themeColors) => {
+    if (!text) return null;
+
+    // 기본 테마 색 (매핑에 없는 키워드용)
+    const defaultFrom = themeColors?.primary || '#fbbf24';
+    const defaultTo = themeColors?.secondary || '#f97316';
+
+    const hasMicPrefix = text.startsWith('🎤');
+    const bodyText = hasMicPrefix ? text.replace(/^🎤\s?/, '') : text;
+
+    if (!HIGHLIGHT_KEYWORDS.length) {
+        return (
+            <>
+                {hasMicPrefix && (
+                    <span className="mr-1" aria-hidden="true">
+                        🎤
+                    </span>
+                )}
+                {bodyText}
+            </>
+        );
+    }
+
+    const escapedKeywords = HIGHLIGHT_KEYWORDS.map(escapeRegExp);
+    const regex = new RegExp(`(${escapedKeywords.join('|')})`, 'gi');
+    const parts = bodyText.split(regex);
+    const lowerKeywords = HIGHLIGHT_KEYWORDS.map((k) => k.toLowerCase());
+
+    const nodes = [];
+
+    if (hasMicPrefix) {
+        nodes.push(
+            <span key="mic-prefix" className="mr-1" aria-hidden="true">
+                🎤
+            </span>,
+        );
+    }
+
+    parts.forEach((part, idx) => {
+        if (!part) return;
+
+        const lower = part.toLowerCase();
+        const isKeyword = lowerKeywords.includes(lower);
+
+        // 일반 텍스트
+        if (!isKeyword) {
+            nodes.push(
+                <span key={`txt-${idx}`} className="align-middle">
+                    {part}
+                </span>,
+            );
+            return;
+        }
+
+        // ✅ 단어별 커스텀 스타일 + 이모지
+        const originalKey = HIGHLIGHT_KEYWORDS.find((kw) => kw.toLowerCase() === lower) || part;
+        const styleConfig = KEYWORD_STYLES[originalKey] || {};
+
+        const bgFrom = styleConfig.bgFrom || defaultFrom;
+        const bgTo = styleConfig.bgTo || defaultTo;
+        const emoji = styleConfig.emoji || null;
+
+        nodes.push(
+            <span
+                key={`kw-${idx}`}
+                className="inline-flex items-center justify-center align-middle"
+                style={{
+                    fontSize: '1.25em',
+                    fontWeight: 900,
+                    padding: '0.16rem 0.55rem',
+                    margin: '0 0.08rem',
+                    borderRadius: '999px',
+                    backgroundImage: `linear-gradient(135deg, ${bgFrom}, ${bgTo})`,
+                    color: '#ffffff',
+                    boxShadow: '0 0 0 1px rgba(255,255,255,0.45), 0 4px 12px rgba(15,23,42,0.65)',
+                    letterSpacing: '0.02em',
+                    transformOrigin: 'center center',
+                    animation: 'keyword-pop 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+                    whiteSpace: 'pre-wrap',
+                }}
+            >
+                {emoji && (
+                    <span className="mr-1" aria-hidden="true" style={{ fontSize: '0.95em' }}>
+                        {emoji}
+                    </span>
+                )}
+                {part}
+            </span>,
+        );
+    });
+
+    return nodes;
+};
+// ================================
+// 🎆 애니메이션 리스트 사이드바
+// ================================
+
 const AnimationListSidebar = ({ isOpen, onClose, onSelectEffect, themeColors }) => {
     const [selectedCategory, setSelectedCategory] = useState('celebration');
     if (!isOpen) return null;
@@ -161,6 +329,10 @@ const AnimationListSidebar = ({ isOpen, onClose, onSelectEffect, themeColors }) 
     );
 };
 
+// ================================
+// 💬 메시지 버블
+// ================================
+
 const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger, triggeredMessages, themeColors }) => {
     const isLocal = msg.isLocal;
     const myLocale = normalizeLocale(userLocale);
@@ -171,7 +343,9 @@ const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger, triggeredMess
     const messageId = msg.id || `${msg.sender}-${msg.time}-${originalText}`;
     const textEffectClass = TEXT_EFFECT_MAP[msg.textEffect || 'none']?.className || '';
     const msgImpactMode = msg.impactMode || false;
+    const fontStyle = msg.fontStyle || FONT_STYLES[0].style;
 
+    // 이모지 기반 애니메이션 트리거
     useEffect(() => {
         if (triggeredMessages.current.has(messageId)) return;
         const effect = detectSpecialEffect(originalText);
@@ -181,7 +355,7 @@ const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger, triggeredMess
         }
     }, [messageId, originalText, onEffectTrigger, triggeredMessages]);
 
-    // 임팩트 모드 애니메이션 - 메시지 자체의 impactMode 사용
+    // 임팩트 모드 애니메이션
     useEffect(() => {
         if (msgImpactMode && msg.timestamp && Date.now() - msg.timestamp < 100) {
             setIsImpactAnimating(true);
@@ -196,16 +370,14 @@ const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger, triggeredMess
         setTimeout(() => setLiked(false), 1000);
     };
 
-    const fontStyle = msg.fontStyle || FONT_STYLES[0].style;
-
     return (
         <div className={`flex items-start gap-2 ${isLocal ? 'flex-row-reverse' : 'flex-row'} group`}>
             <div className="flex-shrink-0">
                 <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white`}
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white"
                     style={isLocal ? { background: `linear-gradient(135deg, ${themeColors.primary}, ${themeColors.secondary})` } : { background: 'linear-gradient(135deg, #60a5fa, #06b6d4)' }}
                 >
-                    {msg.sender.charAt(0).toUpperCase()}
+                    {msg.sender?.charAt(0).toUpperCase() || '?'}
                 </div>
             </div>
             <div className={`flex flex-col max-w-[75%] ${isLocal ? 'items-end' : 'items-start'}`}>
@@ -236,7 +408,7 @@ const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger, triggeredMess
                                     <div className="flex-1">
                                         <p className="text-[10px] font-semibold mb-1 opacity-80">원문 ({msg.sourceLocale})</p>
                                         <p className="text-xs opacity-70 italic break-words" style={fontStyle}>
-                                            {originalText}
+                                            {highlightKeywords(originalText, themeColors)}
                                         </p>
                                     </div>
                                 </div>
@@ -245,14 +417,14 @@ const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger, triggeredMess
                                     <div className="flex-1">
                                         <p className="text-[10px] font-semibold mb-1 opacity-90">번역 ({myLocale})</p>
                                         <p className={`text-sm font-medium break-words ${textEffectClass}`} style={fontStyle}>
-                                            {translatedText}
+                                            {highlightKeywords(translatedText, themeColors)}
                                         </p>
                                     </div>
                                 </div>
                             </div>
                         ) : (
                             <p className={`text-sm break-words ${textEffectClass}`} style={fontStyle}>
-                                {originalText}
+                                {highlightKeywords(originalText, themeColors)}
                             </p>
                         )}
                     </div>
@@ -273,6 +445,10 @@ const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger, triggeredMess
     );
 };
 
+// ================================
+// 📺 메인: CultureLiveChatSidebar
+// ================================
+
 const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose, onEffectTrigger, currentTheme = 'default' }) => {
     const [messages, setMessages] = useState([]);
     const [chatInput, setChatInput] = useState('');
@@ -285,17 +461,20 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
     const [selectedEffect, setSelectedEffect] = useState(TEXT_EFFECTS[0]);
     const [showTextEffectPicker, setShowTextEffectPicker] = useState(false);
     const [impactMode, setImpactMode] = useState(false);
+
     const triggeredEffectsRef = useRef(new Set());
     const triggeredChatMessagesRef = useRef(new Set());
     const chatEndRef = useRef(null);
+    const messagesContainerRef = useRef(null);
+
     const room = useRoomContext();
     const { localParticipant } = useLocalParticipant();
     const remoteParticipants = useRemoteParticipants();
     const { send: sendChat } = useDataChannel('chat_messages');
     const myLocale = normalizeLocale(userLocale);
-    const messagesContainerRef = useRef(null);
     const themeColors = useMemo(() => getThemeColors(currentTheme), [currentTheme]);
 
+    // 채팅 탭일 때 자동 스크롤
     useEffect(() => {
         if (activeTab !== 'chat') return;
         const container = messagesContainerRef.current;
@@ -303,6 +482,7 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
         container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
     }, [messages.length, activeTab]);
 
+    // 🔔 데이터채널 수신 (채팅)
     const onMessage = useCallback(
         (message) => {
             if (!message.from) return;
@@ -345,6 +525,7 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                         return;
                     }
                 }
+
                 setMessages((prev) => {
                     if (prev.some((m) => m.id === messageId)) return prev;
                     return [
@@ -364,19 +545,24 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                         },
                     ];
                 });
-            } catch {}
+            } catch {
+                // ignore parsing error
+            }
         },
         [room, myLocale],
     );
 
     useDataChannel('chat_messages', onMessage);
 
+    // 🎤 STT → 메시지로 반영
     useEffect(() => {
         if (!sttFinals.length || !localParticipant) return;
         const myUsername = getParticipantNickname(localParticipant, room);
+
         setMessages((prevMessages) => {
             let updatedMessages = [...prevMessages];
             const newMessagesToAdd = [];
+
             sttFinals.forEach((latestSTT) => {
                 const sttUsername = latestSTT.username || latestSTT.identity;
                 const isLocal = sttUsername === myUsername || latestSTT.identity === localParticipant.identity;
@@ -402,6 +588,7 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                             isTranslated: true,
                             timestamp: Date.now(),
                         };
+
                         if (existingIndex === -1 && !triggeredEffectsRef.current.has(messageId)) {
                             const effect = detectSpecialEffect(latestSTT.text || '') || detectSpecialEffect(translated);
                             if (effect && onEffectTrigger) {
@@ -410,12 +597,24 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                                 setTimeout(() => triggeredEffectsRef.current.delete(messageId), 10000);
                             }
                         }
+
                         if (existingIndex !== -1) updatedMessages[existingIndex] = translatedSTTMessage;
                         else newMessagesToAdd.push(translatedSTTMessage);
                         return;
                     }
                 }
-                const sttMessage = { id: messageId, type: 'stt', text: `🎤 ${latestSTT.text}`, sender: sttUsername, time: timestamp, isLocal, isTranslated: false, timestamp: Date.now() };
+
+                const sttMessage = {
+                    id: messageId,
+                    type: 'stt',
+                    text: `🎤 ${latestSTT.text}`,
+                    sender: sttUsername,
+                    time: timestamp,
+                    isLocal,
+                    isTranslated: false,
+                    timestamp: Date.now(),
+                };
+
                 if (existingIndex === -1 && !triggeredEffectsRef.current.has(messageId)) {
                     const effect = detectSpecialEffect(latestSTT.text || '');
                     if (effect && onEffectTrigger) {
@@ -424,18 +623,23 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                         setTimeout(() => triggeredEffectsRef.current.delete(messageId), 10000);
                     }
                 }
+
                 if (existingIndex !== -1) updatedMessages[existingIndex] = sttMessage;
                 else newMessagesToAdd.push(sttMessage);
             });
+
             return [...updatedMessages, ...newMessagesToAdd];
         });
     }, [sttFinals, localParticipant?.identity, myLocale, room, onEffectTrigger]);
 
+    // ✉️ 채팅 전송
     const handleSendMessage = useCallback(() => {
         if (!chatInput.trim() || !sendChat || !localParticipant) return;
+
         const myUsername = getParticipantNickname(localParticipant, room);
         const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const uniqueId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
         const messagePayload = {
             type: 'chat',
             text: chatInput,
@@ -447,9 +651,22 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
             messageId: uniqueId,
             impactMode,
         };
+
         const textEncoder = new TextEncoder();
         sendChat(textEncoder.encode(JSON.stringify(messagePayload)));
-        setMessages((prev) => [...prev, { ...messagePayload, id: uniqueId, sender: myUsername, isLocal: true, isTranslated: false, timestamp: Date.now(), impactMode }]);
+
+        setMessages((prev) => [
+            ...prev,
+            {
+                ...messagePayload,
+                id: uniqueId,
+                sender: myUsername,
+                isLocal: true,
+                isTranslated: false,
+                timestamp: Date.now(),
+            },
+        ]);
+
         setChatInput('');
         setShowEmojiPicker(false);
         setShowFontPicker(false);
@@ -483,6 +700,8 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
     return (
         <div className="w-full h-full flex flex-col rounded-3xl shadow-2xl overflow-hidden border relative" style={{ borderColor: `${themeColors.primary}30` }}>
             <AnimationListSidebar isOpen={showAnimationList} onClose={() => setShowAnimationList(false)} onSelectEffect={handleEmojiClick} themeColors={themeColors} />
+
+            {/* 상단 헤더 */}
             <div className={`flex-shrink-0 bg-gradient-to-r ${themeColors.gradient} text-white p-4 shadow-lg`}>
                 <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
@@ -530,6 +749,8 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                     </button>
                 </div>
             </div>
+
+            {/* 본문 */}
             <div className="flex-grow overflow-hidden relative">
                 {themeColors.bgImage && (
                     <div
@@ -541,6 +762,8 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                     />
                 )}
                 <div className="absolute inset-0" style={{ backgroundColor: `${themeColors.primary}05` }} />
+
+                {/* 채팅 탭 */}
                 {activeTab === 'chat' && (
                     <div className="h-full flex flex-col relative z-10">
                         <div ref={messagesContainerRef} className="flex-grow overflow-y-auto p-4 space-y-4">
@@ -565,6 +788,8 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                             )}
                             <div ref={chatEndRef} />
                         </div>
+
+                        {/* 이모지 피커 */}
                         {showEmojiPicker && (
                             <div className="flex-shrink-0 p-3 bg-white/95 backdrop-blur-sm border-t" style={{ borderColor: `${themeColors.primary}20` }}>
                                 <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
@@ -581,6 +806,8 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                                 </div>
                             </div>
                         )}
+
+                        {/* 폰트 선택 */}
                         {showFontPicker && (
                             <div className="flex-shrink-0 p-3 bg-white/95 backdrop-blur-sm border-t" style={{ borderColor: `${themeColors.primary}20` }}>
                                 <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto">
@@ -600,6 +827,8 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                                 </div>
                             </div>
                         )}
+
+                        {/* 텍스트 효과 선택 */}
                         {showTextEffectPicker && (
                             <div className="flex-shrink-0 p-3 bg-white/95 backdrop-blur-sm border-t" style={{ borderColor: `${themeColors.primary}20` }}>
                                 <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto">
@@ -619,6 +848,8 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                                 </div>
                             </div>
                         )}
+
+                        {/* 입력 영역 */}
                         <div className="flex-shrink-0 p-4 bg-white/95 backdrop-blur-sm border-t" style={{ borderColor: `${themeColors.primary}20` }}>
                             <div className="flex items-center gap-2 mb-2 flex-wrap">
                                 <button
@@ -693,6 +924,8 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                         </div>
                     </div>
                 )}
+
+                {/* 참여자 탭 */}
                 {activeTab === 'participants' && (
                     <div className="h-full overflow-y-auto p-4 space-y-3 relative z-10">
                         <div className="flex items-center gap-3 p-3 bg-white/95 backdrop-blur-sm rounded-xl shadow-sm border" style={{ borderColor: `${themeColors.primary}30` }}>
@@ -730,11 +963,14 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                     </div>
                 )}
             </div>
+
+            {/* 전체 좋아요 카운트 */}
             {likeCount > 0 && (
                 <div className="absolute bottom-20 left-1/2 -translate-x-1/2 text-white px-4 py-2 rounded-full shadow-lg animate-bounce z-50" style={{ backgroundColor: themeColors.primary }}>
                     <Heart className="w-4 h-4 inline mr-1 fill-current" />+{likeCount}
                 </div>
             )}
+
             <style>{`
                 @keyframes slide-in-right {
                     from { transform: translateX(100%); }
@@ -744,7 +980,6 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                     animation: slide-in-right .3s ease-out;
                 }
                 
-                /* 임팩트 애니메이션 */
                 @keyframes impact-message {
                     0% {
                         transform: scale(2);

@@ -507,3 +507,318 @@
         border-color: currentColor;
     }
 }
+
+/* 채팅 단어 css */
+
+/* 공통 키워드 배지 기본 효과 */
+.talaria-keyword {
+    box-shadow: 0 0 12px rgba(15, 23, 42, 0.6);
+    transform-origin: center center;
+    animation: keyword-glow-strong 1.3s ease-out;
+}
+
+/* ============================= */
+/* 공통: 강한 글로우            */
+/* ============================= */
+@keyframes keyword-glow-strong {
+    0% {
+        box-shadow: 0 0 0 0 rgba(248, 250, 252, 0);
+        filter: brightness(1);
+    }
+    35% {
+        box-shadow: 0 0 22px 10px rgba(248, 250, 252, 1);
+        filter: brightness(1.35);
+    }
+    65% {
+        box-shadow: 0 0 14px 6px rgba(248, 250, 252, 0.9);
+        filter: brightness(1.15);
+    }
+    100% {
+        box-shadow: 0 0 8px 3px rgba(15, 23, 42, 0.9);
+        filter: brightness(1);
+    }
+}
+
+/* ============================= */
+/* 💖 최애: 심장 두근두근 2번    */
+/* ============================= */
+.talaria-keyword--최애 {
+    animation: keyword-heart-beat 0.9s ease-out 0s 2, keyword-glow-strong 1.4s ease-out;
+}
+
+@keyframes keyword-heart-beat {
+    0% {
+        transform: scale(0.7);
+        opacity: 0;
+    }
+    25% {
+        transform: scale(1.35);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(0.9);
+    }
+    75% {
+        transform: scale(1.18);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* ============================= */
+/* ✨ 입덕: 아래→위 점프 + 흔들림 */
+/* ============================= */
+.talaria-keyword--입덕 {
+    animation: keyword-join-bounce 0.8s cubic-bezier(0.25, 1.3, 0.5, 1), keyword-glow-strong 1.4s ease-out;
+}
+
+@keyframes keyword-join-bounce {
+    0% {
+        transform: translateY(16px) scale(0.7);
+        opacity: 0;
+    }
+    35% {
+        transform: translateY(-8px) scale(1.25);
+        opacity: 1;
+    }
+    65% {
+        transform: translateY(3px) scale(1.05);
+    }
+    100% {
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* =================================== */
+/* 🎧 킬링파트: EQ 바운스(세로 늘었다 줄기) */
+/* =================================== */
+.talaria-keyword--킬링파트 {
+    animation: keyword-eq-bounce 0.85s ease-out, keyword-glow-strong 1.4s ease-out;
+}
+
+@keyframes keyword-eq-bounce {
+    0% {
+        transform: scaleY(0.4) scaleX(0.9);
+        opacity: 0;
+    }
+    25% {
+        transform: scaleY(1.6) scaleX(1.05);
+        opacity: 1;
+    }
+    50% {
+        transform: scaleY(0.8) scaleX(1);
+    }
+    75% {
+        transform: scaleY(1.3) scaleX(1.02);
+    }
+    100% {
+        transform: scaleY(1) scaleX(1);
+    }
+}
+
+/* ============================= */
+/* 🔥 레전드: 회전 + 줌인       */
+/* ============================= */
+.talaria-keyword--레전드 {
+    animation: keyword-legend-spin 0.9s ease-out, keyword-glow-strong 1.4s ease-out;
+}
+
+@keyframes keyword-legend-spin {
+    0% {
+        transform: scale(0.6) rotate(-18deg);
+        opacity: 0;
+    }
+    35% {
+        transform: scale(1.3) rotate(6deg);
+        opacity: 1;
+    }
+    70% {
+        transform: scale(1.05) rotate(-3deg);
+    }
+    100% {
+        transform: scale(1) rotate(0deg);
+    }
+}
+
+/* ============================= */
+/* 💪 갓생: 위로 레벨업 느낌    */
+/* ============================= */
+.talaria-keyword--갓생 {
+    animation: keyword-life-levelup 0.85s ease-out, keyword-glow-strong 1.4s ease-out;
+}
+
+@keyframes keyword-life-levelup {
+    0% {
+        transform: translateY(12px) scale(0.8);
+        opacity: 0;
+    }
+    30% {
+        transform: translateY(-6px) scale(1.2);
+        opacity: 1;
+    }
+    65% {
+        transform: translateY(-2px) scale(1.08);
+    }
+    100% {
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ============================= */
+/* 📌 국룰: 위에서 떨어져 도장 꽝 */
+/* ============================= */
+.talaria-keyword--국룰 {
+    animation: keyword-stamp-drop 0.8s ease-out, keyword-glow-strong 1.4s ease-out;
+}
+
+@keyframes keyword-stamp-drop {
+    0% {
+        transform: translateY(-20px) scale(0.9);
+        opacity: 0;
+    }
+    40% {
+        transform: translateY(3px) scale(1.25);
+        opacity: 1;
+    }
+    70% {
+        transform: translateY(-2px) scale(0.97);
+    }
+    100% {
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ============================= */
+/* ⛺ 성지순례: 좌→우 여행 Wave  */
+/* ============================= */
+.talaria-keyword--성지순례 {
+    animation: keyword-trip-wave 0.9s ease-out, keyword-glow-strong 1.4s ease-out;
+}
+
+@keyframes keyword-trip-wave {
+    0% {
+        transform: translateX(-18px) scale(0.85);
+        opacity: 0;
+    }
+    25% {
+        transform: translateX(10px) scale(1.05);
+        opacity: 1;
+    }
+    50% {
+        transform: translateX(-8px) scale(1.03);
+    }
+    75% {
+        transform: translateX(4px) scale(1);
+    }
+    100% {
+        transform: translateX(0) scale(1);
+    }
+}
+
+/* ============================= */
+/* 🎯 원딜: 왼쪽에서 쏘는 화살  */
+/* ============================= */
+.talaria-keyword--원딜 {
+    animation: keyword-arrow-shot 0.8s ease-out, keyword-glow-strong 1.4s ease-out;
+}
+
+@keyframes keyword-arrow-shot {
+    0% {
+        transform: translateX(-26px) scale(0.8);
+        opacity: 0;
+        filter: blur(2px);
+    }
+    35% {
+        transform: translateX(3px) scale(1.2);
+        opacity: 1;
+        filter: blur(0);
+    }
+    65% {
+        transform: translateX(-1px) scale(1.05);
+    }
+    100% {
+        transform: translateX(0) scale(1);
+    }
+}
+
+/* ============================= */
+/* ⚔️ 탑차이: 강한 좌우 셰이크  */
+/* ============================= */
+.talaria-keyword--탑차이 {
+    animation: keyword-top-shake 0.7s ease-out, keyword-glow-strong 1.4s ease-out;
+}
+
+@keyframes keyword-top-shake {
+    0% {
+        transform: translateX(-6px);
+        opacity: 0;
+    }
+    25% {
+        transform: translateX(8px);
+        opacity: 1;
+    }
+    45% {
+        transform: translateX(-7px);
+    }
+    65% {
+        transform: translateX(5px);
+    }
+    85% {
+        transform: translateX(-3px);
+    }
+    100% {
+        transform: translateX(0);
+    }
+}
+
+/* ============================= */
+/* 🎲 가챠: 1바퀴 이상 스핀      */
+/* ============================= */
+.talaria-keyword--가챠 {
+    animation: keyword-gacha-spin 1s ease-out, keyword-glow-strong 1.6s ease-out;
+}
+
+@keyframes keyword-gacha-spin {
+    0% {
+        transform: scale(0.7) rotate(-200deg);
+        opacity: 0;
+    }
+    40% {
+        transform: scale(1.25) rotate(260deg);
+        opacity: 1;
+    }
+    70% {
+        transform: scale(1.05) rotate(340deg);
+    }
+    100% {
+        transform: scale(1) rotate(360deg);
+    }
+}
+
+/* ============================= */
+/* 💸 현질: 위에서 떨어져 튕김  */
+/* ============================= */
+.talaria-keyword--현질 {
+    animation: keyword-money-fall 0.9s ease-out, keyword-glow-strong 1.6s ease-out;
+}
+
+@keyframes keyword-money-fall {
+    0% {
+        transform: translateY(-22px) scale(0.85);
+        opacity: 0;
+    }
+    35% {
+        transform: translateY(6px) scale(1.22);
+        opacity: 1;
+    }
+    65% {
+        transform: translateY(-3px) scale(0.98);
+    }
+    85% {
+        transform: translateY(2px) scale(1.05);
+    }
+    100% {
+        transform: translateY(0) scale(1);
+    }
+}

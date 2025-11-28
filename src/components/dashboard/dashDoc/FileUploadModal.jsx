@@ -43,6 +43,7 @@ const FileUploadModal = ({ isOpen, onClose, onUploadSuccess, meetingId }) => {
         };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen]);
 
     // 파일 검사
@@ -170,46 +171,51 @@ const FileUploadModal = ({ isOpen, onClose, onUploadSuccess, meetingId }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md p-4 animate-[fadeIn_0.2s_ease-out]" onClick={handleClose} aria-modal="true" role="dialog">
+        <div
+            className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-black/40 backdrop-blur-md p-3 sm:p-4 animate-[fadeIn_0.2s_ease-out]"
+            onClick={handleClose}
+            aria-modal="true"
+            role="dialog"
+        >
             <div
-                className="w-full max-w-2xl overflow-hidden rounded-3xl bg-white shadow-2xl animate-[slideUp_0.3s_ease-out]"
+                className="w-full max-w-lg sm:max-w-2xl max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-4rem)] overflow-hidden rounded-2xl sm:rounded-3xl bg-white shadow-2xl flex flex-col animate-[slideUp_0.3s_ease-out]"
                 onClick={(e) => e.stopPropagation()}
                 style={{ animation: 'slideUp 0.3s ease-out' }}
             >
                 {/* 헤더 */}
-                <div className="relative h-40 bg-gradient-to-br from-blue-600 via-indigo-600 to-blue-700 overflow-hidden">
+                <div className="relative h-32 sm:h-40 bg-gradient-to-br from-blue-600 via-indigo-600 to-blue-700 overflow-hidden">
                     <div className="absolute inset-0 opacity-10">
-                        <div className="absolute top-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
-                        <div className="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
+                        <div className="absolute top-0 left-0 w-72 h-72 sm:w-96 sm:h-96 bg-white rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
+                        <div className="absolute bottom-0 right-0 w-72 h-72 sm:w-96 sm:h-96 bg-white rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
                     </div>
                     <div className="absolute inset-0">
-                        <Sparkles className="absolute top-8 left-12 text-white/30 animate-pulse" size={16} />
-                        <Sparkles className="absolute top-16 right-20 text-white/40 animate-pulse delay-75" size={12} />
-                        <Sparkles className="absolute bottom-12 left-24 text-white/30 animate-pulse delay-150" size={14} />
+                        <Sparkles className="absolute top-6 left-6 sm:top-8 sm:left-12 text-white/30 animate-pulse" size={14} />
+                        <Sparkles className="absolute top-14 right-10 sm:top-16 sm:right-20 text-white/40 animate-pulse delay-75" size={10} />
+                        <Sparkles className="absolute bottom-8 left-10 sm:bottom-12 sm:left-24 text-white/30 animate-pulse delay-150" size={12} />
                     </div>
-                    <div className="relative flex h-full items-center gap-4 px-8">
-                        <div className="grid h-16 w-16 place-items-center rounded-2xl bg-white/95 shadow-xl backdrop-blur-sm transform hover:scale-105 transition-transform">
-                            <FilePlus2 className="text-blue-600" size={32} strokeWidth={2.5} />
+                    <div className="relative flex h-full items-center gap-3 sm:gap-4 px-5 sm:px-8">
+                        <div className="grid h-14 w-14 sm:h-16 sm:w-16 place-items-center rounded-2xl bg-white/95 shadow-xl backdrop-blur-sm transform hover:scale-105 transition-transform">
+                            <FilePlus2 className="text-blue-600" size={28} strokeWidth={2.5} />
                         </div>
-                        <div>
-                            <h2 className="text-2xl font-bold text-white tracking-tight mb-1">문서 업로드</h2>
-                            <p className="text-sm text-white/90 font-medium">AI 번역을 위한 문서를 등록하세요</p>
+                        <div className="min-w-0">
+                            <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight mb-0.5 truncate">문서 업로드</h2>
+                            <p className="text-xs sm:text-sm text-white/90 font-medium">AI 번역을 위한 문서를 등록하세요</p>
                         </div>
                     </div>
                     <button
                         onClick={handleClose}
-                        className="absolute right-4 top-4 rounded-full p-2.5 text-white/90 hover:bg-white/20 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 transition-all"
+                        className="absolute right-3 top-3 sm:right-4 sm:top-4 rounded-full p-2 sm:p-2.5 text-white/90 hover:bg-white/20 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 transition-all"
                         aria-label="닫기"
                     >
-                        <X size={24} strokeWidth={2.5} />
+                        <X size={22} strokeWidth={2.5} />
                     </button>
                 </div>
 
                 {/* 본문 */}
-                <form onSubmit={handleSubmit} className="space-y-6 px-8 py-8">
+                <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-6 px-5 py-6 sm:px-8 sm:py-8 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent">
                     {/* 문서 이름 */}
                     <div className="space-y-2.5">
-                        <label htmlFor="fileName" className="flex items-center gap-2 text-sm font-bold text-slate-800 h-6">
+                        <label htmlFor="fileName" className="flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-800 h-6">
                             <FileText size={18} className="text-blue-600" />
                             문서 이름
                         </label>
@@ -219,26 +225,26 @@ const FileUploadModal = ({ isOpen, onClose, onUploadSuccess, meetingId }) => {
                             value={fileName}
                             onChange={(e) => setFileName(e.target.value)}
                             placeholder="예) 2025_Q1_세일즈_제안서"
-                            className="w-full h-14 rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all
+                            className="w-full h-12 sm:h-14 rounded-xl border-2 border-slate-200 bg-slate-50/50 px-3 sm:px-4 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all
                                 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 hover:border-slate-300"
                             required
                         />
                     </div>
 
                     {/* 언어 + 문맥기반 */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {/* 언어 선택 */}
                         <div className="space-y-2.5">
-                            <label htmlFor="language" className="flex items-center gap-2 text-sm font-bold text-slate-800 h-6">
-                                <span className="text-lg">🌍</span>
+                            <label htmlFor="language" className="flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-800 h-6">
+                                <span className="text-base sm:text-lg">🌍</span>
                                 원문 언어
                             </label>
-                            <div className="relative h-14 rounded-xl border-2 border-slate-200 bg-slate-50/50 transition-all hover:border-slate-300 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-500/10">
+                            <div className="relative h-12 sm:h-14 rounded-xl border-2 border-slate-200 bg-slate-50/50 transition-all hover:border-slate-300 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-500/10">
                                 <select
                                     id="language"
                                     value={language}
                                     onChange={(e) => setLanguage(e.target.value)}
-                                    className="appearance-none w-full h-full px-4 bg-transparent text-sm text-slate-900 outline-none cursor-pointer"
+                                    className="appearance-none w-full h-full px-3 sm:px-4 bg-transparent text-sm text-slate-900 outline-none cursor-pointer"
                                     required
                                 >
                                     {languageOptions.map((o) => (
@@ -247,8 +253,8 @@ const FileUploadModal = ({ isOpen, onClose, onUploadSuccess, meetingId }) => {
                                         </option>
                                     ))}
                                 </select>
-                                <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2">
-                                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div className="pointer-events-none absolute right-3 sm:right-4 top-1/2 -translate-y-1/2">
+                                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
                                     </svg>
                                 </div>
@@ -258,7 +264,7 @@ const FileUploadModal = ({ isOpen, onClose, onUploadSuccess, meetingId }) => {
                         {/* 문맥기반 토글 */}
                         <div className="space-y-2.5">
                             <div className="flex items-center justify-between h-6">
-                                <label className="flex items-center gap-2 text-sm font-bold text-slate-800">
+                                <label className="flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-800">
                                     <Sparkles size={18} className="text-blue-600" />
                                     문맥기반 번역
                                 </label>
@@ -268,9 +274,9 @@ const FileUploadModal = ({ isOpen, onClose, onUploadSuccess, meetingId }) => {
                                     </button>
                                     <div
                                         role="tooltip"
-                                        className="pointer-events-none absolute right-0 top-7 z-10 hidden w-80 rounded-xl border-2 border-blue-100 bg-white p-4 text-xs text-slate-700 shadow-2xl group-hover:block group-focus-within:block"
+                                        className="pointer-events-none absolute right-0 top-7 z-10 hidden w-72 sm:w-80 rounded-xl border-2 border-blue-100 bg-white p-3 sm:p-4 text-[11px] sm:text-xs text-slate-700 shadow-2xl group-hover:block group-focus-within:block"
                                     >
-                                        <div className="font-bold text-blue-700 mb-2 flex items-center gap-1.5">
+                                        <div className="font-bold text-blue-700 mb-1.5 sm:mb-2 flex items-center gap-1.5">
                                             <Sparkles size={14} />
                                             AI 문맥 분석 기능
                                         </div>
@@ -279,12 +285,12 @@ const FileUploadModal = ({ isOpen, onClose, onUploadSuccess, meetingId }) => {
                                 </div>
                             </div>
 
-                            <div className="flex items-center justify-between h-14 rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 transition-all hover:border-slate-300">
+                            <div className="flex items-center justify-between h-12 sm:h-14 rounded-xl border-2 border-slate-200 bg-slate-50/50 px-3 sm:px-4 transition-all hover:border-slate-300">
                                 <div className="flex flex-col justify-center">
-                                    <span className={`text-sm font-bold leading-tight transition-colors ${useContextRag === 1 ? 'text-blue-700' : 'text-slate-600'}`}>
+                                    <span className={`text-xs sm:text-sm font-bold leading-tight transition-colors ${useContextRag === 1 ? 'text-blue-700' : 'text-slate-600'}`}>
                                         {useContextRag === 1 ? '✨ 활성화됨' : '비활성화'}
                                     </span>
-                                    <span className="text-[11px] text-slate-500 leading-tight mt-0.5">{useContextRag === 1 ? '정확도 ↑ · 시간/비용 ↑' : '빠른 처리'}</span>
+                                    <span className="text-[10px] sm:text-[11px] text-slate-500 leading-tight mt-0.5">{useContextRag === 1 ? '정확도 ↑ · 시간/비용 ↑' : '빠른 처리'}</span>
                                 </div>
 
                                 {/* ✅ 숫자형 토글: 0 ↔ 1 */}
@@ -293,12 +299,12 @@ const FileUploadModal = ({ isOpen, onClose, onUploadSuccess, meetingId }) => {
                                     role="switch"
                                     aria-checked={useContextRag === 1}
                                     onClick={() => setUseContextRag((v) => (v === 1 ? 0 : 1))}
-                                    className={`relative inline-flex h-8 w-14 shrink-0 items-center rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:ring-offset-2
+                                    className={`relative inline-flex h-7 sm:h-8 w-12 sm:w-14 shrink-0 items-center rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:ring-offset-2
                       ${useContextRag === 1 ? 'bg-gradient-to-r from-blue-500 to-indigo-600 shadow-md shadow-blue-500/30' : 'bg-slate-300'}`}
                                 >
                                     <span
-                                        className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-all duration-300 ${
-                                            useContextRag === 1 ? 'translate-x-7' : 'translate-x-1'
+                                        className={`inline-block h-5 sm:h-6 w-5 sm:w-6 transform rounded-full bg-white shadow-lg transition-all duration-300 ${
+                                            useContextRag === 1 ? 'translate-x-6 sm:translate-x-7' : 'translate-x-1'
                                         }`}
                                     />
                                 </button>
@@ -308,13 +314,13 @@ const FileUploadModal = ({ isOpen, onClose, onUploadSuccess, meetingId }) => {
 
                     {/* 업로드 카드 */}
                     <div>
-                        <label className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-800 h-6">
+                        <label className="mb-3 flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-800 h-6">
                             <UploadCloud size={18} className="text-blue-600" />
                             파일 첨부
                         </label>
                         <div
                             {...getRootProps()}
-                            className={`group relative flex flex-col items-center justify-center rounded-2xl border-3 border-dashed p-10 transition-all duration-300 cursor-pointer
+                            className={`group relative flex flex-col items-center justify-center rounded-2xl border-3 border-dashed p-6 sm:p-10 transition-all duration-300 cursor-pointer
                   ${
                       file
                           ? 'border-blue-400 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-lg shadow-blue-100'
@@ -325,22 +331,22 @@ const FileUploadModal = ({ isOpen, onClose, onUploadSuccess, meetingId }) => {
                         >
                             <input {...getInputProps()} aria-label="파일 선택 또는 드래그앤드롭" />
                             {file ? (
-                                <div className="flex w-full flex-col items-center gap-4 text-center animate-[fadeIn_0.3s_ease-out]">
+                                <div className="flex w-full flex-col items-center gap-3 sm:gap-4 text-center animate-[fadeIn_0.3s_ease-out]">
                                     <div className="relative">
                                         <div className="absolute inset-0 bg-blue-600 rounded-2xl blur-xl opacity-20 animate-pulse" />
-                                        <FileCheck2 className="relative text-blue-600 drop-shadow-lg" size={56} strokeWidth={2} />
+                                        <FileCheck2 className="relative text-blue-600 drop-shadow-lg" size={48} strokeWidth={2} />
                                     </div>
                                     <div className="space-y-2 w-full">
-                                        <p className="text-base font-bold text-slate-800 break-all px-4">{file.name}</p>
+                                        <p className="text-sm sm:text-base font-bold text-slate-800 break-all px-2 sm:px-4">{file.name}</p>
                                         <div className="flex items-center justify-center gap-2 flex-wrap">
                                             {chip(`${fileInfo?.ext ?? ''}`)}
                                             {chip(`${fileInfo?.sizeKB} KB`)}
                                         </div>
-                                        <p className="text-xs text-blue-700 font-bold mt-3">✓ 파일이 선택되었습니다</p>
+                                        <p className="text-xs text-blue-700 font-bold mt-2 sm:mt-3">✓ 파일이 선택되었습니다</p>
                                     </div>
                                     <button
                                         type="button"
-                                        className="inline-flex items-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-red-300 hover:text-red-600 active:scale-95 transition-all shadow-sm"
+                                        className="inline-flex items-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-red-300 hover:text-red-600 active:scale-95 transition-all shadow-sm"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             setFile(null);
@@ -351,7 +357,7 @@ const FileUploadModal = ({ isOpen, onClose, onUploadSuccess, meetingId }) => {
                                     </button>
                                 </div>
                             ) : (
-                                <div className="text-center space-y-4">
+                                <div className="text-center space-y-3 sm:space-y-4">
                                     <div className="relative inline-block">
                                         <div
                                             className={`absolute inset-0 bg-blue-600 rounded-2xl blur-2xl opacity-0 transition-opacity ${
@@ -362,19 +368,19 @@ const FileUploadModal = ({ isOpen, onClose, onUploadSuccess, meetingId }) => {
                                             className={`relative transition-all duration-300 ${
                                                 isDragActive ? 'text-blue-600 scale-110' : 'text-slate-400 group-hover:text-blue-500 group-hover:scale-105'
                                             }`}
-                                            size={56}
+                                            size={48}
                                             strokeWidth={2}
                                         />
                                     </div>
                                     <div>
-                                        <p className="text-base font-bold text-slate-800 mb-1">{isDragActive ? '📁 여기에 놓아주세요!' : '파일을 드래그하여 놓기'}</p>
-                                        <p className="text-sm text-slate-600 font-medium">또는 클릭하여 파일 선택</p>
+                                        <p className="text-sm sm:text-base font-bold text-slate-800 mb-1">{isDragActive ? '📁 여기에 놓아주세요!' : '파일을 드래그하여 놓기'}</p>
+                                        <p className="text-xs sm:text-sm text-slate-600 font-medium">또는 클릭하여 파일 선택</p>
                                     </div>
-                                    <div className="pt-2 space-y-1.5">
-                                        <p className="text-xs text-slate-500">
+                                    <div className="pt-1.5 sm:pt-2 space-y-1.5">
+                                        <p className="text-[11px] sm:text-xs text-slate-500">
                                             📎 허용 확장자: <span className="font-bold text-blue-700">{ALLOWED_EXT.join(', ')}</span>
                                         </p>
-                                        <p className="text-xs text-slate-500">
+                                        <p className="text-[11px] sm:text-xs text-slate-500">
                                             📦 최대 용량: <span className="font-bold text-blue-700">{(MAX_FILE_BYTES / (1024 * 1024)).toFixed(0)}MB</span>
                                         </p>
                                     </div>
@@ -388,28 +394,28 @@ const FileUploadModal = ({ isOpen, onClose, onUploadSuccess, meetingId }) => {
                         <div className="space-y-3 animate-[fadeIn_0.2s_ease-out]">
                             {uploadProgress > 0 && (
                                 <div className="overflow-hidden rounded-xl border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 shadow-lg">
-                                    <div className="flex items-center justify-between px-4 py-3">
-                                        <div className="flex items-center gap-3">
+                                    <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3">
+                                        <div className="flex items-center gap-2.5 sm:gap-3">
                                             {uploadProgress < 100 ? (
-                                                <Loader2 className="animate-spin text-blue-600" size={20} />
+                                                <Loader2 className="animate-spin text-blue-600" size={18} />
                                             ) : (
                                                 <div className="flex h-5 w-5 items-center justify-center">
                                                     <FileCheck2 className="text-green-600" size={20} />
                                                 </div>
                                             )}
-                                            <span className="text-sm font-bold text-slate-800">{uploadProgress < 100 ? '업로드 중...' : '✅ 업로드 완료'}</span>
+                                            <span className="text-xs sm:text-sm font-bold text-slate-800">{uploadProgress < 100 ? '업로드 중...' : '✅ 업로드 완료'}</span>
                                         </div>
-                                        <span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-bold text-white shadow-md">{uploadProgress}%</span>
+                                        <span className="rounded-full bg-blue-600 px-2.5 sm:px-3 py-0.5 sm:py-1 text-[11px] sm:text-xs font-bold text-white shadow-md">{uploadProgress}%</span>
                                     </div>
-                                    <div className="h-2.5 bg-blue-100">
+                                    <div className="h-2 bg-blue-100">
                                         <div className="h-full bg-gradient-to-r from-blue-600 to-indigo-600 transition-all duration-300 ease-out shadow-lg" style={{ width: `${uploadProgress}%` }} />
                                     </div>
                                 </div>
                             )}
                             {message && (
-                                <div className="rounded-xl border-2 border-red-200 bg-red-50 px-4 py-3 shadow-md animate-[shake_0.3s_ease-in-out]">
-                                    <p className="text-sm font-bold text-red-800 flex items-center gap-2">
-                                        <span className="text-lg">⚠️</span>
+                                <div className="rounded-xl border-2 border-red-200 bg-red-50 px-3 sm:px-4 py-2.5 sm:py-3 shadow-md animate-[shake_0.3s_ease-in-out]">
+                                    <p className="text-xs sm:text-sm font-bold text-red-800 flex items-center gap-2">
+                                        <span className="text-base sm:text-lg">⚠️</span>
                                         {message}
                                     </p>
                                 </div>
@@ -418,18 +424,18 @@ const FileUploadModal = ({ isOpen, onClose, onUploadSuccess, meetingId }) => {
                     )}
 
                     {/* 하단 액션 */}
-                    <div className="flex items-center justify-end gap-3 pt-2 border-t-2 border-slate-200">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-2.5 sm:gap-3 pt-2 border-t-2 border-slate-200">
                         <button
                             type="button"
                             onClick={handleClose}
-                            className="h-12 rounded-xl border-2 border-slate-300 bg-white px-6 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-400 active:scale-95 transition-all shadow-sm"
+                            className="h-10 sm:h-12 rounded-xl border-2 border-slate-300 bg-white px-4 sm:px-6 text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-400 active:scale-95 transition-all shadow-sm w-full sm:w-auto"
                         >
                             취소
                         </button>
                         <button
                             type="submit"
                             disabled={submitting || (uploadProgress > 0 && uploadProgress < 100)}
-                            className={`h-12 flex items-center justify-center gap-2 px-6 rounded-xl text-sm font-bold text-white shadow-lg transition-all
+                            className={`h-10 sm:h-12 flex items-center justify-center gap-2 px-4 sm:px-6 rounded-xl text-xs sm:text-sm font-bold text-white shadow-lg transition-all w-full sm:w-auto
                   ${
                       submitting || (uploadProgress > 0 && uploadProgress < 100)
                           ? 'bg-slate-400 cursor-not-allowed'
@@ -438,12 +444,12 @@ const FileUploadModal = ({ isOpen, onClose, onUploadSuccess, meetingId }) => {
                         >
                             {submitting ? (
                                 <>
-                                    <Loader2 size={18} className="animate-spin" />
+                                    <Loader2 size={16} className="sm:size-[18px] animate-spin" />
                                     업로드 중...
                                 </>
                             ) : (
                                 <>
-                                    <UploadCloud size={18} strokeWidth={2.5} />
+                                    <UploadCloud size={16} className="sm:size-[18px]" strokeWidth={2.5} />
                                     문서 업로드
                                 </>
                             )}

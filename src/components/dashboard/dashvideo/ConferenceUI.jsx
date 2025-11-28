@@ -7,11 +7,16 @@ import TranscriptSidebar from './TranscriptSidebarComponents/TranscriptSidebar';
 import CustomVideoGrid from './CustomVideoGrid';
 import SubtitleOverlay from './SubtitleOverlay';
 import MannerChecker from './MannerChecker';
-import { FiCopy, FiMaximize, FiMinimize } from 'react-icons/fi';
+import { FiCopy, FiMaximize, FiMinimize, FiFileText } from 'react-icons/fi';
 
 // 🔥 유저 정보 + axios
 import { UserContext } from '../../../contexts/UserContext';
 import api from '../../../axios';
+
+// ✅ 백엔드 절대 URL (axios baseURL 기준)
+//   - 예: baseURL 이 'http://localhost:8080' 이면 그대로 사용
+//   - baseURL 이 '/api' 같이 상대경로라면 반드시 axios 설정을 백엔드 Origin 으로 바꿔야 함
+const API_BASE = (api.defaults.baseURL || '').replace(/\/$/, '');
 
 const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
     const isAgent = (participant) => {
@@ -47,6 +52,14 @@ const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [showControls, setShowControls] = useState(true);
 
+    // 📄 문서공유 상태 (원본/번역 2분할)
+    const [docShare, setDocShare] = useState(null);
+
+    // 📄 문서 공유용 선택 팝업 상태
+    const [isDocSharePickerOpen, setIsDocSharePickerOpen] = useState(false);
+    const [selectedOriginalDoc, setSelectedOriginalDoc] = useState(null);
+    const [selectedTranslatedDoc, setSelectedTranslatedDoc] = useState(null);
+
     const mainContainerRef = useRef(null);
     const controlsTimeoutRef = useRef(null);
 
@@ -64,6 +77,21 @@ const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
 
     console.log('🌍 ConferenceUI userLocale:', userLocale);
 
+    // PDF 판별
+    const isPdfDoc = (doc) => {
+        if (!doc) return false;
+        const candidates = [doc.original_name, doc.title, doc.rel_path, doc.previewUrl, doc.downloadUrl];
+        return candidates.some((value) => {
+            if (!value) return false;
+            const clean = String(value).split('?')[0].toLowerCase();
+            return clean.endsWith('.pdf');
+        });
+    };
+
+    const safeDocs = Array.isArray(sidebarDocuments) ? sidebarDocuments : [];
+    const originalPdfDocs = safeDocs.filter((d) => d.doc_type === 'ORIGINAL' && isPdfDoc(d));
+    const translatedPdfDocs = safeDocs.filter((d) => d.doc_type === 'TRANSLATION' && isPdfDoc(d));
+
     // ===== 회의 문서 목록 조회 (사이드바용) =====
     useEffect(() => {
         if (!user?.userId) return;
@@ -80,9 +108,20 @@ const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
                 const mapped = items.map((d) => {
                     const isTrans = !!d.trans_doc_id || d.doc_type === 'TRANSLATION';
                     const docId = isTrans ? d.trans_doc_id : d.doc_id;
+
                     const bytes = Number(isTrans ? d.trans_size_bytes ?? d.size : d.size) || 0;
                     const size = bytes > 0 ? `${(bytes / 1024 / 1024).toFixed(2)} MB` : '';
                     const name = d.original_name || d.title || '제목 없는 문서';
+                    const relPath = d.rel_path || d.filepath;
+
+                    // ✅ 백엔드 절대 URL로 preview / download 생성
+                    const previewUrl = isTrans
+                        ? `${API_BASE}/api/users/${user.userId}/meetings/${meetingId}/documents/translations/${docId}/preview`
+                        : `${API_BASE}/api/users/${user.userId}/meetings/${meetingId}/documents/${docId}/preview`;
+
+                    const downloadUrl = isTrans
+                        ? `${API_BASE}/api/users/${user.userId}/meetings/${meetingId}/documents/translations/${docId}/download`
+                        : `${API_BASE}/api/users/${user.userId}/meetings/${meetingId}/documents/${docId}/download`;
 
                     return {
                         id: docId,
@@ -91,15 +130,13 @@ const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
                         title: name,
                         original_name: d.original_name,
                         size,
-                        rel_path: d.rel_path || d.filepath,
+                        rel_path: relPath,
                         source_lang: d.source_lang || d.original_lang,
                         target_language: d.target_language,
-                        url: isTrans
-                            ? `/api/users/${user.userId}/meetings/${meetingId}/documents/translations/${docId}/download`
-                            : `/api/users/${user.userId}/meetings/${meetingId}/documents/${docId}/download`,
+                        previewUrl,
+                        downloadUrl,
                     };
                 });
-
                 console.log('📂 sidebarDocuments mapped:', mapped);
                 setSidebarDocuments(mapped);
             } catch (e) {
@@ -229,12 +266,10 @@ const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
             const username = data.username || getParticipantUsername(data.identity) || data.identity || 'Unknown';
             const key = data.identity || data.participant_sid || 'unknown';
 
-            // 🔑 utteranceId 우선 사용
             const utteranceId = data.utteranceId || data.utterance_id || `stt-${data.identity || 'unknown'}-${data.ts || Date.now()}`;
             const messageId = utteranceId;
 
             if (data.final) {
-                // ✅ finals 배열에서 직접 업데이트 (sttSeenRef 제거)
                 setFinals((prev) => {
                     const existingIndex = prev.findIndex((m) => m.id === messageId);
 
@@ -250,7 +285,6 @@ const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
                     };
 
                     if (existingIndex !== -1) {
-                        // ✅ 기존 메시지 업데이트
                         console.log('🔄 STT 업데이트:', messageId, {
                             기존: prev[existingIndex].text?.substring(0, 30),
                             신규: newMessage.text?.substring(0, 30),
@@ -259,20 +293,17 @@ const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
                         updated[existingIndex] = newMessage;
                         return updated;
                     } else {
-                        // ✅ 새 메시지 추가
                         console.log('➕ 새 STT 추가:', messageId);
                         return [...prev, newMessage];
                     }
                 });
 
-                // Partial 제거
                 setPartials((prev) => {
                     const next = { ...prev };
                     delete next[key];
                     return next;
                 });
             } else {
-                // Partial STT (타이핑 중)
                 if (sttTimerRef.current) {
                     clearTimeout(sttTimerRef.current);
                 }
@@ -292,6 +323,36 @@ const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
             console.error('❌ STT 파싱 오류:', e);
         }
     });
+
+    // 🔥 문서공유 DataChannel (원본/번역 레이아웃 동기화)
+    const { send: sendDocShareMessage } = useDataChannel('docshare', (msg) => {
+        try {
+            const text = new TextDecoder().decode(msg.payload);
+            const data = JSON.parse(text);
+
+            if (data?.type === 'DOC_SHARE_UPDATE') {
+                console.log('📄 DOCSHARE 수신:', data);
+                setDocShare(data.payload || null);
+            }
+        } catch (e) {
+            console.error('❌ DOCSHARE 파싱 오류:', e);
+        }
+    });
+
+    const broadcastDocShare = (nextState) => {
+        if (!sendDocShareMessage) return;
+        try {
+            const encoder = new TextEncoder();
+            const payload = {
+                type: 'DOC_SHARE_UPDATE',
+                payload: nextState,
+            };
+            const bytes = encoder.encode(JSON.stringify(payload));
+            sendDocShareMessage(bytes);
+        } catch (e) {
+            console.error('❌ DOCSHARE 전송 오류:', e);
+        }
+    };
 
     // Disconnect 버튼 확인
     useEffect(() => {
@@ -342,7 +403,9 @@ const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
             if (disconnectButton) {
                 disconnectButton.removeEventListener('click', handleDisconnectClick, true);
             }
-            if (timeoutId) clearTimeout(timeoutId);
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
         };
     }, [room, onLeave]);
 
@@ -374,6 +437,66 @@ const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
             });
     };
 
+    // 📄 문서공유 토글 (버튼 클릭 시 리스트 팝업)
+    const handleToggleDocShare = () => {
+        // 이미 공유 중이면 종료
+        if (docShare?.active) {
+            const nextState = null;
+            setDocShare(nextState);
+            broadcastDocShare(nextState);
+            return;
+        }
+
+        // PDF 문서가 하나도 없으면 안내
+        if (!originalPdfDocs.length && !translatedPdfDocs.length) {
+            Swal.fire({
+                icon: 'info',
+                title: 'PDF 문서를 찾지 못했습니다',
+                text: '원본 또는 번역 PDF 문서를 먼저 등록해 주세요.',
+                confirmButtonColor: '#2563eb',
+            });
+            return;
+        }
+
+        // 기본 선택값 (있으면 첫 번째 문서)
+        setSelectedOriginalDoc(originalPdfDocs[0] || null);
+        setSelectedTranslatedDoc(translatedPdfDocs[0] || null);
+
+        // 🔥 여기서 모달 열기
+        setIsDocSharePickerOpen(true);
+    };
+
+    const handleCloseDocSharePicker = () => {
+        setIsDocSharePickerOpen(false);
+        setSelectedOriginalDoc(null);
+        setSelectedTranslatedDoc(null);
+    };
+
+    const handleConfirmDocShare = () => {
+        if (!selectedOriginalDoc && !selectedTranslatedDoc) {
+            Swal.fire({
+                icon: 'info',
+                title: '선택된 문서가 없습니다',
+                text: '최소 한 개 이상의 PDF를 선택해 주세요.',
+                confirmButtonColor: '#2563eb',
+            });
+            return;
+        }
+
+        const nextState = {
+            active: true,
+            // ✅ previewUrl 사용 (PDF inline 미리보기)
+            originalUrl: selectedOriginalDoc?.previewUrl || null,
+            translatedUrl: selectedTranslatedDoc?.previewUrl || null,
+            originalTitle: selectedOriginalDoc ? selectedOriginalDoc.title || selectedOriginalDoc.original_name || '' : '',
+            translatedTitle: selectedTranslatedDoc ? selectedTranslatedDoc.title || selectedTranslatedDoc.original_name || '' : '',
+        };
+
+        setDocShare(nextState);
+        broadcastDocShare(nextState);
+        setIsDocSharePickerOpen(false);
+    };
+
     return (
         <LayoutContextProvider>
             <div
@@ -397,9 +520,9 @@ const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
                         </>
                     )}
 
-                    {/* 비디오 그리드 */}
+                    {/* 비디오 그리드 / 문서공유 레이아웃 */}
                     <div className="flex-1 w-full relative overflow-hidden">
-                        <CustomVideoGrid />
+                        <CustomVideoGrid docShare={docShare} />
 
                         {/* 자막 오버레이 */}
                         {(!isFullscreen || showControls) && (
@@ -426,6 +549,128 @@ const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
                                 ))}
                             </div>
                         )}
+
+                        {/* 📄 문서공유 선택 팝업 (문서 공유 버튼 눌렀을 때 리스트 표시) */}
+                        {isDocSharePickerOpen && (
+                            <div className="absolute inset-0 z-[120] flex items-center justify-center bg-black/70">
+                                <div className="w-[95%] max-w-3xl max-h-[80vh] bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 flex flex-col overflow-hidden">
+                                    {/* 헤더 */}
+                                    <div className="px-4 py-3 border-b border-slate-700 flex items-center justify-between">
+                                        <div>
+                                            <p className="text-sm font-semibold text-slate-50">공유할 문서 선택</p>
+                                            <p className="text-xs text-slate-400">왼쪽에서 원본, 오른쪽에서 번역 PDF를 선택한 뒤 &quot;공유 시작&quot;을 눌러주세요.</p>
+                                        </div>
+                                        <button onClick={handleCloseDocSharePicker} className="text-slate-400 hover:text-slate-100 transition-colors text-sm">
+                                            닫기
+                                        </button>
+                                    </div>
+
+                                    {/* 본문: 원본/번역 리스트 */}
+                                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3 p-4 overflow-y-auto">
+                                        {/* 원본 PDF 리스트 */}
+                                        <div className="flex flex-col">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className="text-xs font-semibold text-sky-200">원본 PDF</span>
+                                                <span className="text-[11px] text-slate-400">{originalPdfDocs.length}개</span>
+                                            </div>
+
+                                            <div className="flex-1 space-y-2 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent">
+                                                {originalPdfDocs.length === 0 && (
+                                                    <div className="text-[11px] text-slate-400 bg-slate-800/70 border border-slate-600/60 rounded-lg px-3 py-2">원본 PDF 문서가 없습니다.</div>
+                                                )}
+
+                                                {originalPdfDocs.map((doc) => {
+                                                    const isActive = selectedOriginalDoc && selectedOriginalDoc.id === doc.id;
+                                                    const title = doc.title || doc.original_name || '제목 없는 문서';
+
+                                                    return (
+                                                        <button
+                                                            key={doc.id}
+                                                            type="button"
+                                                            onClick={() => setSelectedOriginalDoc(doc)}
+                                                            className={`w-full text-left px-3 py-2 rounded-lg border flex flex-col gap-1 transition text-xs ${
+                                                                isActive ? 'border-sky-400 bg-slate-800' : 'border-slate-700 bg-slate-800/70 hover:border-slate-400 hover:bg-slate-700/80'
+                                                            }`}
+                                                        >
+                                                            <span className="font-semibold text-slate-50 truncate" title={title}>
+                                                                {title}
+                                                            </span>
+                                                            <div className="flex items-center justify-between text-[10px] text-slate-300">
+                                                                <span className="truncate">{doc.source_lang && doc.source_lang.toUpperCase()}</span>
+                                                                {doc.size && <span className="ml-2 text-slate-400">{doc.size}</span>}
+                                                            </div>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        {/* 번역 PDF 리스트 */}
+                                        <div className="flex flex-col">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className="text-xs font-semibold text-emerald-200">번역 PDF</span>
+                                                <span className="text-[11px] text-slate-400">{translatedPdfDocs.length}개</span>
+                                            </div>
+
+                                            <div className="flex-1 space-y-2 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent">
+                                                {translatedPdfDocs.length === 0 && (
+                                                    <div className="text-[11px] text-slate-400 bg-slate-800/70 border border-slate-600/60 rounded-lg px-3 py-2">
+                                                        번역 PDF 문서가 없습니다.
+                                                        <br />
+                                                        원본만 공유할 수도 있습니다.
+                                                    </div>
+                                                )}
+
+                                                {translatedPdfDocs.map((doc) => {
+                                                    const isActive = selectedTranslatedDoc && selectedTranslatedDoc.id === doc.id;
+                                                    const title = doc.title || doc.original_name || '제목 없는 문서';
+
+                                                    return (
+                                                        <button
+                                                            key={doc.id}
+                                                            type="button"
+                                                            onClick={() => setSelectedTranslatedDoc(doc)}
+                                                            className={`w-full text-left px-3 py-2 rounded-lg border flex flex-col gap-1 transition text-xs ${
+                                                                isActive ? 'border-emerald-400 bg-slate-800' : 'border-slate-700 bg-slate-800/70 hover:border-slate-400 hover:bg-slate-700/80'
+                                                            }`}
+                                                        >
+                                                            <span className="font-semibold text-slate-50 truncate" title={title}>
+                                                                {title}
+                                                            </span>
+                                                            <div className="flex items-center justify-between text-[10px] text-slate-300">
+                                                                <span className="truncate">
+                                                                    {doc.source_lang && doc.source_lang.toUpperCase()}
+                                                                    {doc.target_language && <span className="ml-1 text-slate-400">→ {doc.target_language.toUpperCase()}</span>}
+                                                                </span>
+                                                                {doc.size && <span className="ml-2 text-slate-400">{doc.size}</span>}
+                                                            </div>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* 푸터: 버튼 */}
+                                    <div className="px-4 py-3 border-t border-slate-700 flex items-center justify-end gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={handleCloseDocSharePicker}
+                                            className="px-3 py-1.5 text-xs rounded-lg border border-slate-600 text-slate-200 bg-slate-800 hover:bg-slate-700/80 transition"
+                                        >
+                                            취소
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleConfirmDocShare}
+                                            className="px-4 py-1.5 text-xs rounded-lg border border-emerald-500 bg-emerald-600/90 text-white font-semibold hover:bg-emerald-500 transition"
+                                        >
+                                            공유 시작
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* 컨트롤 바 */}
@@ -445,6 +690,15 @@ const ConferenceUI = ({ meetingTitle, onLeave, userLocale = 'ko-KR' }) => {
 
                         <button onClick={handleCopyLink} title="회의 주소 복사" className="lk-button lk-button-icon">
                             <FiCopy size={20} />
+                        </button>
+
+                        {/* 📄 문서 공유 버튼 */}
+                        <button
+                            onClick={handleToggleDocShare}
+                            title={docShare?.active ? '문서 공유 종료' : '문서 공유 (원본/번역 PDF)'}
+                            className={`lk-button lk-button-icon ${docShare?.active ? 'bg-emerald-600/80 text-white border border-emerald-400' : ''}`}
+                        >
+                            <FiFileText size={20} />
                         </button>
 
                         <button

@@ -28,7 +28,7 @@ const isAgent = (participant) => {
     return false;
 };
 
-function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight }) {
+function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight, docShare }) {
     const [activeHighlight, setActiveHighlight] = useState(null);
 
     useEffect(() => {
@@ -65,11 +65,55 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight 
 
     // 🤖 에이전트 제외 필터링
     const screenShareTracks = tracks.filter((t) => t.source === Track.Source.ScreenShare).filter((t) => !isAgent(t.participant));
-
     const cameraTracks = tracks.filter((t) => t.source === Track.Source.Camera).filter((t) => !isAgent(t.participant));
 
     const hasScreenShare = screenShareTracks.length > 0;
     const isVirtualBgActive = virtualBgType === 'image' || virtualBgType === 'blur';
+
+    // ======================
+    // 0) 문서 공유 레이아웃 (PDF 원본/번역 2분할)
+    // ======================
+    if (docShare?.active && (docShare.originalUrl || docShare.translatedUrl)) {
+        return (
+            <div className="absolute inset-0 w-full h-full bg-slate-900 flex flex-col">
+                {/* 상단 바 */}
+                <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700 bg-slate-900/95 z-20">
+                    <div className="flex flex-col">
+                        <span className="text-sm font-semibold text-slate-50">문서 공유 중</span>
+                        <span className="text-xs text-slate-400">모든 참가자가 같은 문서를 보고 있습니다.</span>
+                    </div>
+                </div>
+
+                <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2 p-2 z-10">
+                    {/* 원본 */}
+                    {docShare.originalUrl && (
+                        <div className="flex flex-col bg-slate-950 rounded-xl overflow-hidden border border-slate-700/70">
+                            <div className="px-3 py-2 text-xs text-slate-200 bg-slate-800/95 border-b border-slate-700 flex items-center justify-between">
+                                <span className="font-semibold">원본</span>
+                                <span className="ml-2 text-[11px] text-slate-400 truncate">{docShare.originalTitle || docShare.originalUrl}</span>
+                            </div>
+                            {/* ⚠️ 서버에서 inline 으로 내려와야 함 */}
+                            <iframe src={docShare.originalUrl} title="원본 문서" className="flex-1 w-full h-full bg-slate-900" />
+                        </div>
+                    )}
+
+                    {/* 번역 */}
+                    {docShare.translatedUrl && (
+                        <div className="flex flex-col bg-slate-950 rounded-xl overflow-hidden border border-slate-700/70">
+                            <div className="px-3 py-2 text-xs text-slate-200 bg-slate-800/95 border-b border-slate-700 flex items-center justify-between">
+                                <span className="font-semibold">번역</span>
+                                <span className="ml-2 text-[11px] text-slate-400 truncate">{docShare.translatedTitle || docShare.translatedUrl}</span>
+                            </div>
+                            <iframe src={docShare.translatedUrl} title="번역 문서" className="flex-1 w-full h-full bg-slate-900" />
+                        </div>
+                    )}
+
+                    {/* 번역 문서가 없을 때: 원본만 전체폭 사용 */}
+                    {!docShare.translatedUrl && !docShare.originalUrl && <div className="flex items-center justify-center text-slate-300 text-sm">공유할 문서 URL이 없습니다.</div>}
+                </div>
+            </div>
+        );
+    }
 
     // ======================
     // 1) 화면 공유 레이아웃

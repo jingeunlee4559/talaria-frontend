@@ -11,79 +11,64 @@ const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
 /**
  * props:
- * - originalUrl, translatedUrl, originalTitle, translatedTitle: 기존 그대로
- * - isHost: boolean (호스트 여부)
+ * - originalUrl, translatedUrl, originalTitle, translatedTitle
+ * - isHost: boolean (포인터용, 지금은 안 씀)
  * - onPointerSend: (payload) => void  // 호스트가 포인터 찍을 때 호출
  * - remotePointer: { side: 'orig'|'trans', page: number, xPercent: number, yPercent: number, ts: number }
+ * - onPageSyncSend: ({ page }) => void  // 페이지 동기화 브로드캐스트
+ * - remotePageSync: { page }            // LiveKit에서 받은 페이지 동기화 정보
  */
 const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTitle, isHost = false, onPointerSend, remotePointer, onPageSyncSend, remotePageSync }) => {
     const [originalPages, setOriginalPages] = useState(0);
     const [translatedPages, setTranslatedPages] = useState(0);
 
-    // ✅ 전체 배율 (두 칸에 공통)
-    const [baseZoom, setBaseZoom] = useState(1); // 1 = 100%
-
-    // ✅ 원본/번역 개별 배율 (기본 둘 다 1 → 100%)
+    const [baseZoom, setBaseZoom] = useState(1);
     const [origZoom, setOrigZoom] = useState(1);
     const [transZoom, setTransZoom] = useState(1);
 
-    // 👉 실제로 적용되는 배율(사용자가 느끼는 비율) = 전체 × 개별
     const effectiveOrigZoom = baseZoom * origZoom;
     const effectiveTransZoom = baseZoom * transZoom;
 
-    // ✅ 줌 입력창용 상태 (표시/입력 값)
     const [origInput, setOrigInput] = useState(100);
     const [transInput, setTransInput] = useState(100);
 
-    // ✅ 페이지 네비게이션 상태
     const [origCurrentPage, setOrigCurrentPage] = useState(1);
     const [transCurrentPage, setTransCurrentPage] = useState(1);
 
-    // 페이지 입력용 상태 (문자열)
     const [origPageInput, setOrigPageInput] = useState('1');
     const [transPageInput, setTransPageInput] = useState('1');
 
-    // ✅ 레이아웃 모드: 좌우 2분할 / 상하 2분할
     const [layoutMode, setLayoutMode] = useState('vertical'); // 'vertical' | 'horizontal'
-    const toggleLayoutMode = () => {
-        setLayoutMode((m) => (m === 'vertical' ? 'horizontal' : 'vertical'));
-    };
+    const [viewMode, setViewMode] = useState('scroll'); // 'page' | 'scroll'
 
-    // ✅ 뷰 모드: 페이지 모드 / 스크롤 모드
-    const [viewMode, setViewMode] = useState('page'); // 'page' | 'scroll'
-    const toggleViewMode = () => {
-        setViewMode((m) => (m === 'page' ? 'scroll' : 'page'));
-    };
-
-    // ✅ 페이지 동기화 (ON일 때 원본/번역 함께 이동)
     const [syncPages, setSyncPages] = useState(true);
-
-    // ✅ 동기화 모드에서 사용하는 공통 페이지 번호
     const [syncedPage, setSyncedPage] = useState(1);
 
-    // ✅ 레이저 포인터 상태 (로컬 표시용)
-    // pointer: { side: 'orig' | 'trans', page, xPercent, yPercent, ts }
     const [pointer, setPointer] = useState(null);
 
+    // ⭐ 외부 스크롤 컨테이너 ref (원본/번역 박스를 모두 감싸는 영역)
+    const outerScrollRef = useRef(null);
+
+    // ⭐ 현재 이 클라이언트가 "번역 쪽을 주로 보고 있는지" 힌트용 상태
+    const [prefersTrans, setPrefersTrans] = useState(false);
+
+    // ✅ 페이지 동기화 브로드캐스트 함수 (호스트 여부 상관없이 버튼 누른 쪽이 호출)
     const emitPageSync = (page) => {
-        if (!isHost || !onPageSyncSend) return;
+        if (!onPageSyncSend) return;
         onPageSyncSend({ page });
     };
 
-    // remotePointer 가 변경되면 로컬 pointer에 반영
     useEffect(() => {
         if (!remotePointer) return;
         setPointer(remotePointer);
     }, [remotePointer]);
 
-    // 포인터 2초 후 자동 제거
     useEffect(() => {
         if (!pointer) return;
         const timeout = setTimeout(() => setPointer(null), 2000);
         return () => clearTimeout(timeout);
     }, [pointer]);
 
-    // 실제 배율이 바뀔 때마다 줌 입력창에 반영
     useEffect(() => {
         setOrigInput(Math.round(effectiveOrigZoom * 100));
     }, [effectiveOrigZoom]);
@@ -92,7 +77,6 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
         setTransInput(Math.round(effectiveTransZoom * 100));
     }, [effectiveTransZoom]);
 
-    // 현재 페이지가 바뀔 때마다 페이지 입력창에 반영
     useEffect(() => {
         setOrigPageInput(String(origCurrentPage));
     }, [origCurrentPage]);
@@ -101,14 +85,12 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
         setTransPageInput(String(transCurrentPage));
     }, [transCurrentPage]);
 
-    // ---- 전체 배율 컨트롤 ----
     const handleBaseZoomIn = () => setBaseZoom((z) => clamp(z + 0.25, 0.5, 2.0));
     const handleBaseZoomOut = () => setBaseZoom((z) => clamp(z - 0.25, 0.5, 2.0));
     const handleBaseZoomReset = () => setBaseZoom(1);
 
-    // ---- 원본 개별 배율 버튼 ----
     const handleOrigZoomIn = () => {
-        const newEffective = clamp(effectiveOrigZoom + 0.25, 0.5, 3.0); // 50~300%
+        const newEffective = clamp(effectiveOrigZoom + 0.25, 0.5, 3.0);
         setOrigZoom(newEffective / baseZoom);
     };
     const handleOrigZoomOut = () => {
@@ -116,10 +98,9 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
         setOrigZoom(newEffective / baseZoom);
     };
     const handleOrigZoomReset = () => {
-        setOrigZoom(1 / baseZoom); // 전체 배율 고려해서 "100%" 맞추기
+        setOrigZoom(1 / baseZoom);
     };
 
-    // ---- 번역 개별 배율 버튼 ----
     const handleTransZoomIn = () => {
         const newEffective = clamp(effectiveTransZoom + 0.25, 0.5, 3.0);
         setTransZoom(newEffective / baseZoom);
@@ -132,9 +113,6 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
         setTransZoom(1 / baseZoom);
     };
 
-    // ============================
-    // 📏 각 뷰어의 실제 가로폭 측정 (처음부터 꽉 차게)
-    // ============================
     const origScrollRef = useRef(null);
     const transScrollRef = useRef(null);
 
@@ -146,7 +124,7 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
         if (!el || typeof ResizeObserver === 'undefined') return;
 
         const updateWidth = () => {
-            setOrigContainerWidth(Math.max(el.clientWidth - 16, 200)); // padding 고려
+            setOrigContainerWidth(Math.max(el.clientWidth - 16, 200));
         };
 
         updateWidth();
@@ -175,9 +153,6 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
     const origWidth = baseOrigWidth * effectiveOrigZoom;
     const transWidth = baseTransWidth * effectiveTransZoom;
 
-    // ============================
-    // 🖱 가로+세로 드래그 스크롤 상태
-    // ============================
     const origDrag = useRef({
         isDown: false,
         startX: 0,
@@ -196,24 +171,23 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
     const [isDraggingOrig, setIsDraggingOrig] = useState(false);
     const [isDraggingTrans, setIsDraggingTrans] = useState(false);
 
-    // 줌 변경 시 항상 (0,0) 에서 시작
-    useEffect(() => {
-        const el = origScrollRef.current;
-        if (el) {
-            el.scrollLeft = 0;
-            el.scrollTop = 0;
-        }
-    }, [origWidth, originalPages]);
+    // 🔥 (중요) 페이지/줌 변경 시 스크롤을 강제로 0으로 리셋하지 않도록 주석 처리
+    // useEffect(() => {
+    //     const el = origScrollRef.current;
+    //     if (el) {
+    //         el.scrollLeft = 0;
+    //         el.scrollTop = 0;
+    //     }
+    // }, [origWidth, originalPages]);
 
-    useEffect(() => {
-        const el = transScrollRef.current;
-        if (el) {
-            el.scrollLeft = 0;
-            el.scrollTop = 0;
-        }
-    }, [transWidth, translatedPages]);
+    // useEffect(() => {
+    //     const el = transScrollRef.current;
+    //     if (el) {
+    //         el.scrollLeft = 0;
+    //         el.scrollTop = 0;
+    //     }
+    // }, [transWidth, translatedPages]);
 
-    // 원본 드래그
     const handleOrigMouseDown = (e) => {
         if (e.button !== 0) return;
         const el = origScrollRef.current;
@@ -248,7 +222,6 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
         setIsDraggingOrig(false);
     };
 
-    // 번역 드래그
     const handleTransMouseDown = (e) => {
         if (e.button !== 0) return;
         const el = transScrollRef.current;
@@ -283,14 +256,13 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
         setIsDraggingTrans(false);
     };
 
-    // ✅ 줌 입력창 blur 시 적용 (원본/번역 공통 로직)
     const applyOrigInput = () => {
         const num = Number(origInput);
         if (Number.isNaN(num)) {
             setOrigInput(Math.round(effectiveOrigZoom * 100));
             return;
         }
-        const clampedPercent = clamp(num, 50, 300); // 50~300%
+        const clampedPercent = clamp(num, 50, 300);
         const newEffective = clampedPercent / 100;
         setOrigZoom(newEffective / baseZoom);
     };
@@ -306,7 +278,6 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
         setTransZoom(newEffective / baseZoom);
     };
 
-    // ✅ 페이지 입력 적용 (원본 기준, 필요 시 번역도 동기화)
     const applyOrigPageInput = () => {
         const num = Number(origPageInput);
         if (Number.isNaN(num) || !originalPages) {
@@ -322,7 +293,7 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
         }
 
         if (syncPages) {
-            emitPageSync(clampedPage); // ✅ 추가
+            emitPageSync(clampedPage);
         }
     };
 
@@ -341,11 +312,10 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
         }
 
         if (syncPages) {
-            emitPageSync(clampedPage); // ✅ 추가
+            emitPageSync(clampedPage);
         }
     };
 
-    // 페이지 이동 버튼 (개별)
     const handleOrigPrevPage = () => {
         if (!originalPages) return;
         setOrigCurrentPage((p) => clamp(p - 1, 1, originalPages));
@@ -378,34 +348,11 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
         }
     };
 
-    useEffect(() => {
-        if (!remotePageSync || viewMode !== 'page') return;
-        const { page } = remotePageSync;
-        if (!page) return;
-
-        // 아직 페이지 수가 안 잡힌 경우를 대비해 일단 clamp
-        const targetOrig = originalPages ? clamp(page, 1, originalPages) : null;
-        const targetTrans = translatedPages ? clamp(page, 1, translatedPages) : null;
-
-        setSyncedPage(page);
-
-        if (targetOrig !== null) {
-            setOrigCurrentPage(targetOrig);
-            setOrigPageInput(String(targetOrig));
-        }
-        if (targetTrans !== null) {
-            setTransCurrentPage(targetTrans);
-            setTransPageInput(String(targetTrans));
-        }
-    }, [remotePageSync, viewMode, originalPages, translatedPages]);
-
-    // ============================
-    // 🧲 레이저 포인터 좌표 계산 (호스트 전용, 페이지 모드에서만 사용)
-    // ============================
     const origPageRef = useRef(null);
     const transPageRef = useRef(null);
 
     const handleHostPointerClick = (e, side) => {
+        // 🔹 포인터는 isHost 기준으로만 동작 (지금은 isHost 안 쓰면 사실상 비활성)
         if (!isHost || viewMode !== 'page') return;
 
         const ref = side === 'orig' ? origPageRef : transPageRef;
@@ -425,16 +372,13 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
             ts: Date.now(),
         };
 
-        // 로컬 표시
         setPointer(payload);
 
-        // 상위(예: LiveKit DataChannel)로 브로드캐스트 콜백
         if (onPointerSend) {
             onPointerSend(payload);
         }
     };
 
-    // 포인터 렌더링 공통 컴포넌트 (페이지 모드에서만 호출)
     const renderPointer = (side, currentPage) => {
         if (viewMode !== 'page') return null;
         if (!pointer) return null;
@@ -458,15 +402,8 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
         );
     };
 
-    // ✅ 스크롤 모드일 때는 항상 좌우 2분할 강제
-    const containerClass =
-        viewMode === 'scroll'
-            ? 'grid grid-cols-1 md:grid-cols-2 gap-2' // 스크롤 모드 → 항상 좌우 2분할
-            : layoutMode === 'vertical'
-            ? 'grid grid-cols-1 md:grid-cols-2 gap-2' // 페이지 모드 + vertical → 좌우 2분할
-            : 'flex flex-col gap-2'; // 페이지 모드 + horizontal → 상하 2분할
+    const containerClass = viewMode === 'scroll' ? 'grid grid-cols-1 md:grid-cols-2 gap-2' : layoutMode === 'vertical' ? 'grid grid-cols-1 md:grid-cols-2 gap-2' : 'flex flex-col gap-2';
 
-    // ✅ 상단 공통 페이지 정보 (동기화 ON일 때 표시용)
     const hasAnyPages = originalPages > 0 || translatedPages > 0;
     let syncMaxPage = 1;
     if (hasAnyPages) {
@@ -475,7 +412,6 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
     }
     const syncCurrentPage = clamp(syncedPage, 1, syncMaxPage);
 
-    // ✅ 페이지 동기화 토글 클릭 시: ON이 될 때 두 문서 페이지를 맞춰줌 + syncedPage 갱신
     const handleToggleSyncPages = () => {
         setSyncPages((prev) => {
             const next = !prev;
@@ -503,7 +439,6 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
         });
     };
 
-    // ✅ 상단 공통 페이지 이동 (syncPages + page 모드일 때만)
     const handleGlobalPrevPage = () => {
         if (!syncPages || viewMode !== 'page' || !hasAnyPages) return;
 
@@ -521,7 +456,7 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
             setTransPageInput(String(p));
         }
 
-        emitPageSync(newPage); // ✅ 추가
+        emitPageSync(newPage);
     };
 
     const handleGlobalNextPage = () => {
@@ -541,12 +476,59 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
             setTransPageInput(String(p));
         }
 
-        emitPageSync(newPage); // ✅ 추가
+        emitPageSync(newPage);
     };
+
+    // ⭐ 외부 스크롤 시, 지금 이 클라이언트가 "원본/번역 중 어디를 위주로 보고 있는지" 대략 추정
+    const handleOuterScroll = () => {
+        const outer = outerScrollRef.current;
+        if (!outer || !origScrollRef.current || !transScrollRef.current) return;
+
+        const mid = outer.scrollTop + outer.clientHeight / 2;
+        const origTop = origScrollRef.current.offsetTop;
+        const transTop = transScrollRef.current.offsetTop;
+
+        const distOrig = Math.abs(mid - origTop);
+        const distTrans = Math.abs(mid - transTop);
+
+        setPrefersTrans(distTrans <= distOrig);
+    };
+
+    // ✅ 다른 참가자에게서 받은 page sync 적용
+    useEffect(() => {
+        if (!remotePageSync || viewMode !== 'page') return;
+        const { page } = remotePageSync;
+        if (!page) return;
+
+        const targetOrig = originalPages ? clamp(page, 1, originalPages) : null;
+        const targetTrans = translatedPages ? clamp(page, 1, translatedPages) : null;
+
+        setSyncedPage(page);
+
+        if (targetOrig !== null) {
+            setOrigCurrentPage(targetOrig);
+            setOrigPageInput(String(targetOrig));
+        }
+        if (targetTrans !== null) {
+            setTransCurrentPage(targetTrans);
+            setTransPageInput(String(targetTrans));
+        }
+
+        // ⭐ 여기 핵심:
+        // 이 클라이언트가 "번역 영역"을 주로 보고 있던 상태라면,
+        // 페이지가 바뀐 뒤에도 외부 스크롤을 번역 박스 위치에 다시 맞춰준다.
+        if (outerScrollRef.current && transScrollRef.current && prefersTrans) {
+            const outer = outerScrollRef.current;
+            const targetTop = transScrollRef.current.offsetTop - 8; // 살짝 여백
+            outer.scrollTo({
+                top: targetTop,
+                behavior: 'auto', // 깜빡임 최소화 (smooth 사용하면 튀는 느낌 더 심해질 수 있음)
+            });
+        }
+    }, [remotePageSync, viewMode, originalPages, translatedPages, prefersTrans]);
 
     return (
         <div className="absolute inset-0 flex flex-col bg-slate-900 min-h-0">
-            {/* 상단 바 + 전체 배율 컨트롤 + 레이아웃 모드/뷰 모드/동기화 토글 */}
             <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700 bg-slate-900/95 z-20">
                 <div className="flex flex-col">
                     <span className="text-sm font-semibold text-slate-50">문서 공유 중</span>
@@ -554,7 +536,6 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
                 </div>
 
                 <div className="flex items-center gap-2 text-xs text-slate-200">
-                    {/* ✅ 공통 페이지 네비 (페이지 모드 + 동기화 ON + 페이지 존재) */}
                     {viewMode === 'page' && syncPages && hasAnyPages && (
                         <div className="flex items-center gap-1 px-2 py-1 rounded-lg border border-slate-600 bg-slate-800">
                             <button
@@ -579,7 +560,6 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
                         </div>
                     )}
 
-                    {/* 페이지 동기화 토글 */}
                     <button
                         type="button"
                         onClick={handleToggleSyncPages}
@@ -588,15 +568,21 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
                         페이지 동기화 {syncPages ? 'ON' : 'OFF'}
                     </button>
 
-                    {/* 레이아웃 모드 토글 👉 페이지 모드에서만 표시 */}
                     {viewMode === 'page' && (
-                        <button type="button" onClick={toggleLayoutMode} className="px-3 py-1 rounded-lg border border-slate-600 bg-slate-800 text-[11px] hover:bg-slate-700">
+                        <button
+                            type="button"
+                            onClick={() => setLayoutMode((m) => (m === 'vertical' ? 'horizontal' : 'vertical'))}
+                            className="px-3 py-1 rounded-lg border border-slate-600 bg-slate-800 text-[11px] hover:bg-slate-700"
+                        >
                             {layoutMode === 'vertical' ? '상하 2분할' : '좌우 2분할'}
                         </button>
                     )}
 
-                    {/* 뷰 모드 토글 (페이지 vs 스크롤) */}
-                    <button type="button" onClick={toggleViewMode} className="px-3 py-1 rounded-lg border border-slate-600 bg-slate-800 text-[11px] hover:bg-slate-700">
+                    <button
+                        type="button"
+                        onClick={() => setViewMode((m) => (m === 'page' ? 'scroll' : 'page'))}
+                        className="px-3 py-1 rounded-lg border border-slate-600 bg-slate-800 text-[11px] hover:bg-slate-700"
+                    >
                         {viewMode === 'page' ? '스크롤 모드' : '페이지 모드'}
                     </button>
 
@@ -615,10 +601,9 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
                 </div>
             </div>
 
-            {/* 세로 스크롤 컨테이너 */}
-            <div className="flex-1 min-h-0 overflow-y-auto p-2">
+            {/* ⭐ 외부 스크롤 컨테이너에 ref + onScroll 추가 */}
+            <div ref={outerScrollRef} className="flex-1 min-h-0 overflow-y-auto p-2" onScroll={handleOuterScroll}>
                 <div className={containerClass}>
-                    {/* ==================== 원본 ==================== */}
                     {originalUrl && (
                         <div className="flex flex-col bg-slate-950 rounded-xl overflow-hidden border border-slate-700/70">
                             <div className="px-3 py-2 text-xs text-slate-200 bg-slate-800/95 border-b border-slate-700 flex items-center justify-between gap-2">
@@ -627,9 +612,7 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
                                     <span className="ml-2 text-[11px] text-slate-400 truncate">{originalTitle || originalUrl}</span>
                                 </div>
 
-                                {/* 페이지 네비게이션 + 줌 컨트롤 */}
                                 <div className="flex items-center gap-2">
-                                    {/* 페이지 네비 (개별) */}
                                     {originalPages > 0 && (
                                         <div className="flex items-center gap-1 text-[10px]">
                                             <button
@@ -665,7 +648,6 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
                                         </div>
                                     )}
 
-                                    {/* 원본 배율 표시 + 입력 + 버튼 */}
                                     <div className="flex items-center gap-1 text-[10px]">
                                         <input
                                             type="number"
@@ -717,7 +699,6 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
                                         loading={<div className="text-slate-300 text-xs py-4">원본 PDF 불러오는 중...</div>}
                                         error={<div className="text-red-400 text-xs py-4">원본 PDF를 불러오지 못했습니다.</div>}
                                     >
-                                        {/* 페이지 모드: 한 페이지만 렌더 + 포인터 */}
                                         {viewMode === 'page' && originalPages > 0 && (
                                             <div ref={origPageRef} className="relative inline-block" onClick={(e) => handleHostPointerClick(e, 'orig')}>
                                                 <Page key={`orig-page-${origCurrentPage}`} pageNumber={origCurrentPage} width={origWidth} renderTextLayer={false} renderAnnotationLayer={false} />
@@ -725,7 +706,6 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
                                             </div>
                                         )}
 
-                                        {/* 스크롤 모드: 모든 페이지 세로 렌더 */}
                                         {viewMode === 'scroll' && originalPages > 0 && (
                                             <div className="flex flex-col gap-4">
                                                 {Array.from({ length: originalPages }, (_, idx) => (
@@ -739,7 +719,6 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
                         </div>
                     )}
 
-                    {/* ==================== 번역 ==================== */}
                     {translatedUrl && (
                         <div className="flex flex-col bg-slate-950 rounded-xl overflow-hidden border border-slate-700/70">
                             <div className="px-3 py-2 text-xs text-slate-200 bg-slate-800/95 border-b border-slate-700 flex items-center justify-between gap-2">
@@ -748,9 +727,7 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
                                     <span className="ml-2 text-[11px] text-slate-400 truncate">{translatedTitle || translatedUrl}</span>
                                 </div>
 
-                                {/* 페이지 네비게이션 + 줌 컨트롤 */}
                                 <div className="flex items-center gap-2">
-                                    {/* 페이지 네비 (개별) */}
                                     {translatedPages > 0 && (
                                         <div className="flex items-center gap-1 text-[10px]">
                                             <button
@@ -786,7 +763,6 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
                                         </div>
                                     )}
 
-                                    {/* 번역 배율 표시 + 입력 + 버튼 */}
                                     <div className="flex items-center gap-1 text-[10px]">
                                         <input
                                             type="number"
@@ -838,7 +814,6 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
                                         loading={<div className="text-slate-300 text-xs py-4">번역 PDF 불러오는 중...</div>}
                                         error={<div className="text-red-400 text-xs py-4">번역 PDF를 불러오지 못했습니다.</div>}
                                     >
-                                        {/* 페이지 모드: 한 페이지만 렌더 + 포인터 */}
                                         {viewMode === 'page' && translatedPages > 0 && (
                                             <div ref={transPageRef} className="relative inline-block" onClick={(e) => handleHostPointerClick(e, 'trans')}>
                                                 <Page key={`trans-page-${transCurrentPage}`} pageNumber={transCurrentPage} width={transWidth} renderTextLayer={false} renderAnnotationLayer={false} />
@@ -846,7 +821,6 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
                                             </div>
                                         )}
 
-                                        {/* 스크롤 모드: 모든 페이지 세로 렌더 */}
                                         {viewMode === 'scroll' && translatedPages > 0 && (
                                             <div className="flex flex-col gap-4">
                                                 {Array.from({ length: translatedPages }, (_, idx) => (

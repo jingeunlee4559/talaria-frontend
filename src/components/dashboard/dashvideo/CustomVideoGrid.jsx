@@ -11,20 +11,16 @@ const isAgent = (participant) => {
     const identity = participant.identity || '';
     const name = participant.name || '';
 
-    // identity나 name에 'agent' 포함 여부 확인 (대소문자 무시)
     if (identity.toLowerCase().includes('agent') || name.toLowerCase().includes('agent')) {
         return true;
     }
 
-    // metadata에서 확인
     try {
         const metadata = JSON.parse(participant.metadata || '{}');
         if (metadata.isAgent === true || metadata.type === 'agent') {
             return true;
         }
-    } catch (e) {
-        // metadata 파싱 실패 시 무시
-    }
+    } catch (e) {}
 
     return false;
 };
@@ -32,37 +28,47 @@ const isAgent = (participant) => {
 function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight, docShare }) {
     const [activeHighlight, setActiveHighlight] = useState(null);
 
-    // ✅ 다른 참가자로부터 받은 문서 포인터 상태 (호스트가 아님)
+    // ✅ 다른 참가자로부터 받은 문서 포인터 상태
     const [remotePointer, setRemotePointer] = useState(null);
 
-    // ✅ 문서 동기화용 데이터 채널 (LiveKit)
-    //  - channel name: 'doc-sync'
-    //  - msg.payload 에 우리가 보낸 객체가 그대로 들어온다고 가정 (LiveKit 문서 기준)
-    const { send: sendDocSync } = useDataChannel('doc-sync', (msg) => {
-        const data = msg?.payload;
-        if (!data || typeof data !== 'object') return;
+    // ✅ 다른 참가자로부터 받은 "페이지 동기화" 상태
+    const [remotePageSync, setRemotePageSync] = useState(null);
 
-        // type 구분: pointer / (나중에 page 등 확장 가능)
-        if (data.type === 'pointer') {
-            // 호스트/뷰어 구분 없이 일단 최신 포인터로 갱신
-            setRemotePointer(data);
+    // 🔴 문서 동기화용 데이터 채널 (JSON 디코딩 추가)
+    const { send: sendDocSync } = useDataChannel('doc-sync', (msg) => {
+        try {
+            const text = new TextDecoder().decode(msg.payload);
+            const data = JSON.parse(text);
+
+            // 👉 포인터 동기화(지금은 전송 안 하지만, 구조는 살려둠)
+            if (data.type === 'pointer') {
+                setRemotePointer(data);
+            }
+
+            // 👉 페이지 동기화
+            if (data.type === 'page') {
+                // data: { type: 'page', page }
+                setRemotePageSync(data);
+            }
+        } catch (err) {
+            console.error('doc-sync 수신 파싱 오류:', err);
         }
     });
 
-    // ✅ 호스트가 포인터를 찍을 때 호출되는 브로드캐스트 함수
-    const broadcastPointer = (pointerPayload) => {
-        if (!sendDocSync || !pointerPayload) return;
+    // 🔴 페이지 변경 브로드캐스트 함수 (JSON 인코딩 추가)
+    const broadcastPageSync = (pagePayload) => {
+        if (!sendDocSync || !pagePayload) return;
 
-        // pointerPayload: { side, page, xPercent, yPercent, ts }
         try {
-            // 객체 그대로 보냄 → 상대방은 msg.payload 로 동일 객체 수신
-            sendDocSync({
-                type: 'pointer',
-                ...pointerPayload,
-            });
+            const encoder = new TextEncoder();
+            const payload = {
+                type: 'page',
+                ...pagePayload, // { page }
+            };
+            const bytes = encoder.encode(JSON.stringify(payload));
+            sendDocSync(bytes);
         } catch (err) {
-            // 콘솔 로그만 남김 (UI 에러는 굳이 띄우지 않음)
-            console.error('문서 동기화(pointer) 전송 오류:', err);
+            console.error('문서 동기화(page) 전송 오류:', err);
         }
     };
 
@@ -98,7 +104,6 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight,
         { onlySubscribed: false },
     );
 
-    // 🤖 에이전트 제외 필터링
     const screenShareTracks = tracks.filter((t) => t.source === Track.Source.ScreenShare).filter((t) => !isAgent(t.participant));
     const cameraTracks = tracks.filter((t) => t.source === Track.Source.Camera).filter((t) => !isAgent(t.participant));
 
@@ -109,10 +114,6 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight,
     // 0) 문서 공유 레이아웃 (원본/번역 2분할 + 동기 스크롤/페이지)
     // ======================
     if (docShare?.active && (docShare.originalUrl || docShare.translatedUrl)) {
-        // ✅ 이 사용자가 문서 컨트롤 호스트인지 여부 (부모에서 내려줌)
-        //    예: docShare.isHost === true 인 경우에만 클릭/페이지 변경을 브로드캐스트
-        const isDocHost = !!docShare?.isHost;
-
         return (
             <div className="absolute inset-0 w-full h-full bg-slate-900 flex flex-col">
                 <SyncedPdfGrid
@@ -120,11 +121,13 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight,
                     translatedUrl={docShare.translatedUrl}
                     originalTitle={docShare.originalTitle}
                     translatedTitle={docShare.translatedTitle}
-                    // 🔹 호스트일 때만 클릭으로 포인터/페이지 전파
-                    isHost={isDocHost}
-                    onPointerSend={isDocHost ? broadcastPointer : undefined}
-                    // 🔹 뷰어 쪽에서는 원격 포인터를 그대로 전달
-                    remotePointer={!isDocHost ? remotePointer : null}
+                    // ✅ 포인터는 일단 비활성(브로드캐스트 X)
+                    // onPointerSend={...} 전달 안 함
+                    // ✅ 페이지 동기화는 누구나 상단 버튼/입력 시 브로드캐스트
+                    onPageSyncSend={broadcastPageSync}
+                    // ✅ 수신한 포인터/페이지 동기화 정보는 모두 전달
+                    remotePointer={remotePointer}
+                    remotePageSync={remotePageSync}
                 />
             </div>
         );
@@ -138,7 +141,6 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight,
 
         return (
             <div className="absolute inset-0 w-full h-full overflow-hidden bg-black">
-                {/* 레이어 1: 흐릿한 전체 배경 */}
                 <div className="absolute inset-0 z-10" style={{ margin: '-10%' }}>
                     <VideoTrack
                         trackRef={shareTrackRef}
@@ -152,7 +154,6 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight,
                     />
                 </div>
 
-                {/* 레이어 2: 선명한 원본 화면공유 */}
                 <div className="absolute inset-0 z-20 flex items-center justify-center">
                     <VideoTrack
                         trackRef={shareTrackRef}
@@ -164,7 +165,6 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight,
                     />
                 </div>
 
-                {/* 레이어 3: 참가자 썸네일 (에이전트 제외) */}
                 {cameraTracks.length > 0 && (
                     <div className="absolute top-4 right-4 z-40 pointer-events-none max-h-[calc(100vh-200px)] overflow-y-auto">
                         <div className="flex flex-col gap-2 pointer-events-auto">

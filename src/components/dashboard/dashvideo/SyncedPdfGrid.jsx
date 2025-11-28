@@ -16,7 +16,7 @@ const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
  * - onPointerSend: (payload) => void  // 호스트가 포인터 찍을 때 호출
  * - remotePointer: { side: 'orig'|'trans', page: number, xPercent: number, yPercent: number, ts: number }
  */
-const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTitle, isHost = false, onPointerSend, remotePointer }) => {
+const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTitle, isHost = false, onPointerSend, remotePointer, onPageSyncSend, remotePageSync }) => {
     const [originalPages, setOriginalPages] = useState(0);
     const [translatedPages, setTranslatedPages] = useState(0);
 
@@ -64,6 +64,11 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
     // ✅ 레이저 포인터 상태 (로컬 표시용)
     // pointer: { side: 'orig' | 'trans', page, xPercent, yPercent, ts }
     const [pointer, setPointer] = useState(null);
+
+    const emitPageSync = (page) => {
+        if (!isHost || !onPageSyncSend) return;
+        onPageSyncSend({ page });
+    };
 
     // remotePointer 가 변경되면 로컬 pointer에 반영
     useEffect(() => {
@@ -315,6 +320,10 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
             setTransCurrentPage((prev) => clamp(clampedPage, 1, translatedPages));
             setSyncedPage((prev) => clamp(clampedPage, 1, prev));
         }
+
+        if (syncPages) {
+            emitPageSync(clampedPage); // ✅ 추가
+        }
     };
 
     const applyTransPageInput = () => {
@@ -329,6 +338,10 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
         if (syncPages && originalPages) {
             setOrigCurrentPage((prev) => clamp(clampedPage, 1, originalPages));
             setSyncedPage((prev) => clamp(clampedPage, 1, prev));
+        }
+
+        if (syncPages) {
+            emitPageSync(clampedPage); // ✅ 추가
         }
     };
 
@@ -364,6 +377,27 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
             setOrigCurrentPage((p) => clamp(p + 1, 1, originalPages));
         }
     };
+
+    useEffect(() => {
+        if (!remotePageSync || viewMode !== 'page') return;
+        const { page } = remotePageSync;
+        if (!page) return;
+
+        // 아직 페이지 수가 안 잡힌 경우를 대비해 일단 clamp
+        const targetOrig = originalPages ? clamp(page, 1, originalPages) : null;
+        const targetTrans = translatedPages ? clamp(page, 1, translatedPages) : null;
+
+        setSyncedPage(page);
+
+        if (targetOrig !== null) {
+            setOrigCurrentPage(targetOrig);
+            setOrigPageInput(String(targetOrig));
+        }
+        if (targetTrans !== null) {
+            setTransCurrentPage(targetTrans);
+            setTransPageInput(String(targetTrans));
+        }
+    }, [remotePageSync, viewMode, originalPages, translatedPages]);
 
     // ============================
     // 🧲 레이저 포인터 좌표 계산 (호스트 전용, 페이지 모드에서만 사용)
@@ -486,6 +520,8 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
             setTransCurrentPage(p);
             setTransPageInput(String(p));
         }
+
+        emitPageSync(newPage); // ✅ 추가
     };
 
     const handleGlobalNextPage = () => {
@@ -504,6 +540,8 @@ const SyncedPdfGrid = ({ originalUrl, translatedUrl, originalTitle, translatedTi
             setTransCurrentPage(p);
             setTransPageInput(String(p));
         }
+
+        emitPageSync(newPage); // ✅ 추가
     };
 
     return (

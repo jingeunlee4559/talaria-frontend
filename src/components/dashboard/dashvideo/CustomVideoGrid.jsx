@@ -1,8 +1,8 @@
 // src/components/dashboard/dashvideo/CustomVideoGrid.jsx
 import React, { useEffect, useState } from 'react';
-import { useTracks, ParticipantTile, VideoTrack } from '@livekit/components-react';
+import { useTracks, ParticipantTile, VideoTrack, useDataChannel } from '@livekit/components-react';
 import { Track } from 'livekit-client';
-import SyncedPdfGrid from './SyncedPdfGrid'; // ✅ 추가
+import SyncedPdfGrid from './SyncedPdfGrid'; // ✅ 문서 뷰어
 
 // 🤖 에이전트 판별 함수
 const isAgent = (participant) => {
@@ -31,6 +31,40 @@ const isAgent = (participant) => {
 
 function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight, docShare }) {
     const [activeHighlight, setActiveHighlight] = useState(null);
+
+    // ✅ 다른 참가자로부터 받은 문서 포인터 상태 (호스트가 아님)
+    const [remotePointer, setRemotePointer] = useState(null);
+
+    // ✅ 문서 동기화용 데이터 채널 (LiveKit)
+    //  - channel name: 'doc-sync'
+    //  - msg.payload 에 우리가 보낸 객체가 그대로 들어온다고 가정 (LiveKit 문서 기준)
+    const { send: sendDocSync } = useDataChannel('doc-sync', (msg) => {
+        const data = msg?.payload;
+        if (!data || typeof data !== 'object') return;
+
+        // type 구분: pointer / (나중에 page 등 확장 가능)
+        if (data.type === 'pointer') {
+            // 호스트/뷰어 구분 없이 일단 최신 포인터로 갱신
+            setRemotePointer(data);
+        }
+    });
+
+    // ✅ 호스트가 포인터를 찍을 때 호출되는 브로드캐스트 함수
+    const broadcastPointer = (pointerPayload) => {
+        if (!sendDocSync || !pointerPayload) return;
+
+        // pointerPayload: { side, page, xPercent, yPercent, ts }
+        try {
+            // 객체 그대로 보냄 → 상대방은 msg.payload 로 동일 객체 수신
+            sendDocSync({
+                type: 'pointer',
+                ...pointerPayload,
+            });
+        } catch (err) {
+            // 콘솔 로그만 남김 (UI 에러는 굳이 띄우지 않음)
+            console.error('문서 동기화(pointer) 전송 오류:', err);
+        }
+    };
 
     useEffect(() => {
         if (!bgHighlight) return;
@@ -72,12 +106,26 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight,
     const isVirtualBgActive = virtualBgType === 'image' || virtualBgType === 'blur';
 
     // ======================
-    // 0) 문서 공유 레이아웃 (원본/번역 2분할 + 동기 스크롤)
+    // 0) 문서 공유 레이아웃 (원본/번역 2분할 + 동기 스크롤/페이지)
     // ======================
     if (docShare?.active && (docShare.originalUrl || docShare.translatedUrl)) {
+        // ✅ 이 사용자가 문서 컨트롤 호스트인지 여부 (부모에서 내려줌)
+        //    예: docShare.isHost === true 인 경우에만 클릭/페이지 변경을 브로드캐스트
+        const isDocHost = !!docShare?.isHost;
+
         return (
             <div className="absolute inset-0 w-full h-full bg-slate-900 flex flex-col">
-                <SyncedPdfGrid originalUrl={docShare.originalUrl} translatedUrl={docShare.translatedUrl} originalTitle={docShare.originalTitle} translatedTitle={docShare.translatedTitle} />
+                <SyncedPdfGrid
+                    originalUrl={docShare.originalUrl}
+                    translatedUrl={docShare.translatedUrl}
+                    originalTitle={docShare.originalTitle}
+                    translatedTitle={docShare.translatedTitle}
+                    // 🔹 호스트일 때만 클릭으로 포인터/페이지 전파
+                    isHost={isDocHost}
+                    onPointerSend={isDocHost ? broadcastPointer : undefined}
+                    // 🔹 뷰어 쪽에서는 원격 포인터를 그대로 전달
+                    remotePointer={!isDocHost ? remotePointer : null}
+                />
             </div>
         );
     }

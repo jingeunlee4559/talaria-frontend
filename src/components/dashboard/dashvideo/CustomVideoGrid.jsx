@@ -105,6 +105,7 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight,
     );
 
     const screenShareTracks = tracks.filter((t) => t.source === Track.Source.ScreenShare).filter((t) => !isAgent(t.participant));
+
     const cameraTracks = tracks.filter((t) => t.source === Track.Source.Camera).filter((t) => !isAgent(t.participant));
 
     const hasScreenShare = screenShareTracks.length > 0;
@@ -112,10 +113,12 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight,
 
     // ======================
     // 0) 문서 공유 레이아웃 (원본/번역 2분할 + 동기 스크롤/페이지)
+    //     + 참가자 타일 오버레이
     // ======================
     if (docShare?.active && (docShare.originalUrl || docShare.translatedUrl)) {
         return (
-            <div className="absolute inset-0 w-full h-full bg-slate-900 flex flex-col">
+            <div className="absolute inset-0 w-full h-full bg-slate-900 flex flex-col overflow-hidden">
+                {/* 메인: PDF 원본/번역 뷰어 */}
                 <SyncedPdfGrid
                     originalUrl={docShare.originalUrl}
                     translatedUrl={docShare.translatedUrl}
@@ -129,6 +132,29 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight,
                     remotePointer={remotePointer}
                     remotePageSync={remotePageSync}
                 />
+
+                {/* 참가자 카메라 타일 (오른쪽 아래 오버레이) */}
+                {cameraTracks.length > 0 && (
+                    <div className="absolute bottom-4 right-4 z-40 pointer-events-none max-h-[40vh] md:max-h-[50vh] overflow-y-auto">
+                        <div className="flex flex-col gap-2 pointer-events-auto">
+                            {cameraTracks.map((trackRef) => (
+                                <div
+                                    key={trackRef.participant.identity}
+                                    className="w-32 h-24 flex-shrink-0 rounded-lg overflow-hidden shadow-2xl border-2 border-white/50 bg-slate-800 hover:border-white/70 transition-all hover:scale-105"
+                                >
+                                    <ParticipantTile
+                                        trackRef={trackRef}
+                                        style={{
+                                            height: '100%',
+                                            width: '100%',
+                                            objectFit: 'cover',
+                                        }}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }

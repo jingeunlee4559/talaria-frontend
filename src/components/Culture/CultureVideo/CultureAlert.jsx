@@ -64,7 +64,8 @@ const AGENT_INFO = {
 };
 
 // ===== 이미지 기반 마스코트 컴포넌트 =====
-const TigerMascot = ({ state = 'normal', size = 110 }) => {
+// ✅ 부모 컨테이너 크기에 맞게 w-full / h-full 사용 (size로 직접 픽셀 고정 X)
+const TigerMascot = ({ state = 'normal' }) => {
     const isHappy = state === 'happy';
     const isGreeting = state === 'greeting';
 
@@ -72,9 +73,9 @@ const TigerMascot = ({ state = 'normal', size = 110 }) => {
         <div
             className={`
                 relative
+                w-full h-full
                 ${isGreeting ? 'animate-bounce-gentle' : 'animate-float-gentle'}
             `}
-            style={{ width: size, height: size }}
         >
             {/* 메인 이미지 - 원형으로 */}
             <img
@@ -168,20 +169,15 @@ function normalizeToCard(ev, targetLocale = 'ko-KR') {
 
     const sev = mapSeverity(ev.severity);
 
-    // 🟢 [변경 시작] 언어별 설명 선택 로직
-    // 1순위: 내 Locale과 정확히 일치하는 번역 (예: 'en-US')
-    // 2순위: 언어 코드가 일치하는 번역 (예: 'en')
-    // 3순위: 기본 explanation (한국어 원본)
+    // 언어별 설명 선택 로직
     let selectedExplanation = ev.explanation || '';
 
     if (ev.translations) {
         if (ev.translations[targetLocale]) {
-            // 정확히 일치 (예: en-US)
             selectedExplanation = ev.translations[targetLocale];
         } else {
-            // 언어 코드만 일치하는지 확인 (예: en-US -> en)
             const langCode = targetLocale.split('-')[0];
-            const fallbackKey = Object.keys(ev.translations).find(k => k.startsWith(langCode));
+            const fallbackKey = Object.keys(ev.translations).find((k) => k.startsWith(langCode));
             if (fallbackKey) {
                 selectedExplanation = ev.translations[fallbackKey];
             }
@@ -189,8 +185,6 @@ function normalizeToCard(ev, targetLocale = 'ko-KR') {
     }
 
     const explanation = (selectedExplanation || '').toString().trim() || '문화적 차이가 있을 수 있어요!';
-    // 🟢 [변경 끝]
-
     const suggestion = (ev.suggestion || '').toString().trim() || '';
     const speaker = ev.identity || ev.username || 'unknown';
     const cooldownSec = 30;
@@ -226,7 +220,7 @@ export default function CultureAlert({ room: roomProp, displayMs = 8000, debug =
     const [showHearts, setShowHearts] = useState(false);
     const [hearts, setHearts] = useState([]);
     const [characterState, setCharacterState] = useState('normal');
-    const [bubbleHidden, setBubbleHidden] = useState(false); // ✅ 말풍선 온/오프
+    const [bubbleHidden, setBubbleHidden] = useState(false); // 말풍선 온/오프
 
     const [demoIdx, setDemoIdx] = useState(0);
     const [dismissed, setDismissed] = useState(false);
@@ -279,7 +273,6 @@ export default function CultureAlert({ room: roomProp, displayMs = 8000, debug =
                     return;
                 }
 
-                // 내 Locale을 구해서 normalizeToCard에 전달
                 const myLocale = getMyLocale();
                 const card = normalizeToCard(data, myLocale);
                 if (!card) return;
@@ -300,7 +293,7 @@ export default function CultureAlert({ room: roomProp, displayMs = 8000, debug =
                     if (next) {
                         setCurrent(next);
                         setVisible(true);
-                        setBubbleHidden(false); // ✅ 새 카드 등장 시 말풍선 ON
+                        setBubbleHidden(false);
                         setProgress(100);
                         setCharacterState('greeting');
                     }
@@ -324,7 +317,7 @@ export default function CultureAlert({ room: roomProp, displayMs = 8000, debug =
         return () => clearTimeout(timer);
     }, [visible, current]);
 
-    // 진행바 & 자동 닫힘 (카드만 제어)
+    // 진행바 & 자동 닫힘
     useEffect(() => {
         if (!visible || !current) return;
 
@@ -341,12 +334,11 @@ export default function CultureAlert({ room: roomProp, displayMs = 8000, debug =
                     if (n) {
                         setCurrent(n);
                         setVisible(true);
-                        setBubbleHidden(false); // ✅ 다음 카드도 말풍선 ON
+                        setBubbleHidden(false);
                         setProgress(100);
                         setShowHearts(false);
                         setCharacterState('greeting');
                     } else {
-                        // 마지막 카드 끝 → 카드만 숨김, 하랑이는 그대로
                         setVisible(false);
                         setCurrent(null);
                         setShowHearts(false);
@@ -407,12 +399,10 @@ export default function CultureAlert({ room: roomProp, displayMs = 8000, debug =
         }, 2000);
     };
 
-    // ✅ 닫기 버튼: 말풍선만 숨기기 (하랑이는 그대로)
     const handleClose = () => {
         setBubbleHidden(true);
     };
 
-    // 데모 모드에서 완전히 닫힌 상태만 숨김
     if (!liveMode && dismissed && !current) return null;
 
     const s = severityInfo[current?.severity] || severityInfo[1];
@@ -425,14 +415,14 @@ export default function CultureAlert({ room: roomProp, displayMs = 8000, debug =
     return (
         <div
             className={`
-            pointer-events-none
-            absolute            
-            left-3 sm:left-6
-            top-[4.2rem] sm:top-[3.3rem]   
-            z-[9998]
-            transition-all duration-300 ease-out
-            ${visible ? 'opacity-100 translate-y-0' : 'opacity-100 translate-y-0'}
-        `}
+                pointer-events-none
+                absolute
+                left-3 sm:left-6
+                top-[4.2rem] sm:top-[3.3rem]
+                z-[9998]
+                transition-all duration-300 ease-out
+                ${visible ? 'opacity-100 translate-y-0' : 'opacity-100 translate-y-0'}
+            `}
             role="alert"
         >
             <div className="flex items-start gap-2 sm:gap-3 pointer-events-auto">
@@ -459,12 +449,24 @@ export default function CultureAlert({ room: roomProp, displayMs = 8000, debug =
                         </div>
                     )}
 
+                    {/* ✅ 모바일에서는 더 작게, 화면 커질수록 점점 키우기 */}
                     <button
                         type="button"
                         onClick={handleThank}
-                        className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-gradient-to-br from-orange-50 to-amber-50 shadow-xl border-2 border-orange-200/50 flex items-center justify-center overflow-hidden hover:-translate-y-1 hover:shadow-2xl transition-all duration-300 hover:border-orange-300"
+                        className="
+                            relative
+                            w-16 h-16
+                            sm:w-20 sm:h-20
+                            md:w-24 md:h-24
+                            rounded-full
+                            bg-gradient-to-br from-orange-50 to-amber-50
+                            shadow-xl border-2 border-orange-200/50
+                            flex items-center justify-center overflow-hidden
+                            hover:-translate-y-1 hover:shadow-2xl
+                            transition-all duration-300 hover:border-orange-300
+                        "
                     >
-                        <TigerMascot state={characterState} size={120} />
+                        <TigerMascot state={characterState} />
                     </button>
 
                     {/* 라벨 + ? 도움말 */}
@@ -512,7 +514,16 @@ export default function CultureAlert({ room: roomProp, displayMs = 8000, debug =
 
                 {/* 말풍선 카드: current 있을 때만 등장 */}
                 {current && !bubbleHidden && (
-                    <div className="relative max-w-[210px] sm:max-w-[280px]">
+                    <div
+                        className="
+                            relative
+                            w-[72vw]        /* ✅ 모바일에서 화면 폭 기준으로 줄이기 */
+                            max-w-[190px]   /* ✅ 모바일 최대 폭 */
+                            sm:w-auto
+                            sm:max-w-[260px]
+                            md:max-w-[320px]
+                        "
+                    >
                         {/* 꼬리 */}
                         <div className="absolute -left-1.5 top-6 w-3 h-3 bg-gradient-to-br from-sky-100 to-indigo-100 rotate-45 shadow-md" />
 
@@ -528,7 +539,7 @@ export default function CultureAlert({ room: roomProp, displayMs = 8000, debug =
                                 backdrop-blur-md
                             "
                         >
-                            {/* 닫기 버튼 - 카드만 숨김 */}
+                            {/* 닫기 버튼 */}
                             <button
                                 onClick={handleClose}
                                 className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-slate-100/70 hover:bg-slate-200 flex items-center justify-center transition-all"
@@ -616,90 +627,90 @@ export default function CultureAlert({ room: roomProp, displayMs = 8000, debug =
 
             {/* 커스텀 애니메이션 CSS */}
             <style>{`
-            @keyframes float-gentle { 
-                0%, 100% { transform: translateY(0) rotate(0deg); }
-                25% { transform: translateY(-3px) rotate(-1deg); }
-                50% { transform: translateY(-6px) rotate(0deg); }
-                75% { transform: translateY(-3px) rotate(1deg); }
-            }
-            
-            @keyframes bounce-gentle {
-                0%, 100% { transform: translateY(0) scale(1); }
-                25% { transform: translateY(-8px) scale(1.05); }
-                50% { transform: translateY(-12px) scale(1.08); }
-                75% { transform: translateY(-6px) scale(1.03); }
-            }
-            
-            @keyframes wiggle {
-                0%, 100% { transform: rotate(0deg); }
-                10%, 30%, 50%, 70%, 90% { transform: rotate(-3deg); }
-                20%, 40%, 60%, 80% { transform: rotate(3deg); }
-            }
-            
-            @keyframes pulse-soft { 
-                0%, 100% { opacity: 0.3; transform: scale(1); }
-                50% { opacity: 0.6; transform: scale(1.1); }
-            }
-            
-            @keyframes orbit { 
-                0% { transform: rotate(0deg) translateX(20px) rotate(0deg); }
-                100% { transform: rotate(360deg) translateX(20px) rotate(-360deg); }
-            }
-            
-            @keyframes orbit-reverse { 
-                0% { transform: rotate(0deg) translateX(18px) rotate(0deg); }
-                100% { transform: rotate(-360deg) translateX(18px) rotate(360deg); }
-            }
-            
-            @keyframes sparkle-pulse { 
-                0%, 100% { opacity: 0.4; transform: scale(0.8) rotate(0deg); }
-                50% { opacity: 1; transform: scale(1.3) rotate(180deg); }
-            }
-            
-            @keyframes bounce-high {
-                0%, 100% { transform: translate(-50%, 0); opacity: 1; }
-                50% { transform: translate(-50%, -20px); opacity: 0.8; }
-            }
-            
-            @keyframes ping-once {
-                0% { transform: scale(0.8); opacity: 0.8; }
-                50% { transform: scale(1.2); opacity: 0.4; }
-                100% { transform: scale(1.5); opacity: 0; }
-            }
-
-            @keyframes heart-burst {
-                0% {
-                    opacity: 0;
-                    transform: translate(-50%, -50%) translate(0, 0) scale(0) rotate(0deg);
+                @keyframes float-gentle { 
+                    0%, 100% { transform: translateY(0) rotate(0deg); }
+                    25% { transform: translateY(-3px) rotate(-1deg); }
+                    50% { transform: translateY(-6px) rotate(0deg); }
+                    75% { transform: translateY(-3px) rotate(1deg); }
                 }
-                10% { opacity: 1; }
-                100% {
-                    opacity: 0;
-                    transform:
-                        translate(-50%, -50%)
-                        translate(calc(cos(var(--angle)) * 140px), calc(sin(var(--angle)) * 140px))
-                        scale(calc(var(--scale) * 2))
-                        rotate(720deg);
+                
+                @keyframes bounce-gentle {
+                    0%, 100% { transform: translateY(0) scale(1); }
+                    25% { transform: translateY(-8px) scale(1.05); }
+                    50% { transform: translateY(-12px) scale(1.08); }
+                    75% { transform: translateY(-6px) scale(1.03); }
                 }
-            }
+                
+                @keyframes wiggle {
+                    0%, 100% { transform: rotate(0deg); }
+                    10%, 30%, 50%, 70%, 90% { transform: rotate(-3deg); }
+                    20%, 40%, 60%, 80% { transform: rotate(3deg); }
+                }
+                
+                @keyframes pulse-soft { 
+                    0%, 100% { opacity: 0.3; transform: scale(1); }
+                    50% { opacity: 0.6; transform: scale(1.1); }
+                }
+                
+                @keyframes orbit { 
+                    0% { transform: rotate(0deg) translateX(20px) rotate(0deg); }
+                    100% { transform: rotate(360deg) translateX(20px) rotate(-360deg); }
+                }
+                
+                @keyframes orbit-reverse { 
+                    0% { transform: rotate(0deg) translateX(18px) rotate(0deg); }
+                    100% { transform: rotate(-360deg) translateX(18px) rotate(360deg); }
+                }
+                
+                @keyframes sparkle-pulse { 
+                    0%, 100% { opacity: 0.4; transform: scale(0.8) rotate(0deg); }
+                    50% { opacity: 1; transform: scale(1.3) rotate(180deg); }
+                }
+                
+                @keyframes bounce-high {
+                    0%, 100% { transform: translate(-50%, 0); opacity: 1; }
+                    50% { transform: translate(-50%, -20px); opacity: 0.8; }
+                }
+                
+                @keyframes ping-once {
+                    0% { transform: scale(0.8); opacity: 0.8; }
+                    50% { transform: scale(1.2); opacity: 0.4; }
+                    100% { transform: scale(1.5); opacity: 0; }
+                }
 
-            @keyframes pulse-dot { 
-                0%, 100% { transform: scale(1); opacity: 1; }
-                50% { transform: scale(1.5); opacity: 0.5; }
-            }
+                @keyframes heart-burst {
+                    0% {
+                        opacity: 0;
+                        transform: translate(-50%, -50%) translate(0, 0) scale(0) rotate(0deg);
+                    }
+                    10% { opacity: 1; }
+                    100% {
+                        opacity: 0;
+                        transform:
+                            translate(-50%, -50%)
+                            translate(calc(cos(var(--angle)) * 140px), calc(sin(var(--angle)) * 140px))
+                            scale(calc(var(--scale) * 2))
+                            rotate(720deg);
+                    }
+                }
 
-            .animate-float-gentle { animation: float-gentle 4s.ease-in-out infinite; }
-            .animate-bounce-gentle { animation: bounce-gentle 1.5s ease-in-out; }
-            .animate-wiggle { animation: wiggle 0.8s ease-in-out; }
-            .animate-pulse-soft { animation: pulse-soft 3s ease-in-out infinite; }
-            .animate-orbit { animation: orbit 6s linear infinite; }
-            .animate-orbit-reverse { animation: orbit-reverse 7s linear infinite; }
-            .animate-sparkle-pulse { animation: sparkle-pulse 2s ease-in-out infinite; }
-            .animate-bounce-high { animation: bounce-high 1s ease-out; }
-            .animate-ping-once { animation: ping-once 0.6s ease-out; }
-            .animate-heart-burst { animation: heart-burst 2s ease-out forwards; }
-            .animate-pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
-        `}</style>
+                @keyframes pulse-dot { 
+                    0%, 100% { transform: scale(1); opacity: 1; }
+                    50% { transform: scale(1.5); opacity: 0.5; }
+                }
+
+                .animate-float-gentle { animation: float-gentle 4s ease-in-out infinite; }
+                .animate-bounce-gentle { animation: bounce-gentle 1.5s ease-in-out; }
+                .animate-wiggle { animation: wiggle 0.8s ease-in-out; }
+                .animate-pulse-soft { animation: pulse-soft 3s ease-in-out infinite; }
+                .animate-orbit { animation: orbit 6s linear infinite; }
+                .animate-orbit-reverse { animation: orbit-reverse 7s linear infinite; }
+                .animate-sparkle-pulse { animation: sparkle-pulse 2s ease-in-out infinite; }
+                .animate-bounce-high { animation: bounce-high 1s ease-out; }
+                .animate-ping-once { animation: ping-once 0.6s ease-out; }
+                .animate-heart-burst { animation: heart-burst 2s ease-out forwards; }
+                .animate-pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+            `}</style>
         </div>
     );
 }

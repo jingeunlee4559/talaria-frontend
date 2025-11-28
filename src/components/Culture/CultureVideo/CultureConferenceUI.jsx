@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef, useContext, useCallback, useMemo } 
 import { RoomAudioRenderer, LayoutContextProvider, useParticipants, useRoomContext, useDataChannel, useLocalParticipant } from '@livekit/components-react';
 import Swal from 'sweetalert2';
 import { FiCopy, FiMaximize, FiMinimize, FiHeart } from 'react-icons/fi';
-import { Users, MessageCircle, Info, Mic, MicOff, Video, VideoOff, MonitorUp, PhoneOff, Palette, Image as ImageIcon } from 'lucide-react';
+import { Users, MessageCircle, Info, Mic, MicOff, Video, VideoOff, MonitorUp, PhoneOff, Palette, Image as ImageIcon, MoreHorizontal } from 'lucide-react';
 import CultureSubtitleOverlay from './CultureSubtitleOverlay';
 import { UserContext } from '../../../contexts/UserContext';
 import CustomVideoGrid from '../../dashboard/dashvideo/CustomVideoGrid';
@@ -156,6 +156,8 @@ const CultureConferenceUI = ({ meetingId, meetingTitle, onLeave, userLocale = 'k
     const [showVirtualBgModal, setShowVirtualBgModal] = useState(false);
 
     const selectedVirtualBg = useMemo(() => findVirtualBgPreset(virtualBgId), [virtualBgId]);
+
+    const [showMoreMenu, setShowMoreMenu] = useState(false);
 
     // 🎤 K-POP 데몬 헌터스 커스텀 커서 활성화
     const { createClickEffect, createHeartEffect } = useKPDHCursor(currentTheme, true);
@@ -931,6 +933,7 @@ const CultureConferenceUI = ({ meetingId, meetingTitle, onLeave, userLocale = 'k
                                         style={{ zIndex: 90 }}
                                     >
                                         <div className="flex flex-wrap items-center justify-center px-2 sm:px-4 pb-3 sm:pb-4 pt-4 sm:pt-6 gap-1.5 sm:gap-2">
+                                            {/* 🔊 마이크 (항상 보임) */}
                                             <button
                                                 onClick={toggleMicrophone}
                                                 className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95 ${
@@ -940,6 +943,7 @@ const CultureConferenceUI = ({ meetingId, meetingTitle, onLeave, userLocale = 'k
                                                 {isMicOn ? <Mic className="w-4 h-4 sm:w-5 sm:h-5" /> : <MicOff className="w-4 h-4 sm:w-5 sm:h-5" />}
                                             </button>
 
+                                            {/* 🎥 카메라 (항상 보임) */}
                                             <button
                                                 onClick={toggleCamera}
                                                 className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95 ${
@@ -949,47 +953,7 @@ const CultureConferenceUI = ({ meetingId, meetingTitle, onLeave, userLocale = 'k
                                                 {isCameraOn ? <Video className="w-4 h-4 sm:w-5 sm:h-5" /> : <VideoOff className="w-4 h-4 sm:w-5 sm:h-5" />}
                                             </button>
 
-                                            <button
-                                                onClick={toggleScreenShare}
-                                                className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95 ${
-                                                    isScreenSharing ? 'bg-white text-green-600' : 'bg-white text-gray-600'
-                                                }`}
-                                            >
-                                                <MonitorUp className="w-4 h-4 sm:w-5 sm:h-5" />
-                                            </button>
-
-                                            <button
-                                                onClick={openVirtualBgModal}
-                                                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95"
-                                                style={{ color: themeColors.primary }}
-                                                title="카메라 배경 설정"
-                                            >
-                                                <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                                            </button>
-
-                                            <button
-                                                onClick={() => setShowChatSidebar(!showChatSidebar)}
-                                                className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95 ${
-                                                    showChatSidebar ? `bg-gradient-to-r ${themeColors.gradient} text-white` : 'bg-white text-gray-600'
-                                                }`}
-                                            >
-                                                <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-                                            </button>
-
-                                            <button
-                                                onClick={toggleFullscreen}
-                                                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white text-gray-600 flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95"
-                                            >
-                                                {isFullscreen ? <FiMinimize className="w-4 h-4 sm:w-5 sm:h-5" /> : <FiMaximize className="w-4 h-4 sm:w-5 sm:h-5" />}
-                                            </button>
-
-                                            <button
-                                                onClick={handleCopyLink}
-                                                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white text-gray-600 flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95"
-                                            >
-                                                <FiCopy className="w-4 h-4 sm:w-5 sm:h-5" />
-                                            </button>
-
+                                            {/* ☎ 나가기 / 방 종료 (항상 보임) */}
                                             <button
                                                 onClick={handleExitClick}
                                                 className="h-10 sm:h-11 px-4 sm:px-5 rounded-full bg-gradient-to-r from-red-500 to-rose-600 text-white flex items-center justify-center gap-1.5 sm:gap-2 transition-all shadow-lg hover:scale-110 active:scale-95"
@@ -998,6 +962,129 @@ const CultureConferenceUI = ({ meetingId, meetingTitle, onLeave, userLocale = 'k
                                                 <PhoneOff className="w-4 h-4 sm:w-5 sm:h-5" />
                                                 <span className="hidden sm:inline text-xs sm:text-sm font-semibold">{isHost ? '방 종료' : '나가기'}</span>
                                             </button>
+
+                                            {/* ===========================
+           ✅ PC·태블릿: 세부 버튼 전부 노출
+           =========================== */}
+                                            <div className="hidden sm:flex items-center gap-1.5 sm:gap-2">
+                                                {/* 화면 공유 */}
+                                                <button
+                                                    onClick={toggleScreenShare}
+                                                    className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95 ${
+                                                        isScreenSharing ? 'bg-white text-green-600' : 'bg-white text-gray-600'
+                                                    }`}
+                                                >
+                                                    <MonitorUp className="w-4 h-4 sm:w-5 sm:h-5" />
+                                                </button>
+
+                                                {/* 가상 배경 */}
+                                                <button
+                                                    onClick={openVirtualBgModal}
+                                                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95"
+                                                    style={{ color: themeColors.primary }}
+                                                    title="카메라 배경 설정"
+                                                >
+                                                    <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                                                </button>
+
+                                                {/* 채팅 사이드바 토글 */}
+                                                <button
+                                                    onClick={() => setShowChatSidebar(!showChatSidebar)}
+                                                    className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95 ${
+                                                        showChatSidebar ? `bg-gradient-to-r ${themeColors.gradient} text-white` : 'bg-white text-gray-600'
+                                                    }`}
+                                                >
+                                                    <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                                                </button>
+
+                                                {/* 전체 화면 */}
+                                                <button
+                                                    onClick={toggleFullscreen}
+                                                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white text-gray-600 flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95"
+                                                >
+                                                    {isFullscreen ? <FiMinimize className="w-4 h-4 sm:w-5 sm:h-5" /> : <FiMaximize className="w-4 h-4 sm:w-5 sm:h-5" />}
+                                                </button>
+
+                                                {/* 링크 복사 */}
+                                                <button
+                                                    onClick={handleCopyLink}
+                                                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white text-gray-600 flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95"
+                                                >
+                                                    <FiCopy className="w-4 h-4 sm:w-5 sm:h-5" />
+                                                </button>
+                                            </div>
+
+                                            {/* ===========================
+           ✅ 모바일: 더보기 드롭다운 한 개
+           =========================== */}
+                                            <div className="relative sm:hidden">
+                                                <button
+                                                    onClick={() => setShowMoreMenu((prev) => !prev)}
+                                                    className="w-10 h-10 rounded-full bg-white text-gray-700 flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 transition-all"
+                                                    aria-label="더 많은 컨트롤"
+                                                >
+                                                    <MoreHorizontal className="w-5 h-5" />
+                                                </button>
+
+                                                {showMoreMenu && (
+                                                    <div className="absolute bottom-12 right-0 w-40 rounded-2xl bg-black/90 text-white border border-white/10 shadow-2xl py-2 space-y-1 z-[95]">
+                                                        <button
+                                                            onClick={() => {
+                                                                toggleScreenShare();
+                                                                setShowMoreMenu(false);
+                                                            }}
+                                                            className="w-full flex items-center justify-between px-3 py-1.5 text-xs hover:bg-white/10"
+                                                        >
+                                                            <span>화면 공유</span>
+                                                            <MonitorUp className="w-4 h-4" />
+                                                        </button>
+
+                                                        <button
+                                                            onClick={() => {
+                                                                openVirtualBgModal();
+                                                                setShowMoreMenu(false);
+                                                            }}
+                                                            className="w-full flex items-center justify-between px-3 py-1.5 text-xs hover:bg-white/10"
+                                                        >
+                                                            <span>가상 배경</span>
+                                                            <ImageIcon className="w-4 h-4" />
+                                                        </button>
+
+                                                        <button
+                                                            onClick={() => {
+                                                                setShowChatSidebar(!showChatSidebar);
+                                                                setShowMoreMenu(false);
+                                                            }}
+                                                            className="w-full flex items-center justify-between px-3 py-1.5 text-xs hover:bg-white/10"
+                                                        >
+                                                            <span>{showChatSidebar ? '채팅 숨기기' : '채팅 열기'}</span>
+                                                            <MessageCircle className="w-4 h-4" />
+                                                        </button>
+
+                                                        <button
+                                                            onClick={() => {
+                                                                toggleFullscreen();
+                                                                setShowMoreMenu(false);
+                                                            }}
+                                                            className="w-full flex items-center justify-between px-3 py-1.5 text-xs hover:bg-white/10"
+                                                        >
+                                                            <span>{isFullscreen ? '전체화면 종료' : '전체화면'}</span>
+                                                            {isFullscreen ? <FiMinimize className="w-4 h-4" /> : <FiMaximize className="w-4 h-4" />}
+                                                        </button>
+
+                                                        <button
+                                                            onClick={() => {
+                                                                handleCopyLink();
+                                                                setShowMoreMenu(false);
+                                                            }}
+                                                            className="w-full flex items-center justify-between px-3 py-1.5 text-xs hover:bg-white/10"
+                                                        >
+                                                            <span>링크 복사</span>
+                                                            <FiCopy className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

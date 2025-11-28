@@ -40,14 +40,11 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight,
             const text = new TextDecoder().decode(msg.payload);
             const data = JSON.parse(text);
 
-            // 👉 포인터 동기화(지금은 전송 안 하지만, 구조는 살려둠)
             if (data.type === 'pointer') {
                 setRemotePointer(data);
             }
 
-            // 👉 페이지 동기화
             if (data.type === 'page') {
-                // data: { type: 'page', page }
                 setRemotePageSync(data);
             }
         } catch (err) {
@@ -111,36 +108,61 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight,
     const hasScreenShare = screenShareTracks.length > 0;
     const isVirtualBgActive = virtualBgType === 'image' || virtualBgType === 'blur';
 
+    // 📱 현재 화면이 모바일인지 여부 (768px 기준)
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const checkMobile = () => {
+            if (typeof window === 'undefined') return;
+            setIsMobile(window.innerWidth < 768); // md 브레이크포인트 기준
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
     // ======================
     // 0) 문서 공유 레이아웃 (원본/번역 2분할 + 동기 스크롤/페이지)
-    //     + 참가자 타일 오버레이
+    //     + 참가자 타일: 오른쪽 상단 세로 스택
     // ======================
     if (docShare?.active && (docShare.originalUrl || docShare.translatedUrl)) {
         return (
-            <div className="absolute inset-0 w-full h-full bg-slate-900 flex flex-col overflow-hidden">
-                {/* 메인: PDF 원본/번역 뷰어 */}
+            <div className="absolute inset-0 w-full h-full bg-slate-900 overflow-hidden">
+                {/* 메인 PDF 뷰어 (원본/번역) */}
                 <SyncedPdfGrid
                     originalUrl={docShare.originalUrl}
                     translatedUrl={docShare.translatedUrl}
                     originalTitle={docShare.originalTitle}
                     translatedTitle={docShare.translatedTitle}
-                    // ✅ 포인터는 일단 비활성(브로드캐스트 X)
-                    // onPointerSend={...} 전달 안 함
-                    // ✅ 페이지 동기화는 누구나 상단 버튼/입력 시 브로드캐스트
                     onPageSyncSend={broadcastPageSync}
-                    // ✅ 수신한 포인터/페이지 동기화 정보는 모두 전달
                     remotePointer={remotePointer}
                     remotePageSync={remotePageSync}
                 />
 
-                {/* 참가자 카메라 타일 (오른쪽 아래 오버레이) */}
+                {/* 참가자 카메라 타일: 하단 가로 스택 */}
                 {cameraTracks.length > 0 && (
-                    <div className="absolute bottom-4 right-4 z-40 pointer-events-none max-h-[40vh] md:max-h-[50vh] overflow-y-auto">
-                        <div className="flex flex-col gap-2 pointer-events-auto">
+                    <div className="absolute left-0 right-0 bottom-4 z-40 pointer-events-none px-3 sm:px-4">
+                        <div
+                            className="
+                            flex items-center justify-center gap-2
+                            overflow-x-auto
+                            pb-1
+                            pointer-events-auto
+                        "
+                        >
                             {cameraTracks.map((trackRef) => (
                                 <div
                                     key={trackRef.participant.identity}
-                                    className="w-32 h-24 flex-shrink-0 rounded-lg overflow-hidden shadow-2xl border-2 border-white/50 bg-slate-800 hover:border-white/70 transition-all hover:scale-105"
+                                    className="
+                                    flex-shrink-0
+                                    rounded-lg overflow-hidden
+                                    shadow-2xl border-2 border-white/70 bg-slate-800/90
+                                    hover:border-white hover:scale-105
+                                    transition-all
+                                    w-20 h-16
+                                    sm:w-24 sm:h-18
+                                    md:w-35 md:h-27
+                                "
                                 >
                                     <ParticipantTile
                                         trackRef={trackRef}
@@ -158,15 +180,16 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight,
             </div>
         );
     }
-
     // ======================
     // 1) 화면 공유 레이아웃
+    //     + 참가자 타일: 오른쪽 상단 세로 스택
     // ======================
     if (hasScreenShare) {
         const shareTrackRef = screenShareTracks[0];
 
         return (
             <div className="absolute inset-0 w-full h-full overflow-hidden bg-black">
+                {/* 블러 배경 */}
                 <div className="absolute inset-0 z-10" style={{ margin: '-10%' }}>
                     <VideoTrack
                         trackRef={shareTrackRef}
@@ -180,6 +203,7 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight,
                     />
                 </div>
 
+                {/* 실제 화면 공유 */}
                 <div className="absolute inset-0 z-20 flex items-center justify-center">
                     <VideoTrack
                         trackRef={shareTrackRef}
@@ -191,13 +215,23 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight,
                     />
                 </div>
 
+                {/* 참가자 카메라 타일: 오른쪽 상단 세로 스택 */}
                 {cameraTracks.length > 0 && (
-                    <div className="absolute top-4 right-4 z-40 pointer-events-none max-h-[calc(100vh-200px)] overflow-y-auto">
+                    <div className="absolute top-4 right-4 z-40 pointer-events-none max-h-[calc(100vh-160px)] overflow-y-auto">
                         <div className="flex flex-col gap-2 pointer-events-auto">
                             {cameraTracks.map((trackRef) => (
                                 <div
                                     key={trackRef.participant.identity}
-                                    className="w-32 h-24 flex-shrink-0 rounded-lg overflow-hidden shadow-2xl border-2 border-white/50 bg-slate-800 hover:border-white/70 transition-all hover:scale-105"
+                                    className="
+                                        flex-shrink-0 
+                                        rounded-lg overflow-hidden 
+                                        shadow-2xl border-2 border-white/60 bg-slate-800/90 
+                                        hover:border-white/80 hover:scale-105 
+                                        transition-all
+                                        w-24 h-18
+                                        sm:w-28 sm:h-20
+                                        md:w-32 md:h-24
+                                    "
                                 >
                                     <ParticipantTile
                                         trackRef={trackRef}
@@ -217,8 +251,12 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight,
     }
 
     // ======================
-    // 2) 일반 카메라 그리드 레이아웃
+    // 2) 일반 카메라 레이아웃 (공유 X)
+    //  👉 모바일(<768px): 1열, 상하로 꽉 차게
+    //  👉 태블릿/PC: 인원 수에 따라 2~3열로 가득 차게
     // ======================
+
+    // 인원 수에 따른 열 수 계산 (데스크톱용)
     const getGridCols = (count) => {
         if (count === 1) return 1;
         if (count === 2) return 2;
@@ -227,19 +265,20 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight,
         return Math.ceil(Math.sqrt(count));
     };
 
-    const cols = getGridCols(cameraTracks.length || 1);
     const totalCount = cameraTracks.length;
+    const cols = isMobile ? 1 : getGridCols(totalCount || 1); // 📱 모바일이면 항상 1열
+
     const lastRowCount = totalCount % cols || cols;
     const isLastRowIncomplete = lastRowCount !== cols && totalCount > cols;
     const isOnlyOneInLastRow = lastRowCount === 1;
 
     return (
-        <div className="absolute inset-0 w-full h-full bg-slate-900">
+        <div className="absolute inset-0 w-full h-full bg-slate-900 overflow-hidden">
             <div
                 className="w-full h-full grid gap-2 p-2"
                 style={{
                     gridTemplateColumns: `repeat(${cols}, 1fr)`,
-                    gridAutoRows: '1fr',
+                    gridAutoRows: '1fr', // 각 셀이 남는 공간 가득 사용
                 }}
             >
                 {cameraTracks.map((trackRef, index) => {
@@ -256,20 +295,26 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight,
                     const isInLastRow = index >= totalCount - lastRowCount;
                     const isLastItem = index === totalCount - 1;
 
+                    // 🔹 마지막 줄 레이아웃 보정 (가득 차게 보이도록)
                     let gridColumnStyle = {};
 
-                    if (isOnlyOneInLastRow && isLastItem && cols > 1) {
-                        const startCol = Math.max(1, Math.floor((cols - 1) / 2) + 1);
-                        gridColumnStyle = {
-                            gridColumn: `${startCol} / span 2`,
-                        };
-                    } else if (isLastRowIncomplete && isInLastRow && lastRowCount > 1) {
-                        const spanSize = Math.floor(cols / lastRowCount);
-                        const itemPosition = index - (totalCount - lastRowCount);
-                        const startCol = itemPosition * spanSize + 1;
-                        gridColumnStyle = {
-                            gridColumn: `${startCol} / span ${spanSize}`,
-                        };
+                    if (!isMobile) {
+                        // 데스크톱/태블릿에서만 가로 스판 조정
+                        if (isOnlyOneInLastRow && isLastItem && cols > 1) {
+                            // 마지막 줄에 1개만 있으면 가운데 2칸 정도 차지
+                            const startCol = Math.max(1, Math.floor((cols - 1) / 2) + 1);
+                            gridColumnStyle = {
+                                gridColumn: `${startCol} / span 2`,
+                            };
+                        } else if (isLastRowIncomplete && isInLastRow && lastRowCount > 1) {
+                            // 불완전한 마지막 줄 여러 개 → 가능한 한 균등하게 스팬
+                            const spanSize = Math.floor(cols / lastRowCount);
+                            const itemPosition = index - (totalCount - lastRowCount);
+                            const startCol = itemPosition * spanSize + 1;
+                            gridColumnStyle = {
+                                gridColumn: `${startCol} / span ${spanSize}`,
+                            };
+                        }
                     }
 
                     const key = trackRef.publication?.trackSid || trackRef.participant.identity || index;
@@ -278,7 +323,16 @@ function CustomVideoGrid({ virtualBgType, getFallbackBackgroundUrl, bgHighlight,
                     const highlightClasses = getHighlightClasses(isHighlighted ? activeHighlight.category : null);
 
                     return (
-                        <div key={key} className={`relative w-full h-full overflow-hidden rounded-lg bg-black transition-all duration-300 ${highlightClasses}`} style={gridColumnStyle}>
+                        <div
+                            key={key}
+                            className={`
+                                relative w-full h-full 
+                                overflow-hidden rounded-xl bg-black 
+                                transition-all duration-300 
+                                ${highlightClasses}
+                            `}
+                            style={gridColumnStyle}
+                        >
                             {hasVideoTrack ? (
                                 <>
                                     {!isVirtualBgActive && (

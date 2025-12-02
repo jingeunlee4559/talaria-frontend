@@ -1,5 +1,5 @@
 // src/components/Culture/LiveView/CultureAlert.jsx
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ConnectionState, RoomEvent } from 'livekit-client';
 import { useRoomContext } from '@livekit/components-react';
 import { X, Sparkles, Heart, Star, Zap, Globe2 } from 'lucide-react';
@@ -210,7 +210,7 @@ function normalizeToCard(ev, targetLocale = 'ko-KR') {
     };
 }
 
-export default function CultureAlert({ room: roomProp, displayMs = 8000, debug = false, demo = false }) {
+export default function CultureAlert({ room: roomProp, displayMs = 8000, debug = false, demo = false, onKeywordHighlight }) {
     const roomCtx = useRoomContext?.();
     const room = roomProp || roomCtx || null;
 
@@ -237,6 +237,28 @@ export default function CultureAlert({ room: roomProp, displayMs = 8000, debug =
             1: { icon: Heart, label: '귀여운 문화 팁', accent: 'text-pink-300' },
         }),
         [],
+    );
+
+    const showCard = useCallback(
+        (card) => {
+            if (!card) return;
+            setCurrent(card);
+            setVisible(true);
+            setBubbleHidden(false);
+            setProgress(100);
+            setShowHearts(false);
+            setCharacterState('greeting');
+
+            // ✅ 상위로 match / agent_code 알림
+            if (onKeywordHighlight && card.match_text) {
+                onKeywordHighlight({
+                    keyword: card.match_text,
+                    agent_code: card.agent_code,
+                    severity: card.severity,
+                });
+            }
+        },
+        [onKeywordHighlight],
     );
 
     const isConnected = !!room && (room.state === ConnectionState.Connected || room.state === 'connected');
@@ -291,11 +313,7 @@ export default function CultureAlert({ room: roomProp, displayMs = 8000, debug =
                 if (!current && !visible) {
                     const next = queueRef.current.shift() || null;
                     if (next) {
-                        setCurrent(next);
-                        setVisible(true);
-                        setBubbleHidden(false);
-                        setProgress(100);
-                        setCharacterState('greeting');
+                        showCard(next);
                     }
                 }
             } catch (e) {
@@ -332,12 +350,7 @@ export default function CultureAlert({ room: roomProp, displayMs = 8000, debug =
                     clearInterval(tick);
                     const n = queueRef.current.shift() || null;
                     if (n) {
-                        setCurrent(n);
-                        setVisible(true);
-                        setBubbleHidden(false);
-                        setProgress(100);
-                        setShowHearts(false);
-                        setCharacterState('greeting');
+                        showCard(n);
                     } else {
                         setVisible(false);
                         setCurrent(null);
@@ -359,10 +372,7 @@ export default function CultureAlert({ room: roomProp, displayMs = 8000, debug =
 
         if (!current) {
             const first = normalizeToCard(MOCK_ALERTS[0]);
-            setCurrent(first);
-            setVisible(true);
-            setBubbleHidden(false);
-            setProgress(100);
+            showCard(first);
             setDemoIdx(1);
         }
 
@@ -371,9 +381,7 @@ export default function CultureAlert({ room: roomProp, displayMs = 8000, debug =
             setProgress(100);
             setTimeout(() => {
                 const next = normalizeToCard(MOCK_ALERTS[demoIdx % MOCK_ALERTS.length]);
-                setCurrent(next);
-                setVisible(true);
-                setBubbleHidden(false);
+                showCard(next);
                 setDemoIdx((i) => (i + 1) % MOCK_ALERTS.length);
             }, 250);
         }, displayMs + 500);

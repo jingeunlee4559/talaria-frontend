@@ -1,8 +1,8 @@
+// src/components/Culture/contents/chatKeywordHighlight.jsx
 import React from 'react';
 
-// 👉 강조하고 싶은 단어들
+// ✅ 기본 하이라이트 키워드 (항상 유지되는 단어들)
 export const HIGHLIGHT_KEYWORDS = [
-    // 기존 밈/게임/신조어
     '최애',
     '입덕',
     '레전드',
@@ -14,7 +14,6 @@ export const HIGHLIGHT_KEYWORDS = [
     '탑차이',
     '가챠',
     '현질',
-    // 🔥 K-POP 관련 단어
     '컴백',
     '엔딩요정',
     '완전체',
@@ -25,125 +24,125 @@ export const HIGHLIGHT_KEYWORDS = [
     '응원법',
 ];
 
-const escapeRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// ✅ 기본 키워드 → 카테고리(agent_code) 매핑
+//  - k-meme : MZ/신조어/공통 밈
+//  - game   : 게임 포지션/용어
+//  - music  : K-POP 음악 관련
+const KEYWORD_AGENT_MAP = {
+    최애: 'k-meme',
+    입덕: 'k-meme',
+    레전드: 'overseas-meme',
+    갓생: 'k-meme',
+    국룰: 'k-meme',
+    성지순례: 'travel',
 
-// 🎵 K-POP 관련 단어 (음표 애니메이션 공통 적용)
-const KPOP_KEYWORDS = new Set(['최애', '입덕', '킬링파트', '컴백', '엔딩요정', '완전체', '팬캠', '안무영상', '타이틀곡', '수록곡', '응원법']);
+    원딜: 'game',
+    탑차이: 'game',
+    가챠: 'game',
+    현질: 'game',
 
-// 🎨 단어별 스타일(그라디언트 + 이모지)
-const KEYWORD_STYLES = {
-    // ====== K-POP 감성 ======
-    최애: {
-        bgFrom: '#ec4899',
-        bgTo: '#a855f7',
-        emoji: '💖',
-    },
-    입덕: {
-        bgFrom: '#f97316',
-        bgTo: '#ec4899',
-        emoji: '✨',
-    },
-    킬링파트: {
-        bgFrom: '#6366f1',
-        bgTo: '#ec4899',
-        emoji: '🎧',
-    },
-    컴백: {
-        bgFrom: '#f472b6',
-        bgTo: '#6366f1',
-        emoji: '🎵',
-    },
-    엔딩요정: {
-        bgFrom: '#a855f7',
-        bgTo: '#f97316',
-        emoji: '📸',
-    },
-    완전체: {
-        bgFrom: '#22c55e',
-        bgTo: '#0ea5e9',
-        emoji: '👑',
-    },
-    팬캠: {
-        bgFrom: '#6366f1',
-        bgTo: '#22d3ee',
-        emoji: '🎥',
-    },
-    안무영상: {
-        bgFrom: '#4f46e5',
-        bgTo: '#ec4899',
-        emoji: '🩰',
-    },
-    타이틀곡: {
-        bgFrom: '#f97316',
-        bgTo: '#facc15',
-        emoji: '🎶',
-    },
-    수록곡: {
-        bgFrom: '#0ea5e9',
-        bgTo: '#22c55e',
-        emoji: '💿',
-    },
-    응원법: {
-        bgFrom: '#22c55e',
-        bgTo: '#a855f7',
-        emoji: '📣',
-    },
-
-    // ====== 밈/신조어 ======
-    레전드: {
-        bgFrom: '#22c55e',
-        bgTo: '#16a34a',
-        emoji: '🔥',
-    },
-    갓생: {
-        bgFrom: '#06b6d4',
-        bgTo: '#6366f1',
-        emoji: '💪',
-    },
-    국룰: {
-        bgFrom: '#facc15',
-        bgTo: '#f97316',
-        emoji: '📌',
-    },
-    성지순례: {
-        bgFrom: '#14b8a6',
-        bgTo: '#22c55e',
-        emoji: '⛺',
-    },
-
-    // ====== 게임 용어 ======
-    원딜: {
-        bgFrom: '#0ea5e9',
-        bgTo: '#6366f1',
-        emoji: '🎯',
-    },
-    탑차이: {
-        bgFrom: '#f97316',
-        bgTo: '#dc2626',
-        emoji: '⚔️',
-    },
-    가챠: {
-        bgFrom: '#a855f7',
-        bgTo: '#22c55e',
-        emoji: '🎲',
-    },
-    현질: {
-        bgFrom: '#22c55e',
-        bgTo: '#16a34a',
-        emoji: '💸',
-    },
+    킬링파트: 'music',
+    컴백: 'music',
+    엔딩요정: 'music',
+    완전체: 'music',
+    팬캠: 'music',
+    안무영상: 'music',
+    타이틀곡: 'music',
+    수록곡: 'music',
+    응원법: 'music',
 };
 
-export const highlightKeywords = (text, themeColors) => {
+const escapeRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// ✅ agent_code → CSS 클래스 매핑
+const AGENT_CLASS_MAP = {
+    'k-meme': 'talaria-agent-k-meme',
+    'global-meme': 'talaria-agent-global-meme',
+    'overseas-meme': 'talaria-agent-global-meme',
+    game: 'talaria-agent-game',
+    music: 'talaria-agent-music',
+    mukbang: 'talaria-agent-mukbang',
+    travel: 'talaria-agent-travel',
+    vlog: 'talaria-agent-vlog',
+    talk: 'talaria-agent-talk',
+    study: 'talaria-agent-study',
+    default: 'talaria-agent-default',
+};
+
+// ✅ agent_code → 이모지 매핑
+const AGENT_EMOJI_MAP = {
+    'k-meme': '💜', // K-POP / K-밈 느낌 (보라하트)
+    'global-meme': '🌍', // 글로벌 밈
+    'overseas-meme': '✈️', // 해외 관련 밈/컨텐츠
+    game: '🎮',
+    music: '🎧', // 음악/아이돌 곡
+    mukbang: '🍜', // 먹방
+    travel: '🏝️', // 여행
+    vlog: '📹', // 브이로그
+    talk: '🗨️', // 수다/토크
+    study: '📖', // 공부/스터디
+    default: '🌟',
+};
+
+/**
+ * 🔁 알럿으로 감지된 모든 키워드를 누적 저장하는 전역 Map
+ *  - key: 소문자 keyword (예: "금사빠")
+ *  - value: { keyword: 원본표기, agentCode }
+ *
+ *  => 한 번 알럿에 잡힌 단어는 alertHighlights가 비워져도
+ *     회의 끝날 때까지 계속 하이라이트됨
+ */
+const PERSIST_ALERT_KEYWORD_MAP = new Map();
+
+// ✅ 콘솔 로그를 한 번만 찍기 위한 Set (디버깅용)
+const LOGGED_ALERT_KEYWORDS = new Set();
+
+/**
+ * text: STT/채팅 문자열
+ * themeColors: { primary, secondary } (지금은 미사용, 고정색 사용)
+ * alertHighlights: [{ keyword / match_text, agent_code }, ...]
+ */
+
+const DEFAULT_FROM = '#0ea5e9'; // 일반 키워드용 고정 그라디언트 시작
+const DEFAULT_TO = '#6366f1'; // 일반 키워드용 고정 그라디언트 끝
+
+export const highlightKeywords = (text, themeColors, alertHighlights = []) => {
     if (!text) return null;
 
-    const defaultFrom = themeColors?.primary || '#fbbf24';
-    const defaultTo = themeColors?.secondary || '#f97316';
+    // 1) 새로 들어온 알럿 키워드를 영구 Map에 누적
+    if (alertHighlights && alertHighlights.length > 0) {
+        (alertHighlights || []).forEach((h) => {
+            const raw = (h.keyword || h.match_text || '').trim();
+            if (!raw) return;
+
+            const lower = raw.toLowerCase();
+            const prev = PERSIST_ALERT_KEYWORD_MAP.get(lower) || {};
+
+            const meta = {
+                keyword: prev.keyword || raw,
+                agentCode: h.agent_code || h.agentCode || prev.agentCode || 'default',
+            };
+
+            PERSIST_ALERT_KEYWORD_MAP.set(lower, meta);
+
+            if (!LOGGED_ALERT_KEYWORDS.has(lower)) {
+                console.log('[highlightKeywords] 새로운 알럿 키워드 등록', {
+                    lower,
+                    meta,
+                });
+                LOGGED_ALERT_KEYWORDS.add(lower);
+            }
+        });
+    }
+
+    const defaultFrom = DEFAULT_FROM;
+    const defaultTo = DEFAULT_TO;
 
     const hasMicPrefix = text.startsWith('🎤');
     const bodyText = hasMicPrefix ? text.replace(/^🎤\s?/, '') : text;
 
-    if (!HIGHLIGHT_KEYWORDS.length) {
+    // 기본 키워드 + 영구 알럿 키워드 둘 다 없으면 그냥 원문 리턴
+    if (!HIGHLIGHT_KEYWORDS.length && PERSIST_ALERT_KEYWORD_MAP.size === 0) {
         return (
             <>
                 {hasMicPrefix && (
@@ -156,10 +155,30 @@ export const highlightKeywords = (text, themeColors) => {
         );
     }
 
-    const escapedKeywords = HIGHLIGHT_KEYWORDS.map(escapeRegExp);
+    // 2) 영구 저장된 알럿 키워드 목록 추출
+    const persistedAlertKeywords = Array.from(PERSIST_ALERT_KEYWORD_MAP.values()).map((v) => v.keyword);
+
+    // 3) 기본 키워드 + 알럿 키워드 합치기
+    const allKeywords = [...HIGHLIGHT_KEYWORDS, ...persistedAlertKeywords];
+    const uniqueKeywords = Array.from(new Set(allKeywords.map(String)));
+
+    if (!uniqueKeywords.length) {
+        return (
+            <>
+                {hasMicPrefix && (
+                    <span className="talaria-mic-prefix mr-1" aria-hidden="true">
+                        🎤
+                    </span>
+                )}
+                <span className="talaria-text-fragment">{bodyText}</span>
+            </>
+        );
+    }
+
+    const escapedKeywords = uniqueKeywords.map(escapeRegExp);
     const regex = new RegExp(`(${escapedKeywords.join('|')})`, 'gi');
     const parts = bodyText.split(regex);
-    const lowerKeywords = HIGHLIGHT_KEYWORDS.map((k) => k.toLowerCase());
+    const lowerKeywords = uniqueKeywords.map((k) => k.toLowerCase());
 
     const nodes = [];
 
@@ -187,44 +206,77 @@ export const highlightKeywords = (text, themeColors) => {
             return;
         }
 
-        // ✅ 단어별 스타일 정보
-        const originalKey = HIGHLIGHT_KEYWORDS.find((kw) => kw.toLowerCase() === lower) || part;
-        const styleConfig = KEYWORD_STYLES[originalKey] || {};
+        const originalKey = uniqueKeywords.find((kw) => kw.toLowerCase() === lower) || part;
 
-        const bgFrom = styleConfig.bgFrom || defaultFrom;
-        const bgTo = styleConfig.bgTo || defaultTo;
-        const emoji = styleConfig.emoji || null;
-        const isKpop = KPOP_KEYWORDS.has(originalKey);
+        // 🔍 이 키워드에 대한 영구 메타데이터 조회 (알럿 여부 + agentCode)
+        const persistedMeta = PERSIST_ALERT_KEYWORD_MAP.get(lower) || null;
 
-        const keywordClassName = ['talaria-keyword', `talaria-keyword--${originalKey}`, isKpop ? 'talaria-keyword--kpop' : '', 'inline-flex', 'items-center', 'justify-center', 'align-middle']
+        // 1순위: 서버 알럿에서 온 agentCode
+        // 2순위: 기본 KEYWORD_AGENT_MAP 매핑
+        const fallbackAgentCode = KEYWORD_AGENT_MAP[originalKey] || null;
+        const agentCode = persistedMeta?.agentCode || fallbackAgentCode || null;
+
+        const isAlertKeyword = !!persistedMeta;
+        const agentClass = agentCode ? AGENT_CLASS_MAP[agentCode] || AGENT_CLASS_MAP.default : '';
+
+        // 🎯 이모지 결정 (카테고리 있는 경우만)
+        const emoji = agentCode ? AGENT_EMOJI_MAP[agentCode] || AGENT_EMOJI_MAP.default : null;
+
+        const keywordClassName = [
+            'talaria-keyword',
+            `talaria-keyword--${originalKey}`,
+            agentClass,
+            isAlertKeyword ? 'talaria-keyword--alert' : '',
+            isAlertKeyword && agentCode ? 'talaria-agent--pulse' : '',
+            'inline-flex',
+            'items-center',
+            'justify-center',
+            'align-middle',
+        ]
             .filter(Boolean)
             .join(' ');
 
+        // 🔧 스타일 분기
+        const style = {
+            fontSize: '1.25em',
+            fontWeight: 900,
+            padding: '0.16rem 0.72rem',
+            margin: '0 0.06rem',
+            borderRadius: '999px',
+            letterSpacing: '0.04em',
+            whiteSpace: 'pre-wrap',
+        };
+
+        if (agentCode) {
+            // 카테고리가 있는 경우: 배경/텍스트색은 CSS(.talaria-agent-*)가 담당
+            if (isAlertKeyword) {
+                // 알럿으로 감지된 경우만 추가 글로우
+                style.boxShadow = '0 0 0 2px rgba(255,255,255,0.85), 0 0 18px rgba(56,189,248,0.9)';
+                style.border = '1px solid rgba(15,23,42,0.4)';
+            }
+        } else {
+            // 카테고리 없는 일반 키워드는 고정 그라디언트 사용
+            style.backgroundImage = `linear-gradient(135deg, ${defaultFrom}, ${defaultTo})`;
+            style.color = '#ffffff';
+        }
+
         nodes.push(
-            <span
-                key={`kw-${idx}`}
-                className={keywordClassName}
-                style={{
-                    fontSize: '1.25em', // 말풍선 너무 커지지 않게 조정
-                    fontWeight: 900,
-                    padding: '0.16rem 0.72rem',
-                    margin: '0 0.06rem',
-                    borderRadius: '999px',
-                    backgroundImage: `linear-gradient(135deg, ${bgFrom}, ${bgTo})`,
-                    color: '#ffffff',
-                    letterSpacing: '0.04em',
-                    whiteSpace: 'pre-wrap',
-                }}
-            >
+            <span key={`kw-${idx}`} className={keywordClassName} style={style}>
                 {emoji && (
-                    <span className="mr-1" aria-hidden="true" style={{ fontSize: '1.0em' }}>
+                    <span className="talaria-agent-emoji mr-1" aria-hidden="true">
                         {emoji}
                     </span>
                 )}
-                {part}
+                <span className="talaria-agent-text">{part}</span>
             </span>,
         );
     });
 
     return nodes;
+};
+
+// ✅ 회의 종료/페이지 나갈 때 호출해서 상태 초기화
+export const clearAlertHighlightKeywords = () => {
+    PERSIST_ALERT_KEYWORD_MAP.clear();
+    LOGGED_ALERT_KEYWORDS.clear();
 };

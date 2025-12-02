@@ -169,7 +169,7 @@ const AnimationListSidebar = ({ isOpen, onClose, onSelectEffect, themeColors }) 
 // 💬 메시지 버블
 // ================================
 
-const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger, triggeredMessages, themeColors }) => {
+const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger, triggeredMessages, themeColors, alertHighlights }) => {
     const isLocal = msg.isLocal;
     const myLocale = normalizeLocale(userLocale);
     const translatedText = msg.text;
@@ -244,7 +244,7 @@ const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger, triggeredMess
                                     <div className="flex-1">
                                         <p className="text-[10px] font-semibold mb-1 opacity-80">원문 ({msg.sourceLocale})</p>
                                         <p className="talaria-message-text text-xs opacity-70 italic break-words" style={fontStyle}>
-                                            {highlightKeywords(originalText, themeColors)}
+                                            {highlightKeywords(originalText, themeColors, alertHighlights)}
                                         </p>
                                     </div>
                                 </div>
@@ -253,14 +253,14 @@ const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger, triggeredMess
                                     <div className="flex-1">
                                         <p className="text-[10px] font-semibold mb-1 opacity-90">번역 ({myLocale})</p>
                                         <p className={`talaria-message-text text-sm font-medium break-words ${textEffectClass}`} style={fontStyle}>
-                                            {highlightKeywords(translatedText, themeColors)}
+                                            {highlightKeywords(translatedText, themeColors, alertHighlights)}
                                         </p>
                                     </div>
                                 </div>
                             </div>
                         ) : (
                             <p className={`talaria-message-text text-sm break-words ${textEffectClass}`} style={fontStyle}>
-                                {highlightKeywords(originalText, themeColors)}
+                                {highlightKeywords(originalText, themeColors, alertHighlights)}
                             </p>
                         )}
                     </div>
@@ -285,7 +285,7 @@ const MessageBubble = ({ msg, userLocale, onLike, onEffectTrigger, triggeredMess
 // 📺 메인: CultureLiveChatSidebar
 // ================================
 
-const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose, onEffectTrigger, currentTheme = 'default' }) => {
+const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose, onEffectTrigger, currentTheme = 'default', alertHighlights = [] }) => {
     const [messages, setMessages] = useState([]);
     const [chatInput, setChatInput] = useState('');
     const [activeTab, setActiveTab] = useState('chat');
@@ -618,6 +618,7 @@ const CultureLiveChatSidebar = ({ userLocale = 'ko-KR', sttFinals = [], onClose,
                                         onEffectTrigger={onEffectTrigger}
                                         triggeredMessages={triggeredChatMessagesRef}
                                         themeColors={themeColors}
+                                        alertHighlights={alertHighlights}
                                     />
                                 ))
                             )}

@@ -23,6 +23,7 @@ import { useKPDHCursor } from '../../../hooks/useKPDHCursor';
 
 import VirtualBgModal from '../contents/VirtualBgModal';
 import { DEFAULT_VIRTUAL_BG_ID, findVirtualBgPreset, VIRTUAL_BG_PRESETS } from '../contents/VIRTUAL_BG_PRESETS ';
+import { clearAlertHighlightKeywords } from '../contents/chatKeywordHighlight';
 
 // 🎨 테마별 색상 팔레트
 const getThemeColors = (themeId) => {
@@ -158,12 +159,19 @@ const CultureConferenceUI = ({ meetingId, meetingTitle, onLeave, userLocale = 'k
     const selectedVirtualBg = useMemo(() => findVirtualBgPreset(virtualBgId), [virtualBgId]);
 
     const [showMoreMenu, setShowMoreMenu] = useState(false);
+    const [alertHighlights, setAlertHighlights] = useState([]);
 
     // 🎤 K-POP 데몬 헌터스 커스텀 커서 활성화
     const { createClickEffect, createHeartEffect } = useKPDHCursor(currentTheme, true);
 
     // 🎨 현재 테마 색상
     const themeColors = useMemo(() => getThemeColors(currentTheme), [currentTheme]);
+
+    useEffect(() => {
+        return () => {
+            clearAlertHighlightKeywords();
+        };
+    }, []);
 
     const getFallbackBackgroundUrlForParticipant = useCallback(
         (participant) => {
@@ -184,6 +192,34 @@ const CultureConferenceUI = ({ meetingId, meetingTitle, onLeave, userLocale = 'k
     );
 
     useVirtualBackground(selectedVirtualBg);
+
+    const handleAlertHighlight = useCallback((info) => {
+        if (!info?.keyword) return;
+        const now = Date.now();
+        const TTL = 60 * 1000; // 60초 동안만 강조
+
+        setAlertHighlights((prev) => {
+            const filtered = prev.filter((h) => !(h.keyword === info.keyword && h.agent_code === info.agent_code));
+            return [
+                ...filtered,
+                {
+                    keyword: info.keyword,
+                    agent_code: info.agent_code || 'default',
+                    severity: info.severity ?? 1,
+                    expiresAt: now + TTL,
+                },
+            ];
+        });
+    }, []);
+
+    // 주기적으로 만료된 하이라이트 제거
+    useEffect(() => {
+        const timer = setInterval(() => {
+            const now = Date.now();
+            setAlertHighlights((prev) => prev.filter((h) => h.expiresAt > now));
+        }, 5000);
+        return () => clearInterval(timer);
+    }, []);
 
     useDataChannel('theme_change', (msg) => {
         try {
@@ -841,7 +877,7 @@ const CultureConferenceUI = ({ meetingId, meetingTitle, onLeave, userLocale = 'k
 
                                     {(!isFullscreen || showControls) && (
                                         <>
-                                            <CultureAlert room={room} debug={false} demo={false} displayMs={8000} />
+                                            <CultureAlert room={room} debug={false} demo={false} displayMs={8000} onKeywordHighlight={handleAlertHighlight} />
 
                                             <div
                                                 className={`absolute top-2 sm:top-3 left-2 sm:left-3 z-50 ${themeColors.bg} backdrop-blur-sm px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl shadow-2xl ${themeColors.border} border max-w-[calc(100%-8rem)]`}
@@ -1102,6 +1138,7 @@ const CultureConferenceUI = ({ meetingId, meetingTitle, onLeave, userLocale = 'k
                                         onClose={() => setShowChatSidebar(false)}
                                         onEffectTrigger={handleEffectTrigger}
                                         currentTheme={currentTheme}
+                                        alertHighlights={alertHighlights}
                                     />
                                 </div>
                             </div>

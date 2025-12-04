@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState, useContext } from 're
 import { FilePlus2, FileText, UploadCloud, X, HelpCircle, Loader2, Trash2, FileCheck2, Sparkles } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import Swal from 'sweetalert2';
-import api from '../../../axios';
+import api, { ai } from '../../../axios';
 import { UserContext } from '../../../contexts/UserContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -133,6 +133,7 @@ const FileUploadModal = ({ isOpen, onClose, onUploadSuccess, meetingId }) => {
 
             setUploadProgress(10);
 
+            // 1) 문서 업로드
             const response = await api.post(`/api/users/${user.userId}/documents`, formData, {
                 onUploadProgress: (evt) => {
                     if (!evt.total) return;
@@ -141,7 +142,37 @@ const FileUploadModal = ({ isOpen, onClose, onUploadSuccess, meetingId }) => {
                 },
             });
 
+            // 2) 업로드 응답에서 RAG용 데이터 추출
+            const uploadedDoc = response.data;
+            console.log('업로드 응답:', uploadedDoc);
+
+            const docId = uploadedDoc.doc_id; // ✅ 여기!
+            const docLang = uploadedDoc.original_lang || language;
+            const relPath = uploadedDoc.filepath;
+
+            if (!docId || !relPath) {
+                console.warn('RAG 처리에 필요한 docId 또는 relPath가 없습니다.', uploadedDoc);
+            } else {
+                // 👉 문맥 기반 옵션 켰을 때만 돌리고 싶으면 if (useContextRag === 1 && ...) 로 감싸기
+                await ai.post(
+                    '/rag/process-document',
+                    {
+                        document_id: String(docId),
+                        language: docLang,
+                        rel_path: relPath,
+                        // meeting_id: meetingId, // 필요하면 추가
+                    },
+                    {
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                    },
+                );
+            }
+
+            // 4) 최종 UI 처리
             setUploadProgress(100);
+
             Swal.fire({
                 icon: 'success',
                 title: '업로드 완료!',
@@ -156,6 +187,12 @@ const FileUploadModal = ({ isOpen, onClose, onUploadSuccess, meetingId }) => {
             });
         } catch (err) {
             console.error(err);
+
+            // ✅ FastAPI가 내려준 422 디테일 확인
+            if (err.response) {
+                console.log('RAG 422 detail:', err.response.data);
+            }
+
             setUploadProgress(0);
             setSubmitting(false);
             Swal.fire({

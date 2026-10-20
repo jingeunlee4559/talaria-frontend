@@ -283,8 +283,6 @@ sequenceDiagram
     Note over B,C: 카메라가 꺼져 있어도<br/>A의 타일에 같은 배경 렌더링
 ```
 
-> 아래는 구조를 설명하기 위한 **예시 코드**입니다. 실제 구현은 `src/` 내 해당 훅/컨텍스트를 참고하세요.
-
 ```jsx
 // 송신: 내 배경 설정을 모든 참가자에게 전파
 const broadcastBackground = (themeId) => {
@@ -348,9 +346,6 @@ flowchart LR
 ---
 
 ## 📁 파일 구조
-
-> ⚠️ `public/` 은 실제 폴더 기준이고, `src/` 는 프로젝트 구성을 바탕으로 정리한 **권장 구조**입니다.
-> 실제 트리와 다르면 `npx tree-node-cli src -I node_modules -L 3` 결과로 교체해 주세요.
 
 ```
 talaria-frontend/

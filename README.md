@@ -155,7 +155,7 @@
 
 > 스크린샷은 `docs/screenshots/` 에 넣고 아래 경로를 맞춰주세요.
 
-| 대시보드 | 일정 관리 | 입장 전 점검 |
+| 대시보드 | 일정 관리 | 문서 선택 |
 |:---:|:---:|:---:|
 | ![dashboard](./docs/screenshots/dashboard.png) | ![calendar](./docs/screenshots/calendar.png) | ![preflight](./docs/screenshots/preflight.png) |
 | **실시간 자막 오버레이** | **PDF 원문·번역 대조** | **AI 회의 요약 · 코치** |

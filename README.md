@@ -153,8 +153,6 @@
 
 ## 🖼 주요 화면
 
-> 스크린샷은 `docs/screenshots/` 에 넣고 아래 경로를 맞춰주세요.
-
 | 대시보드 | 일정 관리 | 문서 선택 |
 |:---:|:---:|:---:|
 | ![dashboard](./docs/screenshots/dashboard.png) | ![calendar](./docs/screenshots/calendar.png) | ![preflight](./docs/screenshots/preflight.png) |

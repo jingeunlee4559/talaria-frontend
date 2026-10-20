@@ -519,9 +519,9 @@ VITE_LIVEKIT_URL=wss://your-livekit-server
 
 | 구분 | 저장소 | 공개 여부 |
 |---|---|:---:|
-| Frontend | [talaria-frontend](https://github.com/jingeunlee4559/talaria-frontend) | Private |
-| Backend | [talaria-backend](https://github.com/jingeunlee4559/talaria-backend-) | Private |
-| AI | [talaria-ai](https://github.com/jingeunlee4559/talaria-ai) | Private |
+| Frontend | [talaria-frontend](https://github.com/jingeunlee4559/talaria-frontend) | Public |
+| Backend | [talaria-backend](https://github.com/jingeunlee4559/talaria-backend-) | Public |
+| AI | [talaria-ai](https://github.com/jingeunlee4559/talaria-ai) | Public |
 
 ---
 

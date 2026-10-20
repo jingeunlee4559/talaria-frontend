@@ -159,9 +159,9 @@
 |:---:|:---:|:---:|
 | ![dashboard](./docs/screenshots/dashboard.png) | ![calendar](./docs/screenshots/calendar.png) | ![preflight](./docs/screenshots/preflight.png) |
 | **실시간 자막 오버레이** | **PDF 원문·번역 대조** | **AI 회의 요약 · 코치** |
-| ![subtitle](./docs/screenshots/subtitle.png) | ![pdf](./docs/screenshots/pdf-viewer.png) | ![summary](./docs/screenshots/summary.png) |
+| ![subtitle](./docs/screenshots/subtitle.png) | ![pdf](./docs/screenshots/pdf.webp) | ![summary](./docs/screenshots/summary.png) |
 | **문화 라이브 홈** | **테마 · 배경 선택** | **밈 퀴즈 · 커뮤니티** |
-| ![culture](./docs/screenshots/culture-home.png) | ![theme](./docs/screenshots/theme.png) | ![quiz](./docs/screenshots/quiz.png) |
+| ![culture](./docs/screenshots/culture.png) | ![theme](./docs/screenshots/theme.png) | ![quiz](./docs/screenshots/quiz.png) |
 
 ---
 

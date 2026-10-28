@@ -188,43 +188,36 @@
 
 ## 🏗 시스템 아키텍처
 
-```mermaid
-flowchart LR
-    subgraph Client["🖥 React Frontend (이 저장소)"]
-        UI["UI / Pages"]
-        CTX["Context API<br/>(사용자 · 번역)"]
-        LK["LiveKit Client"]
-    end
+<p align="center">
+  <img src="./docs/screenshots/architecture.png" alt="Talaria 시스템 아키텍처" width="760" />
+</p>
 
-    subgraph Server["⚙ Backend"]
-        SB["Spring Boot<br/>인증 · 회의 · 문서 API<br/>LiveKit 토큰 발급"]
-        DB[("MySQL")]
-    end
-
-    subgraph AI["🧠 AI (별도 저장소)"]
-        AG["LiveKit Agent (Python)<br/>CLOVA STT · Papago 번역 · 매너 체크"]
-        FA["FastAPI + LangGraph<br/>문맥 보정 · 회의 요약 · 문서 RAG"]
-    end
-
-    LKS["LiveKit Server<br/>(WebRTC SFU)"]
-
-    UI <--> CTX
-    UI -- "REST (Axios)" --> SB
-    UI -- "문서 RAG 처리 (Axios)" --> FA
-    SB <--> DB
-    UI <--> LK
-    LK <-- "영상 · 음성 · DataChannel" --> LKS
-    LKS <-- "음성 수신 · 자막/매너 알림 전송" --> AG
-    AG <--> FA
-```
-
-| 컴포넌트 | 역할 |
+| 구성 | 역할 |
 |---|---|
-| **LiveKit (WebRTC)** | 영상 · 음성 스트림 처리, 참가자 상태 전파 |
-| **Spring Boot** | 사용자 인증, 회의 생성/참여, 문서 관리 API, LiveKit 접속 토큰 발급 |
-| **LiveKit Agent** | 회의실에 참여해 음성을 CLOVA STT로 받아쓰고, Papago로 번역해 `stt` 채널로 자막 전송 |
-| **FastAPI** | LangGraph 기반 문맥 보정 · 밈 번역 · 회의 요약 · 문서 RAG |
-| **MySQL** | 사용자 · 회의 · 문서 데이터 저장 |
+| **Client (이 저장소)** | React · Vite 화면, LiveKit Client로 영상·음성·DataChannel 송수신, Axios로 백엔드 API 호출 (문서 RAG 처리는 FastAPI 직접 호출) |
+| **Streaming Server** | LiveKit Server (WebRTC SFU) — 영상 · 음성 스트림과 DataChannel 메시지 중계 |
+| **Server (Backend)** | Spring Boot · MyBatis — 인증, 회의 · 문서 API, LiveKit 접속 토큰 발급 |
+| **AI Server** | LiveKit Agent가 회의에 참여해 음성을 받아 자막 · 매너 알림 전송 / FastAPI + LangGraph로 문맥 보정 · 회의 요약 · 문서 RAG / PyTorch로 학습한 밈 분석 모델 |
+| **Database** | MySQL(사용자 · 회의 · 문서), ChromaDB(문서 · 밈 사전 벡터 검색) |
+| **외부 API** | CLOVA Speech(STT) · Papago(번역) · OpenAI gpt-4o-mini(문맥 보정 · 요약) |
+
+<details>
+<summary><b>🧠 AI 에이전트 구조 보기 (AI 담당 팀원 설계)</b></summary>
+
+<p align="center">
+  <img src="./docs/screenshots/ai-agent-architecture.png" alt="Talaria AI 에이전트 구조" width="760" />
+</p>
+
+AI 에이전트가 만든 결과를 프론트엔드에서 이렇게 받아 화면에 보여줍니다.
+
+| AI 결과 | 받는 방법 | 프론트엔드 화면 |
+|---|---|---|
+| STT + 1·2차 번역 자막 | LiveKit DataChannel `stt` | 원어 / 번역 자막 오버레이 (내 언어에 맞는 번역만 표시) |
+| 비즈니스 매너 체크 | LiveKit DataChannel `manner` | 회의 화면 매너 알림 |
+| 회의 요약 (결정 사항 · 액션 아이템 · 리스크) | Spring Boot API | 회의록 보기 화면 (AI 회의 요약 · 코치) |
+
+자세한 구조는 [talaria-ai](https://github.com/jingeunlee4559/talaria-ai) 저장소를 참고하세요.
+</details>
 
 ---
 
@@ -404,7 +397,7 @@ talaria-frontend/
 │   ├── pages/
 │   │   ├── Home.jsx · LoginPage.jsx · Register.jsx
 │   │   ├── DashBoardPage/            # DashHome · DashVIdeo · DashDocuments · DashSchedule · Dashsettings/
-│   │   └── CulturePage/              # CultureHome · CultureViedos · LiveStartPage · FriendsPage · Community*
+│   │   └── CulturePage/              # CultureHome · CultureViedos · LiveStartPage · FriendsPage · Communitymain · CommunityListPage · CommunityDetailPage
 │   │
 │   └── components/
 │       ├── common/ModeToggle.jsx     # 비즈니스 ↔ 문화 모드 전환

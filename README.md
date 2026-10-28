@@ -17,14 +17,14 @@
 ![LiveKit](https://img.shields.io/badge/LiveKit-WebRTC-111827?style=for-the-badge)
 ![Axios](https://img.shields.io/badge/Axios-5A29E4?style=for-the-badge&logo=axios&logoColor=white)
 
-![Award](https://img.shields.io/badge/🏆_2025_실전프로젝트-우수상-F59E0B?style=flat-square)
+![Award](https://img.shields.io/badge/🏆_2025_실전프로젝트-우수상_(2등)-F59E0B?style=flat-square)
 ![Period](https://img.shields.io/badge/기간-2025.10_~_2025.12-8B5CF6?style=flat-square)
 ![Team](https://img.shields.io/badge/팀-3인_(FE_1·BE_1·AI_1)-10B981?style=flat-square)
 
 <br/>
 
 > 이 저장소는 Talaria의 **프론트엔드(Frontend)** 입니다.
-> 백엔드 · AI 서버는 별도 저장소로 관리합니다. → [링크](#-관련-저장소)
+> 백엔드 · AI 서버는 별도 저장소로 관리합니다. → [관련 저장소](#-관련-저장소)
 
 </div>
 
@@ -60,7 +60,7 @@
 | **화면 톤** | 차분한 다크 · 정보 밀도 높음 | 컬러풀 · 인터랙티브 |
 | **주요 기능** | 일정 · 문서 번역 · AI 회의 요약 · 매너 코칭 | 테마 배경 · 신조어 하이라이트 · 밈 퀴즈 · 커뮤니티 |
 
-> 하나의 React 프론트엔드에서 두 모드를 모두 지원하며, 헤더의 **모드 전환 토글**로 즉시 오갈 수 있습니다.
+> 하나의 React 프론트엔드에서 두 모드를 모두 지원하며, 헤더의 **모드 전환 토글**로 즉시 오갈 수 있습니다. (모드별 라우트 · 레이아웃 분리)
 
 ---
 
@@ -91,9 +91,10 @@
 
 - 참가자 수에 맞춰 영상 타일을 자동 배치하는 **커스텀 그리드**
 - 원어(상단) / 번역(하단) 구조의 **실시간 STT 번역 자막 오버레이**
-- 우측 사이드바: **매너 체크 · 문서 · 채팅 · 참가자** 탭
+- 우측 사이드바: **채팅 · 문서 · 용어 사전 · 참가자** 탭, 발화 중 **매너 체크 알림** 표시
 - 제어 버튼(마이크/카메라/화면공유/나가기) 중앙 하단 고정
-- 입장 전 **Pre-flight Check** — 카메라 · 마이크 미리보기 및 장치 선택
+- **문서 공유 모드** — 원문 / 번역 PDF를 회의 화면에 띄우고, **페이지 이동을 모든 참가자와 동기화**
+- 입장 전 **Pre-flight Check** — LiveKit `PreJoin`으로 카메라 · 마이크 선택, 미리보기, 이름 입력
 </details>
 
 <details>
@@ -107,8 +108,8 @@
 <details>
 <summary><b>3. 문서 · 회의록 · PDF 뷰어</b></summary>
 
-- 문서 업로드 모달: 원문 언어, 회의 연결, **RAG(문맥 기반 번역)** 사용 여부 설정
-- **Drag & Drop** 업로드 + 용량 · 확장자 유효성 검사
+- 문서 업로드 모달: 문서 이름, 원문 언어, **RAG(문맥 기반 번역)** 사용 여부 설정
+- **Drag & Drop** 업로드(react-dropzone) + 확장자 · 용량(최대 100MB) 검사, 업로드 진행률 표시
 - PDF 뷰어에서 **원문 / 번역본을 나란히 또는 탭**으로 대조
 - 회의 시작 전 문서를 선택해 **사전 학습** → 번역 정확도 향상
 - 완료된 회의의 **AI 회의 요약**(핵심 안건 · 결정 사항 · Action Item) 및 **AI 미팅 코치** 피드백
@@ -130,8 +131,8 @@
 
 - 카테고리별 가상 배경: `기본` · `문화` · `특별` · `계절`
 - 한옥 정원, 경복궁, 서울 야경, 도쿄 · 뉴욕 · 파리 등 **한국 명소를 카메라 배경으로** 제공
-- 클릭 한 번으로 **라이브 룸 전체 분위기**를 바꾸는 테마 변경
-- 카메라 OFF 상태에서도 배경이 **모든 참가자에게 동일하게** 보이도록 동기화 → [핵심 로직](#2-카메라-off-배경-동기화-livekit-datachannel--state-map)
+- 클릭 한 번으로 **라이브 룸 전체 분위기**를 바꾸는 테마 변경 (모든 참가자에게 동시에 적용)
+- 카메라 OFF 상태에서도 내가 고른 배경이 **다른 참가자 화면에 그대로** 보이도록 동기화 → [핵심 로직](#2-카메라-off-가상-배경-동기화)
 </details>
 
 <details>
@@ -153,7 +154,7 @@
 
 ## 🖼 주요 화면
 
-| 대시보드 | 일정 관리 | 문서 선택 |
+| 대시보드 | 일정 관리 | 회의 입장 전 점검 |
 |:---:|:---:|:---:|
 | ![dashboard](./docs/screenshots/dashboard.png) | ![calendar](./docs/screenshots/calendar.png) | ![preflight](./docs/screenshots/preflight.png) |
 | **실시간 자막 오버레이** | **PDF 원문·번역 대조** | **AI 회의 요약 · 코치** |
@@ -167,20 +168,20 @@
 
 | 구분 | 기술 |
 |---|---|
-| **Frontend** | ![React](https://img.shields.io/badge/React-61DAFB?logo=react&logoColor=black&style=flat-square) ![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white&style=flat-square) ![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=black&style=flat-square) ![Tailwind](https://img.shields.io/badge/Tailwind_CSS-06B6D4?logo=tailwindcss&logoColor=white&style=flat-square) |
-| **실시간 통신** | LiveKit (Web SDK) · WebRTC · DataChannel |
+| **Frontend** | ![React](https://img.shields.io/badge/React_19-61DAFB?logo=react&logoColor=black&style=flat-square) ![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white&style=flat-square) ![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=black&style=flat-square) ![Tailwind](https://img.shields.io/badge/Tailwind_CSS_4-06B6D4?logo=tailwindcss&logoColor=white&style=flat-square) |
+| **실시간 통신** | LiveKit (`livekit-client` · `@livekit/components-react`) · WebRTC · DataChannel · `@livekit/track-processors`(가상 배경) |
 | **상태 · 통신** | Context API · Axios · react-router-dom |
-| **UI 라이브러리** | FullCalendar · SweetAlert2 · PDF Viewer |
+| **UI 라이브러리** | FullCalendar · react-pdf(pdf.js) · react-dropzone · SweetAlert2 · Framer Motion |
 | **디자인 · 협업** | Figma · GitHub · Notion · Discord |
 | **Backend** *(별도 저장소)* | Java · Spring Boot · MySQL |
-| **AI** *(별도 저장소)* | FastAPI (Python) · Papago STT · 번역 엔진 |
+| **AI** *(별도 저장소)* | Python · LiveKit Agents · FastAPI · LangGraph · CLOVA Speech(STT) · Papago 번역 · OpenAI gpt-4o-mini |
 
 ### 기술 선택 이유
 
 | 기술 | 이유 |
 |---|---|
 | **LiveKit** | 실시간 영상 · 음성 스트림과 참가자 상태 처리에 적합 |
-| **Context API** | 회의 상태와 사용자 설정을 화면 전반에서 일관되게 관리 |
+| **Context API** | 로그인 사용자 정보와 번역 설정을 화면 전반에서 일관되게 관리 |
 | **Tailwind CSS** | 빠른 UI 구현과 화면 일관성 유지에 유리 |
 
 ---
@@ -191,58 +192,88 @@
 flowchart LR
     subgraph Client["🖥 React Frontend (이 저장소)"]
         UI["UI / Pages"]
-        CTX["Context API<br/>(회의 · 모드 · 설정)"]
+        CTX["Context API<br/>(사용자 · 번역)"]
         LK["LiveKit Client"]
     end
 
     subgraph Server["⚙ Backend"]
-        SB["Spring Boot<br/>인증 · 회의 · 문서 API"]
+        SB["Spring Boot<br/>인증 · 회의 · 문서 API<br/>LiveKit 토큰 발급"]
         DB[("MySQL")]
     end
 
-    subgraph AI["🧠 AI"]
-        FA["FastAPI<br/>STT · 번역 엔진"]
-        STT["Papago STT"]
+    subgraph AI["🧠 AI (별도 저장소)"]
+        AG["LiveKit Agent (Python)<br/>CLOVA STT · Papago 번역 · 매너 체크"]
+        FA["FastAPI + LangGraph<br/>문맥 보정 · 회의 요약 · 문서 RAG"]
     end
 
     LKS["LiveKit Server<br/>(WebRTC SFU)"]
 
     UI <--> CTX
     UI -- "REST (Axios)" --> SB
+    UI -- "문서 RAG 처리 (Axios)" --> FA
     SB <--> DB
-    SB <--> FA
-    FA --> STT
-    LK <-- "영상 · 음성 · DataChannel" --> LKS
     UI <--> LK
-    FA -- "자막 데이터" --> UI
+    LK <-- "영상 · 음성 · DataChannel" --> LKS
+    LKS <-- "음성 수신 · 자막/매너 알림 전송" --> AG
+    AG <--> FA
 ```
 
 | 컴포넌트 | 역할 |
 |---|---|
 | **LiveKit (WebRTC)** | 영상 · 음성 스트림 처리, 참가자 상태 전파 |
-| **Spring Boot** | 사용자 인증, 회의 생성/참여, 문서 관리 API |
-| **FastAPI** | STT 및 번역 처리 엔진 |
+| **Spring Boot** | 사용자 인증, 회의 생성/참여, 문서 관리 API, LiveKit 접속 토큰 발급 |
+| **LiveKit Agent** | 회의실에 참여해 음성을 CLOVA STT로 받아쓰고, Papago로 번역해 `stt` 채널로 자막 전송 |
+| **FastAPI** | LangGraph 기반 문맥 보정 · 밈 번역 · 회의 요약 · 문서 RAG |
 | **MySQL** | 사용자 · 회의 · 문서 데이터 저장 |
 
 ---
 
 ## 🧠 핵심 로직
 
+### 0. LiveKit DataChannel 토픽 설계
+
+화상 · 음성 외의 모든 실시간 정보는 LiveKit **DataChannel**을 토픽별로 나눠 주고받습니다.
+
+| 토픽 | 보내는 쪽 → 받는 쪽 | 용도 |
+|---|---|---|
+| `stt` | AI Agent → 모든 참가자 | 원문 자막 + 언어별 번역 |
+| `manner` | AI Agent → 모든 참가자 | 매너 체크 알림 |
+| `chat_messages` | 참가자 ↔ 참가자 | 채팅 |
+| `docshare` | 참가자 → 모든 참가자 | 문서 공유 시작/종료 · 원문/번역 레이아웃 |
+| `doc-sync` | 참가자 → 모든 참가자 | PDF 페이지 이동 동기화 |
+| `theme_change` | 참가자 → 모든 참가자 | 문화 라이브 배경 테마 변경 |
+| `virtual_bg_change` | 참가자 → 모든 참가자 | 참가자별 가상 배경 공유 |
+| `meeting_control` | 호스트 → 모든 참가자 | 라이브 종료 등 회의 제어 |
+
 ### 1. 실시간 자막 파이프라인
 
 ```mermaid
 flowchart LR
-    A["🎙 음성 입력<br/>회의 중 발화 수집"] --> B["📝 STT 처리<br/>음성 → 텍스트"]
-    B --> C["🌐 번역 API<br/>다국어 문장 변환"]
-    C --> D["💬 자막 생성<br/>실시간 자막 데이터"]
-    D --> E["🖼 UI 오버레이<br/>회의 화면에 즉시 출력"]
-    E --> F["🔄 참가자 상태 동기화<br/>카메라·마이크·배경 공유"]
+    A["🎙 음성 입력<br/>회의 중 발화"] --> B["📝 STT<br/>CLOVA Speech"]
+    B --> C["🌐 번역<br/>Papago (+ AI 문맥 보정)"]
+    C --> D["💬 자막 데이터<br/>DataChannel 'stt'"]
+    D --> E["🖼 UI 오버레이<br/>내 언어에 맞춰 표시"]
 ```
 
 프론트엔드는 **D → E** 구간을 담당합니다.
-자막 데이터를 받아 `원어(상단) / 번역(하단)` 구조로 렌더링하고, 새 자막이 들어오면 이전 자막을 교체하거나 일정 시간 후 사라지도록 처리합니다.
+하나의 자막 메시지에 여러 언어 번역이 함께 오기 때문에, 각 참가자 화면은 **자기 언어(locale)에 맞는 번역만 골라** `원어(상단) / 번역(하단)`으로 보여줍니다. 확정된 문장(final)만 표시하고, 일정 시간이 지나면 자막이 사라집니다.
 
-### 2. 카메라 OFF 배경 동기화 (LiveKit DataChannel + State Map)
+```jsx
+// SubtitleOverlay.jsx (요약)
+useDataChannel('stt', (msg) => {
+  const data = JSON.parse(new TextDecoder().decode(msg.payload));
+  if (!data.final || !data.text?.trim()) return;            // 확정된 문장만
+
+  const myLocale = normalizeLocale(userLocale);
+  let translated = data.translations?.[myLocale];             // 예: 'en-US'
+  if (!translated && myLocale.includes('-')) {
+    translated = data.translations?.[myLocale.split('-')[0]]; // 없으면 'en'으로 한 번 더
+  }
+  // 원문(data.text) + 번역(translated) 표시 → 일정 시간 뒤 사라짐
+});
+```
+
+### 2. 카메라 OFF 가상 배경 동기화
 
 <table>
 <tr>
@@ -250,18 +281,18 @@ flowchart LR
 
 **❌ Before**
 
-- 배경 설정이 **내 화면의 로컬 상태**로만 변경
+- 가상 배경 선택이 **내 화면의 로컬 상태**로만 저장
 - 다른 참가자에게 전파되지 않음
-- 카메라 OFF 시 참가자마다 **서로 다른 화면**
+- 카메라를 끄면 참가자마다 **서로 다른 화면**
 
 </td>
 <td width="50%" valign="top">
 
 **✅ After**
 
-- 배경 설정값을 **DataChannel**로 실시간 브로드캐스트
-- 참가자별 **State Map**을 구축해 단일 기준으로 참조
-- 모든 화면에서 **동일한 배경 테마** 유지
+- 선택한 배경을 `virtual_bg_change` 토픽으로 **모든 참가자에게 전송**
+- 참가자 identity를 키로 하는 **배경 맵(`virtualBgMap`)** 으로 관리
+- 카메라가 꺼진 타일은 그 맵의 배경 이미지를 대신 표시
 
 </td>
 </tr>
@@ -274,70 +305,75 @@ sequenceDiagram
     participant B as 참가자 B
     participant C as 참가자 C
 
-    A->>A: 배경 테마 선택
-    A->>LK: publishData({ type: "bg", themeId })
-    LK-->>B: DataReceived
-    LK-->>C: DataReceived
-    B->>B: stateMap[A.identity].bg = themeId
-    C->>C: stateMap[A.identity].bg = themeId
-    Note over B,C: 카메라가 꺼져 있어도<br/>A의 타일에 같은 배경 렌더링
+    A->>A: 가상 배경 선택 (내 맵에도 저장)
+    A->>LK: virtual_bg_change { identity: A, bgId }
+    LK-->>B: 수신
+    LK-->>C: 수신
+    B->>B: virtualBgMap[A] = bgId
+    C->>C: virtualBgMap[A] = bgId
+    Note over B,C: A가 카메라를 꺼도<br/>A의 타일에 같은 배경 표시
 ```
 
 ```jsx
-// 송신: 내 배경 설정을 모든 참가자에게 전파
-const broadcastBackground = (themeId) => {
-  const payload = new TextEncoder().encode(
-    JSON.stringify({ type: "background", themeId })
-  );
-  room.localParticipant.publishData(payload, { reliable: true, topic: "participant-state" });
-  updateState(room.localParticipant.identity, { background: themeId }); // 내 화면도 같은 맵으로
+// CultureConferenceUI.jsx (요약)
+const [virtualBgMap, setVirtualBgMap] = useState({});
+const { send: sendVirtualBg } = useDataChannel('virtual_bg_change');
+
+// 송신: 내가 고른 배경을 내 맵에 저장하고 모두에게 알림
+const applyVirtualBg = (bgId) => {
+  const myId = room.localParticipant.identity;
+  setVirtualBgMap((prev) => ({ ...prev, [myId]: bgId }));
+  sendVirtualBg(new TextEncoder().encode(
+    JSON.stringify({ type: 'virtual_bg', identity: myId, bgId })
+  ));
 };
 
-// 수신: 참가자별 State Map 갱신
-useEffect(() => {
-  const onData = (payload, participant, _kind, topic) => {
-    if (topic !== "participant-state" || !participant) return;
-    const msg = JSON.parse(new TextDecoder().decode(payload));
-    if (msg.type === "background") {
-      updateState(participant.identity, { background: msg.themeId });
-    }
-  };
-  room.on(RoomEvent.DataReceived, onData);
-  return () => room.off(RoomEvent.DataReceived, onData);
-}, [room]);
+// 수신: 다른 참가자의 배경을 맵에 반영
+useDataChannel('virtual_bg_change', (msg) => {
+  const data = JSON.parse(new TextDecoder().decode(msg.payload));
+  if (data.type !== 'virtual_bg' || !data.identity || !data.bgId) return;
+  setVirtualBgMap((prev) => ({ ...prev, [data.identity]: data.bgId }));
+});
 
-// 렌더: 영상 대신 State Map의 배경을 참조
-const bg = stateMap[participant.identity]?.background;
+// 렌더: 카메라가 꺼진 참가자 타일은 맵의 배경 이미지로 대체
+const getFallbackBackgroundUrlForParticipant = (participant) => {
+  const bgId = participant.identity === room.localParticipant.identity
+    ? virtualBgId
+    : virtualBgMap[participant.identity];
+  const preset = findVirtualBgPreset(bgId);
+  return preset?.type === 'image' ? preset.imageUrl : null;
+};
 ```
 
 **핵심 포인트**
 
-- 상태의 **단일 진실 공급원(Source of Truth)** 을 `State Map`으로 통일
-- 늦게 입장한 참가자도 같은 값을 받을 수 있도록 입장 시 현재 상태를 동기화
-- **구조적 개선**으로 같은 유형의 동기화 문제(마이크, 카메라 상태 등) 재발 방지
+- 참가자별 배경을 **identity를 키로 한 맵 하나**로 관리해, 어느 화면이든 같은 값을 참조
+- 같은 방식(토픽 + 수신 측 상태 반영)을 **테마 변경 · 문서 공유 · PDF 페이지 동기화**에도 적용
+
+> 📌 **남은 과제** — 지금은 배경을 바꾼 *이후의* 변경만 전달되므로, 회의 중간에 들어온 참가자는 기존 참가자가 배경을 다시 바꿔야 반영됩니다. 입장 시 현재 상태를 한 번 요청 · 응답하는 구조로 보완할 수 있습니다.
 
 ### 3. 모드 분리 구조
 
 ```mermaid
 flowchart TD
-    H["공통 헤더<br/>로고 · 모드 토글 · 알림 · 프로필"] --> M{"모드"}
-    M -- Business --> B["대시보드 · 일정 · 문서 · 회의록<br/>매너 코칭 · 회의실"]
-    M -- Culture --> C["문화 라이브 · 테마 배경 · 밈 퀴즈<br/>커뮤니티 · 라이브룸"]
+    H["모드 전환 토글 (ModeToggle)"] --> M{"현재 경로"}
+    M -- "/business/*" --> B["DashboardLayout<br/>대시보드 · 영상회의 · 문서 · 일정 · 설정"]
+    M -- "/culture/*" --> C["CultureLayout<br/>문화 홈 · 영상 탐색 · 라이브 시작 · 친구 · 커뮤니티"]
 ```
 
-- 모드 상태는 **Context** 로 관리, 라우팅 · 헤더 · 로딩 화면 · 색상 톤이 모드에 따라 분기
-- 같은 컴포넌트(헤더, 알림, 프로필)는 **재사용**하고 화면 구성만 모드별로 다르게 제공
+- 모드는 **라우트 + 레이아웃**으로 분리 — 토글을 누르면 현재 경로에 따라 반대 모드의 홈으로 이동
+- 모드마다 헤더 · 로딩 화면 · 색상 톤을 다르게 두고, 알림(SweetAlert2) 등 공통 요소는 재사용
 
-### 4. 문서 업로드 · 사전 학습(RAG) 흐름
+### 4. 문서 업로드 · RAG 처리 흐름
 
 ```mermaid
 flowchart LR
     U["파일 선택 / Drag & Drop"] --> V{"유효성 검사<br/>확장자 · 용량(최대 100MB)"}
     V -- 실패 --> E["SweetAlert2 오류 안내"]
-    V -- 통과 --> O["옵션 설정<br/>원문 언어 · 회의 연결 · RAG"]
-    O --> API["Axios 업로드"]
-    API --> OK["완료 알림 → 문서 목록 갱신"]
-    OK --> S["회의 중 문서 선택 → AI 문맥 학습<br/>번역 정확도 향상"]
+    V -- 통과 --> O["옵션 설정<br/>문서 이름 · 원문 언어 · RAG"]
+    O --> API["Spring Boot 업로드<br/>(진행률 표시)"]
+    API --> R["FastAPI /rag/process-document<br/>문서 파싱 · 임베딩"]
+    R --> OK["완료 알림 → 문서 목록 갱신"]
 ```
 
 - 지원 확장자: `pdf` `doc` `docx` `ppt` `pptx` `hwp`
@@ -349,70 +385,49 @@ flowchart LR
 
 ```
 talaria-frontend/
+├── docs/screenshots/                 # README 화면 캡처
 ├── public/
-│   ├── img/                      # 로고(hermes_logo.jpg), 랜딩 이미지
-│   ├── video/                    # 랜딩 배경 영상 (back1.mp4, back2.mp4)
-│   ├── virtual-bg/               # 가상 배경 리소스
-│   │   ├── culture/              # 경복궁·한옥·서울·도쿄·뉴욕·파리 등 한국/해외 명소
-│   │   ├── season/               # 봄·여름·가을·겨울 계절 배경
-│   │   └── special/              # 콘서트·파티·불꽃놀이 등 특별 테마
-│   └── vite.svg
+│   ├── img/                          # 로고(hermes_logo.jpg), 랜딩 이미지
+│   ├── video/                        # 랜딩 배경 영상
+│   └── virtual-bg/                   # 가상 배경 (culture · season · special)
 │
 ├── src/
-│   ├── main.jsx                  # 앱 진입점
-│   ├── App.jsx                   # 라우팅 · Provider 구성
+│   ├── main.jsx · App.jsx
+│   ├── axios.jsx                     # Axios 인스턴스 (Spring Boot · FastAPI)
+│   ├── routes/Approuter.jsx          # 라우팅
+│   ├── layouts/                      # MainLayout · DashboardLayout · CultureLayout
+│   ├── contexts/                     # UserContext · TranslationProvider
+│   ├── hooks/                        # useVirtualBackground · useKPDHCursor
+│   ├── services/livekitService.jsx   # LiveKit 접속 토큰 요청
+│   ├── data/cultureQuizData.js       # 밈 퀴즈 데이터
 │   │
 │   ├── pages/
-│   │   ├── landing/              # 랜딩 (모드 소개)
-│   │   ├── business/
-│   │   │   ├── Dashboard.jsx     # 오늘 회의 · 일정 · 최근 문서
-│   │   │   ├── Meetings.jsx      # 회의 목록 · 생성 · 입장
-│   │   │   ├── Calendar.jsx      # FullCalendar 일정 관리
-│   │   │   ├── Documents.jsx     # 문서 · 회의록 아카이브
-│   │   │   └── MeetingRoom.jsx   # 화상회의 룸 (LiveKit)
-│   │   └── culture/
-│   │       ├── CultureHome.jsx   # 핫 라이브 · 홈
-│   │       ├── LiveRoom.jsx      # 문화 라이브 룸
-│   │       ├── MemeQuiz.jsx      # 오늘의 밈 퀴즈
-│   │       └── Community.jsx     # 커뮤니티 게시판
+│   │   ├── Home.jsx · LoginPage.jsx · Register.jsx
+│   │   ├── DashBoardPage/            # DashHome · DashVIdeo · DashDocuments · DashSchedule · Dashsettings/
+│   │   └── CulturePage/              # CultureHome · CultureViedos · LiveStartPage · FriendsPage · Community*
 │   │
-│   ├── components/
-│   │   ├── layout/               # Header · ModeToggle · Sidebar
-│   │   ├── meeting/
-│   │   │   ├── VideoGrid.jsx     # 참가자 타일 자동 배치 그리드
-│   │   │   ├── SubtitleOverlay.jsx   # 원어/번역 자막 오버레이
-│   │   │   ├── ControlBar.jsx    # 마이크 · 카메라 · 공유 · 나가기
-│   │   │   ├── SidePanel/        # 매너 체크 · 문서 · 채팅 · 참가자 탭
-│   │   │   └── PreflightCheck.jsx    # 입장 전 장치 점검
-│   │   ├── culture/
-│   │   │   ├── ThemePicker.jsx   # 라이브 테마 선택
-│   │   │   ├── BackgroundPicker.jsx  # 가상 배경 선택
-│   │   │   ├── EffectLayer.jsx   # 이모지 · 임팩트 이펙트
-│   │   │   └── HighlightText.jsx # 신조어 · 밈 하이라이트
-│   │   ├── document/
-│   │   │   ├── UploadModal.jsx   # Drag & Drop · 유효성 · RAG 옵션
-│   │   │   ├── DocumentList.jsx  # 필터 · 정렬 · 검색
-│   │   │   └── PdfViewer.jsx     # 원문/번역 나란히·탭 모드
-│   │   └── common/               # Loading · ErrorState · Alert(SweetAlert2)
-│   │
-│   ├── context/
-│   │   ├── ModeContext.jsx       # Business / Culture 모드
-│   │   ├── MeetingContext.jsx    # 회의 상태 · 참가자 State Map
-│   │   └── AuthContext.jsx       # 사용자 · 인증
-│   │
-│   ├── hooks/
-│   │   ├── useLiveKitRoom.js     # 룸 연결 · 이벤트 구독
-│   │   ├── useParticipantState.js    # DataChannel 기반 상태 동기화
-│   │   └── useSubtitle.js        # 자막 수신 · 갱신
-│   │
-│   ├── api/                      # Axios 인스턴스 · 도메인별 API
-│   ├── utils/                    # 포맷터 · 파일 검증 · 상수
-│   └── styles/                   # 전역 스타일 · Tailwind 설정
+│   └── components/
+│       ├── common/ModeToggle.jsx     # 비즈니스 ↔ 문화 모드 전환
+│       ├── home/                     # 랜딩 섹션
+│       ├── dashboard/
+│       │   ├── dashmain/             # 대시보드 카드 · 진행 중 회의 · 할 일
+│       │   ├── dashSchedule/         # 일정 모달 · 오늘 일정
+│       │   ├── dashDoc/              # 문서 목록 · 업로드 모달 · 회의록 보기
+│       │   └── dashvideo/            # 회의실
+│       │       ├── Lobby.jsx              # 입장 전 점검 (PreJoin)
+│       │       ├── ConferenceUI.jsx       # 회의 화면 · 문서 공유
+│       │       ├── CustomVideoGrid.jsx    # 참가자 타일 그리드 · PDF 페이지 동기화
+│       │       ├── SubtitleOverlay.jsx    # 원어/번역 자막
+│       │       ├── SyncedPdfGrid.jsx      # 원문/번역 PDF 대조
+│       │       ├── MannerChecker.jsx      # 매너 체크 알림
+│       │       └── TranscriptSidebarComponents/  # 채팅 · 문서 · 사전 · 참가자 탭
+│       └── Culture/
+│           ├── CultureHome/          # 핫 라이브 · 오늘의 퀴즈
+│           ├── CultureVideo/         # 라이브 화면 · 자막 · 채팅 · 알림
+│           └── contents/             # 테마 배경 · 가상 배경 · 이펙트 · 키워드 하이라이트
 │
-├── .env.example
 ├── index.html
 ├── package.json
-├── tailwind.config.js
 └── vite.config.js
 ```
 
@@ -436,8 +451,7 @@ cd talaria-frontend
 # 2. 의존성 설치
 npm install
 
-# 3. 환경 변수 설정
-cp .env.example .env
+# 3. 환경 변수 설정 (아래 내용으로 .env 파일 생성)
 
 # 4. 개발 서버 실행
 npm run dev
@@ -449,30 +463,33 @@ npm run preview
 
 ### 환경 변수 (`.env`)
 
-> 변수명은 예시입니다. 실제 코드에서 사용하는 이름에 맞춰 수정하세요.
-
 ```env
-# Backend API
-VITE_API_BASE_URL=http://localhost:8080
+# Spring Boot API (기본값 http://localhost:8080)
+VITE_API_BASE=http://localhost:8080
 
-# LiveKit
-VITE_LIVEKIT_URL=wss://your-livekit-server
+# FastAPI AI 서버 (기본값 http://127.0.0.1:8000)
+VITE_AI_BASE=http://127.0.0.1:8000
+
+# WebSocket (기본값 ws://localhost:8080)
+VITE_WS_BASE=ws://localhost:8080
 ```
 
-> 💡 LiveKit과 푸시/미디어 권한(카메라·마이크)은 **HTTPS 또는 localhost** 환경에서만 정상 동작합니다.
+> LiveKit 서버 주소와 접속 토큰은 프론트엔드에 따로 넣지 않고, 백엔드(`POST /livekit/token`)에서 받아옵니다.
+
+> 💡 브라우저의 카메라 · 마이크 권한은 **HTTPS 또는 localhost** 환경에서만 요청할 수 있습니다.
 
 ---
 
 ## 🔥 트러블슈팅
 
-### 카메라를 끄면 배경 설정이 다른 참가자에게 보이지 않는 문제
+### 카메라를 끄면 가상 배경이 다른 참가자에게 보이지 않는 문제
 
 | | 내용 |
 |---|---|
-| **문제** | 카메라 OFF 상태에서 배경 설정이 참가자 간 동기화되지 않아, 다른 참가자 화면에서는 설정한 배경 테마가 유지되지 않는 UX 불일치 발생 |
-| **원인** | 로컬 상태만 업데이트되고 다른 참가자에게 전파되지 않음 · 실시간 상태 동기화 메커니즘 부재 |
-| **해결** | **LiveKit DataChannel** 로 배경 설정값을 실시간 공유하고, 참가자별 **State Map** 을 구축하여 모든 화면이 같은 값을 참조하도록 구조 개선 |
-| **결과** | 모든 참가자 화면에서 배경 테마 일관성 확보 · 실시간 상태 동기화 UX 개선 · 구조적 개선으로 재발 방지 |
+| **문제** | 카메라 OFF 상태에서 내가 고른 가상 배경이 다른 참가자 화면에 보이지 않아, 참가자마다 서로 다른 화면을 보는 UX 불일치 발생 |
+| **원인** | 배경 선택값이 내 화면의 로컬 상태에만 저장되고, 다른 참가자에게 전달하는 경로가 없었음 |
+| **해결** | 선택값을 LiveKit DataChannel `virtual_bg_change` 토픽으로 전송하고, 받는 쪽은 참가자 identity를 키로 한 **배경 맵**에 저장 → 카메라가 꺼진 타일은 맵의 배경 이미지로 대체 |
+| **결과** | 카메라를 꺼도 모든 참가자 화면에서 같은 배경이 보이고, 같은 구조를 테마 변경 · 문서 공유 · PDF 페이지 동기화에도 재사용 |
 
 > 💡 **배운 점**
 > 실시간 서비스에서는 로컬 상태 관리만으로는 일관된 사용자 경험을 보장하기 어렵고, **클라이언트 간 상태 동기화 구조를 함께 설계**해야 합니다.
@@ -481,11 +498,11 @@ VITE_LIVEKIT_URL=wss://your-livekit-server
 
 ## 🏆 성과
 
-- **2025 실전프로젝트 우수상** 수상
-- 실시간 번역 기능을 **회의 흐름 안에 자연스럽게 정착** — 단순 번역이 아닌 끊김 없는 통합 소통 경험
-- 참가자 상태 변화와 자막 흐름이 **분리되지 않는 UI 구조**
-- 사용 목적에 따라 정보 밀도를 조절하는 **이중 경험 구조**(비즈니스 / 문화)
-- 회의에서 **문서 · 기록 관리까지 연결**되는 확장형 서비스 구조
+- **2025 실전프로젝트 우수상 (2등)** 수상
+- 음성 입력 → STT → 번역 → **자막 오버레이**까지 이어지는 실시간 회의 화면 구현
+- 카메라 OFF 배경 테마를 **모든 참가자 화면에서 동일하게** 보이도록 상태 동기화 구조 개선
+- 하나의 프론트엔드에서 **비즈니스 / 문화 두 모드**를 목적에 맞는 화면 구성으로 제공
+- 회의 · 일정 · 문서 업로드 · PDF 원문/번역 대조 · AI 회의 요약까지 **회의 전후 흐름**을 화면으로 연결
 
 ---
 
